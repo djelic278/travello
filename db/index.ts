@@ -23,7 +23,7 @@ async function initializeDatabase() {
           // Create SQL client
           const sql = neon(process.env.DATABASE_URL!);
 
-          // Create drizzle client
+          // Create drizzle client with HTTP
           db = drizzle(sql, { schema });
 
           // Test the connection
@@ -32,7 +32,10 @@ async function initializeDatabase() {
           break;
         } catch (error) {
           retries--;
-          if (retries === 0) throw error;
+          if (retries === 0) {
+            console.error("Failed to connect to database after all retries:", error);
+            throw error;
+          }
           console.log(`Database connection failed, retrying... (${retries} attempts left)`);
           await new Promise(resolve => setTimeout(resolve, 1000));
         }

@@ -54,12 +54,15 @@ if (!fs.existsSync(uploadsDir)) {
 // Set up static file serving for uploads
 app.use('/uploads', express.static(uploadsDir));
 
+// Create HTTP server
+const server = createServer(app);
+
 (async () => {
   try {
-    // Initialize database first
+    // Initialize database connection first
     log("Initializing database connection...");
     await getDb();
-    log("Database connection established");
+    log("Database connection established successfully");
 
     // Initialize auth middleware
     log("Setting up authentication...");
@@ -78,9 +81,6 @@ app.use('/uploads', express.static(uploadsDir));
       const message = err.message || "Internal Server Error";
       res.status(status).json({ message });
     });
-
-    // Create HTTP server
-    const server = createServer(app);
 
     // Set up Vite or static serving as the last middleware
     log("Setting up frontend server...");

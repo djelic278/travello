@@ -1,4 +1,5 @@
-import type { Express, Request, Response, NextFunction } from "express";
+import type { Express } from "express";
+import type { Request, Response, NextFunction } from "express";
 import { getDb } from "@db";
 import { travelForms, users } from "@db/schema";
 import { eq, and } from "drizzle-orm";
@@ -24,7 +25,7 @@ const upload = multer({
 
 export function registerRoutes(app: Express) {
   // Wrap all route handlers with error catching
-  const asyncHandler = (fn: (req: Request, res: Response, next: NextFunction) => Promise<any>) => 
+  const asyncHandler = (fn: (req: Request, res: Response, next: NextFunction) => Promise<any>) =>
     (req: Request, res: Response, next: NextFunction) => {
       return Promise.resolve(fn(req, res, next)).catch(next);
     };
@@ -40,8 +41,8 @@ export function registerRoutes(app: Express) {
       .select()
       .from(travelForms)
       .where(
-        req.user.isAdmin 
-          ? undefined 
+        req.user.isAdmin
+          ? undefined
           : eq(travelForms.userId, req.user.id)
       );
     res.json(forms);
@@ -59,8 +60,8 @@ export function registerRoutes(app: Express) {
       .where(
         and(
           eq(travelForms.id, parseInt(req.params.id)),
-          req.user.isAdmin 
-            ? undefined 
+          req.user.isAdmin
+            ? undefined
             : eq(travelForms.userId, req.user.id)
         )
       )
@@ -90,7 +91,7 @@ export function registerRoutes(app: Express) {
     res.json(form);
   }));
 
-  app.put("/api/forms/:id/post-travel", 
+  app.put("/api/forms/:id/post-travel",
     upload.array('files', 4),
     asyncHandler(async (req: Request, res: Response) => {
       if (!req.isAuthenticated()) {
