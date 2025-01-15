@@ -22,7 +22,7 @@ const upload = multer({
   }
 });
 
-export function registerRoutes(app: Express): void {
+export function registerRoutes(app: Express) {
   // Wrap all route handlers with error catching
   const asyncHandler = (fn: (req: Request, res: Response, next: NextFunction) => Promise<any>) => 
     (req: Request, res: Response, next: NextFunction) => {

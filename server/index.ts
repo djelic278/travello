@@ -4,11 +4,10 @@ import { setupVite, serveStatic, log } from "./vite";
 import { setupAuth } from "./auth";
 import path from "path";
 import fs from "fs";
-import { createServer } from "http";
+import { createServer } from 'http';
 
-// Create Express app and HTTP server
+// Create Express app
 const app = express();
-const server = createServer(app);
 
 // Basic middleware setup
 app.use(express.json());
@@ -59,16 +58,19 @@ app.use('/uploads', express.static(uploadsDir));
     // Initialize auth first as it sets up important middleware
     setupAuth(app);
 
-    // Register API routes after auth is set up
+    // Register API routes after auth setup
     registerRoutes(app);
 
-    // Global error handler - must be after routes but before Vite
+    // Global error handler
     app.use((err: any, _req: Request, res: Response, _next: NextFunction) => {
       console.error('Error:', err);
       const status = err.status || err.statusCode || 500;
       const message = err.message || "Internal Server Error";
       res.status(status).json({ message });
     });
+
+    // Create HTTP server
+    const server = createServer(app);
 
     // Set up Vite or static serving as the last middleware
     if (app.get("env") === "development") {
@@ -77,11 +79,28 @@ app.use('/uploads', express.static(uploadsDir));
       serveStatic(app);
     }
 
-    // Start the server
+    // Start server on a fixed port
     const PORT = 5000;
     server.listen(PORT, "0.0.0.0", () => {
       log(`Server running on port ${PORT}`);
     });
+
+    // Graceful shutdown
+    const shutdown = () => {
+      server.close(() => {
+        log('Server shutdown complete');
+        process.exit(0);
+      });
+
+      setTimeout(() => {
+        log('Force shutting down after timeout');
+        process.exit(1);
+      }, 10000);
+    };
+
+    process.on('SIGTERM', shutdown);
+    process.on('SIGINT', shutdown);
+
   } catch (error) {
     console.error('Failed to start server:', error);
     process.exit(1);
