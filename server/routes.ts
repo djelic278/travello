@@ -1,7 +1,8 @@
 import type { Express } from "express";
 import type { Request, Response, NextFunction } from "express";
+import type { Server } from "http";
 import { getDb } from "@db";
-import { travelForms, users } from "@db/schema";
+import { travelForms } from "@db/schema";
 import { eq, and } from "drizzle-orm";
 import multer from 'multer';
 import path from 'path';
@@ -23,7 +24,7 @@ const upload = multer({
   }
 });
 
-export function registerRoutes(app: Express) {
+export function registerRoutes(app: Express, server: Server): void {
   // Wrap all route handlers with error catching
   const asyncHandler = (fn: (req: Request, res: Response, next: NextFunction) => Promise<any>) =>
     (req: Request, res: Response, next: NextFunction) => {

@@ -46,15 +46,18 @@ export function setupAuth(app: Express) {
     secret: process.env.REPL_ID || "travel-allowance-secret",
     resave: false,
     saveUninitialized: false,
-    cookie: {},
+    cookie: {
+      maxAge: 24 * 60 * 60 * 1000 // 24 hours
+    },
     store: new MemoryStore({
-      checkPeriod: 86400000,
+      checkPeriod: 86400000, // prune expired entries every 24h
     }),
   };
 
   if (app.get("env") === "production") {
     app.set("trust proxy", 1);
     sessionSettings.cookie = {
+      ...sessionSettings.cookie,
       secure: true,
     };
   }
@@ -115,8 +118,8 @@ export function setupAuth(app: Express) {
       }
 
       const { username, password } = result.data;
-
       const db = await getDb();
+
       const [existingUser] = await db
         .select()
         .from(users)

@@ -4,8 +4,8 @@ import { setupVite, serveStatic, log } from "./vite";
 import { setupAuth } from "./auth";
 import path from "path";
 import fs from "fs";
-import { createServer } from 'http';
 import { getDb } from "@db";
+import { createServer } from 'http';
 
 // Create Express app
 const app = express();
@@ -54,33 +54,26 @@ if (!fs.existsSync(uploadsDir)) {
 // Set up static file serving for uploads
 app.use('/uploads', express.static(uploadsDir));
 
-// Create HTTP server
-const server = createServer(app);
-
+// Initialize server
 (async () => {
   try {
     // Initialize database connection first
     log("Initializing database connection...");
-    await getDb();
+    const db = await getDb();
     log("Database connection established successfully");
 
-    // Initialize auth middleware
+    // Set up authentication after database is ready
     log("Setting up authentication...");
     setupAuth(app);
     log("Authentication setup complete");
 
-    // Register API routes
-    log("Registering routes...");
-    registerRoutes(app);
-    log("Routes registered");
+    // Create HTTP server
+    const server = createServer(app);
 
-    // Global error handler
-    app.use((err: any, _req: Request, res: Response, _next: NextFunction) => {
-      console.error('Error:', err);
-      const status = err.status || err.statusCode || 500;
-      const message = err.message || "Internal Server Error";
-      res.status(status).json({ message });
-    });
+    // Register routes after auth setup
+    log("Registering routes...");
+    registerRoutes(app, server);
+    log("Routes registered");
 
     // Set up Vite or static serving as the last middleware
     log("Setting up frontend server...");
@@ -91,28 +84,19 @@ const server = createServer(app);
     }
     log("Frontend server setup complete");
 
-    // Start server on a fixed port
+    // Global error handler must be after all routes
+    app.use((err: any, _req: Request, res: Response, _next: NextFunction) => {
+      console.error('Error:', err);
+      const status = err.status || err.statusCode || 500;
+      const message = err.message || "Internal Server Error";
+      res.status(status).json({ message });
+    });
+
+    // Start server
     const PORT = 5000;
     server.listen(PORT, "0.0.0.0", () => {
       log(`Server running on port ${PORT}`);
     });
-
-    // Graceful shutdown
-    const shutdown = () => {
-      log("Initiating graceful shutdown...");
-      server.close(() => {
-        log('Server shutdown complete');
-        process.exit(0);
-      });
-
-      setTimeout(() => {
-        log('Force shutting down after timeout');
-        process.exit(1);
-      }, 10000);
-    };
-
-    process.on('SIGTERM', shutdown);
-    process.on('SIGINT', shutdown);
 
   } catch (error) {
     console.error('Failed to start server:', error);
