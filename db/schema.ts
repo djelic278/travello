@@ -14,7 +14,7 @@ export const travelForms = pgTable("travel_forms", {
   destination: text("destination").notNull(),
   startDate: timestamp("start_date").notNull(),
   duration: integer("duration").notNull(),
-  status: text("status").notNull().default('pending'),
+  status: text("status").default('pending').notNull(),
 });
 
 export const insertUserSchema = createInsertSchema(users);

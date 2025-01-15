@@ -2,7 +2,7 @@ import express, { type Request, Response, NextFunction } from "express";
 import { registerRoutes } from "./routes";
 import { setupVite, serveStatic, log } from "./vite";
 import { setupAuth } from "./auth";
-import { getDb } from "@db";
+import { db } from "@db";
 
 const app = express();
 
@@ -44,11 +44,6 @@ app.use((req, res, next) => {
 // Initialize server
 (async () => {
   try {
-    // Initialize database connection
-    log("Initializing database connection...");
-    await getDb();
-    log("Database connection established successfully");
-
     // Set up authentication
     log("Setting up authentication...");
     setupAuth(app);

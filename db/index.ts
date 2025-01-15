@@ -1,5 +1,5 @@
-import { neon, neonConfig } from '@neondatabase/serverless';
-import { drizzle } from 'drizzle-orm/neon-http';
+import { drizzle } from 'drizzle-orm/postgres-js';
+import postgres from 'postgres';
 import * as schema from "@db/schema";
 
 if (!process.env.DATABASE_URL) {
@@ -8,47 +8,21 @@ if (!process.env.DATABASE_URL) {
   );
 }
 
-let db: ReturnType<typeof drizzle>;
-let retries = 5;
+// Create postgres connection with connection pooling
+const client = postgres(process.env.DATABASE_URL, {
+  max: 10, // Maximum number of connections
+  idle_timeout: 20, // Idle connection timeout in seconds
+  connect_timeout: 10, // Connection timeout in seconds
+});
 
-// Initialize database with error handling and retries
-async function initializeDatabase() {
-  try {
-    if (!db) {
-      while (retries > 0) {
-        try {
-          // Configure neon
-          neonConfig.fetchConnectionCache = true;
+// Create drizzle database instance
+export const db = drizzle(client, { schema });
 
-          // Create SQL client
-          const sql = neon(process.env.DATABASE_URL!);
-
-          // Create drizzle client with HTTP
-          db = drizzle(sql, { schema });
-
-          // Test the connection
-          await db.select().from(schema.users).limit(1);
-          console.log("Database connection established successfully");
-          break;
-        } catch (error) {
-          retries--;
-          if (retries === 0) {
-            console.error("Failed to connect to database after all retries:", error);
-            throw error;
-          }
-          console.log(`Database connection failed, retrying... (${retries} attempts left)`);
-          await new Promise(resolve => setTimeout(resolve, 1000));
-        }
-      }
-    }
-    return db;
-  } catch (error) {
-    console.error("Failed to initialize database connection:", error);
-    throw error;
-  }
-}
-
-// Export an async function to get the database instance
-export async function getDb() {
-  return await initializeDatabase();
+// Test database connection on startup
+try {
+  const result = client`SELECT 1+1 AS result`;
+  console.log('Database connection successful');
+} catch (error) {
+  console.error('Failed to connect to database:', error);
+  process.exit(1);
 }

@@ -1,34 +1,30 @@
+import { Button } from "@/components/ui/button";
 import { Switch, Route } from "wouter";
 import { QueryClientProvider } from "@tanstack/react-query";
 import { queryClient } from "./lib/queryClient";
 import { Toaster } from "@/components/ui/toaster";
-import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { useState } from "react";
 import { useToast } from "@/hooks/use-toast";
+import Dashboard from "./pages/dashboard";
+import { useUser } from "@/hooks/use-user";
 
 function AuthForm() {
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
   const { toast } = useToast();
+  const { login, register } = useUser();
 
   const handleSubmit = async (action: "login" | "register") => {
     try {
-      const res = await fetch(`/api/${action}`, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ username, password }),
-        credentials: "include",
+      await (action === "login" ? login : register)({ username, password });
+      toast({
+        title: "Success",
+        description: `${action === "login" ? "Logged in" : "Registered"} successfully`,
       });
-
-      if (!res.ok) {
-        throw new Error(await res.text());
-      }
-
-      window.location.reload();
     } catch (error: any) {
       toast({
         title: "Error",
@@ -107,10 +103,32 @@ function AuthForm() {
   );
 }
 
+function Router() {
+  const { user, isLoading } = useUser();
+
+  if (isLoading) {
+    return (
+      <div className="flex items-center justify-center min-h-screen">
+        <div className="h-8 w-8 animate-spin rounded-full border-4 border-primary border-r-transparent" />
+      </div>
+    );
+  }
+
+  if (!user) {
+    return <AuthForm />;
+  }
+
+  return (
+    <Switch>
+      <Route path="/" component={Dashboard} />
+    </Switch>
+  );
+}
+
 function App() {
   return (
     <QueryClientProvider client={queryClient}>
-      <AuthForm />
+      <Router />
       <Toaster />
     </QueryClientProvider>
   );

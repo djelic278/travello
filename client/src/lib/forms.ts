@@ -8,6 +8,8 @@ export const preTraveFormSchema = z.object({
   projectCode: z.string().min(1, "Project code is required"),
 });
 
+export type PreTravelForm = z.infer<typeof preTraveFormSchema>;
+
 export const expenseSchema = z.object({
   name: z.string().min(1, "Expense name is required"),
   amount: z.number().min(0, "Amount must be positive"),
@@ -21,7 +23,6 @@ export const postTravelFormSchema = z.object({
   expenses: z.array(expenseSchema),
 });
 
-export type PreTravelForm = z.infer<typeof preTraveFormSchema>;
 export type PostTravelForm = z.infer<typeof postTravelFormSchema>;
 export type Expense = z.infer<typeof expenseSchema>;
 

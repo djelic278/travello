@@ -1,7 +1,7 @@
 import type { Express } from "express";
 import type { Request, Response, NextFunction } from "express";
 import { createServer, type Server } from "http";
-import { getDb } from "@db";
+import { db } from "@db";
 import { travelForms } from "@db/schema";
 import { eq } from "drizzle-orm";
 
@@ -22,7 +22,6 @@ export function registerRoutes(app: Express): Server {
 
   // Get all travel forms for the current user
   app.get("/api/forms", requireAuth, asyncHandler(async (req: Request, res: Response) => {
-    const db = await getDb();
     const forms = await db
       .select()
       .from(travelForms)
@@ -30,9 +29,8 @@ export function registerRoutes(app: Express): Server {
     res.json(forms);
   }));
 
-  // Create new travel form
-  app.post("/api/forms", requireAuth, asyncHandler(async (req: Request, res: Response) => {
-    const db = await getDb();
+  // Create new travel form (pre-travel)
+  app.post("/api/forms/pre-travel", requireAuth, asyncHandler(async (req: Request, res: Response) => {
     const [form] = await db
       .insert(travelForms)
       .values({
@@ -40,6 +38,7 @@ export function registerRoutes(app: Express): Server {
         destination: req.body.destination,
         startDate: new Date(req.body.startDate),
         duration: req.body.duration,
+        status: 'pending',
       })
       .returning();
     res.json(form);
