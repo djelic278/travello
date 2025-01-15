@@ -5,6 +5,7 @@ import { setupAuth } from "./auth";
 import path from "path";
 import fs from "fs";
 import { createServer } from 'http';
+import { getDb } from "@db";
 
 // Create Express app
 const app = express();
@@ -55,11 +56,20 @@ app.use('/uploads', express.static(uploadsDir));
 
 (async () => {
   try {
-    // Initialize auth first as it sets up important middleware
-    setupAuth(app);
+    // Initialize database first
+    log("Initializing database connection...");
+    await getDb();
+    log("Database connection established");
 
-    // Register API routes after auth setup
+    // Initialize auth middleware
+    log("Setting up authentication...");
+    setupAuth(app);
+    log("Authentication setup complete");
+
+    // Register API routes
+    log("Registering routes...");
     registerRoutes(app);
+    log("Routes registered");
 
     // Global error handler
     app.use((err: any, _req: Request, res: Response, _next: NextFunction) => {
@@ -73,11 +83,13 @@ app.use('/uploads', express.static(uploadsDir));
     const server = createServer(app);
 
     // Set up Vite or static serving as the last middleware
+    log("Setting up frontend server...");
     if (app.get("env") === "development") {
       await setupVite(app, server);
     } else {
       serveStatic(app);
     }
+    log("Frontend server setup complete");
 
     // Start server on a fixed port
     const PORT = 5000;
@@ -87,6 +99,7 @@ app.use('/uploads', express.static(uploadsDir));
 
     // Graceful shutdown
     const shutdown = () => {
+      log("Initiating graceful shutdown...");
       server.close(() => {
         log('Server shutdown complete');
         process.exit(0);

@@ -1,5 +1,5 @@
 import type { Express, Request, Response, NextFunction } from "express";
-import { db } from "@db";
+import { getDb } from "@db";
 import { travelForms, users } from "@db/schema";
 import { eq, and } from "drizzle-orm";
 import multer from 'multer';
@@ -35,6 +35,7 @@ export function registerRoutes(app: Express) {
       return res.status(401).send("Not authenticated");
     }
 
+    const db = await getDb();
     const forms = await db
       .select()
       .from(travelForms)
@@ -51,6 +52,7 @@ export function registerRoutes(app: Express) {
       return res.status(401).send("Not authenticated");
     }
 
+    const db = await getDb();
     const [form] = await db
       .select()
       .from(travelForms)
@@ -76,6 +78,7 @@ export function registerRoutes(app: Express) {
       return res.status(401).send("Not authenticated");
     }
 
+    const db = await getDb();
     const [form] = await db
       .insert(travelForms)
       .values({
@@ -96,6 +99,7 @@ export function registerRoutes(app: Express) {
 
       const files = (req.files as Express.Multer.File[])?.map(f => f.path) || [];
 
+      const db = await getDb();
       const [form] = await db
         .update(travelForms)
         .set({
@@ -124,6 +128,7 @@ export function registerRoutes(app: Express) {
       return res.status(403).send("Not authorized");
     }
 
+    const db = await getDb();
     const [form] = await db
       .update(travelForms)
       .set({ status: 'approved' })

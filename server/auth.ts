@@ -6,7 +6,7 @@ import createMemoryStore from "memorystore";
 import { scrypt, randomBytes, timingSafeEqual } from "crypto";
 import { promisify } from "util";
 import { users, insertUserSchema } from "@db/schema";
-import { db } from "@db";
+import { getDb } from "@db";
 import { eq } from "drizzle-orm";
 
 const scryptAsync = promisify(scrypt);
@@ -66,6 +66,7 @@ export function setupAuth(app: Express) {
   passport.use(
     new LocalStrategy(async (username, password, done) => {
       try {
+        const db = await getDb();
         const [user] = await db
           .select()
           .from(users)
@@ -92,6 +93,7 @@ export function setupAuth(app: Express) {
 
   passport.deserializeUser(async (id: number, done) => {
     try {
+      const db = await getDb();
       const [user] = await db
         .select()
         .from(users)
@@ -113,6 +115,8 @@ export function setupAuth(app: Express) {
       }
 
       const { username, password } = result.data;
+
+      const db = await getDb();
       const [existingUser] = await db
         .select()
         .from(users)
