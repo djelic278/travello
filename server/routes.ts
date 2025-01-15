@@ -6,6 +6,7 @@ import { travelForms } from "@db/schema";
 import { eq, and } from "drizzle-orm";
 import multer from 'multer';
 import path from 'path';
+import express from 'express';
 
 const upload = multer({
   storage: multer.diskStorage({
@@ -20,6 +21,9 @@ const upload = multer({
 });
 
 export function registerRoutes(app: Express): Server {
+  // Set up static file serving for uploads
+  app.use('/uploads', express.static('uploads'));
+
   setupAuth(app);
 
   // Travel form routes
