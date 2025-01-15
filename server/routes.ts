@@ -1,16 +1,16 @@
 import type { Express } from "express";
 import { createServer, type Server } from "http";
-import { setupAuth } from "./auth";
 import { db } from "@db";
-import { travelForms } from "@db/schema";
+import { travelForms, users } from "@db/schema";
 import { eq, and } from "drizzle-orm";
 import multer from 'multer';
 import path from 'path';
 import express from 'express';
 
+// Configure multer for file uploads
 const upload = multer({
   storage: multer.diskStorage({
-    destination: 'uploads/',
+    destination: './uploads/',
     filename: (req, file, cb) => {
       cb(null, `${Date.now()}-${file.originalname}`);
     }
@@ -22,9 +22,7 @@ const upload = multer({
 
 export function registerRoutes(app: Express): Server {
   // Set up static file serving for uploads
-  app.use('/uploads', express.static('uploads'));
-
-  setupAuth(app);
+  app.use('/uploads', express.static(path.join(process.cwd(), 'uploads')));
 
   // Travel form routes
   app.get("/api/forms", async (req, res) => {
@@ -43,6 +41,7 @@ export function registerRoutes(app: Express): Server {
         );
       res.json(forms);
     } catch (error) {
+      console.error('Error fetching forms:', error);
       res.status(500).send("Error fetching forms");
     }
   });
@@ -72,6 +71,7 @@ export function registerRoutes(app: Express): Server {
 
       res.json(form);
     } catch (error) {
+      console.error('Error fetching form:', error);
       res.status(500).send("Error fetching form");
     }
   });
@@ -92,6 +92,7 @@ export function registerRoutes(app: Express): Server {
         .returning();
       res.json(form);
     } catch (error) {
+      console.error('Error creating form:', error);
       res.status(500).send("Error creating form");
     }
   });
@@ -126,6 +127,7 @@ export function registerRoutes(app: Express): Server {
 
       res.json(form);
     } catch (error) {
+      console.error('Error updating form:', error);
       res.status(500).send("Error updating form");
     }
   });
@@ -150,6 +152,7 @@ export function registerRoutes(app: Express): Server {
 
       res.json(form);
     } catch (error) {
+      console.error('Error approving form:', error);
       res.status(500).send("Error approving form");
     }
   });

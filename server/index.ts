@@ -2,10 +2,20 @@ import express, { type Request, Response, NextFunction } from "express";
 import { registerRoutes } from "./routes";
 import { setupVite, serveStatic, log } from "./vite";
 import { setupAuth } from "./auth";
+import path from "path";
+import fs from "fs";
 
 const app = express();
+
+// Basic middleware
 app.use(express.json());
 app.use(express.urlencoded({ extended: false }));
+
+// Ensure uploads directory exists
+const uploadsDir = path.join(process.cwd(), 'uploads');
+if (!fs.existsSync(uploadsDir)) {
+  fs.mkdirSync(uploadsDir, { recursive: true });
+}
 
 // Set up request logging
 app.use((req, res, next) => {
@@ -39,27 +49,36 @@ app.use((req, res, next) => {
 });
 
 (async () => {
-  // Important: Set up auth before registering routes
-  setupAuth(app);
+  try {
+    // Set up authentication before routes
+    setupAuth(app);
 
-  const server = registerRoutes(app);
+    // Register routes after auth is set up
+    const server = registerRoutes(app);
 
-  // Global error handler
-  app.use((err: any, _req: Request, res: Response, _next: NextFunction) => {
-    const status = err.status || err.statusCode || 500;
-    const message = err.message || "Internal Server Error";
-    console.error(err);
-    res.status(status).json({ message });
-  });
+    // Global error handler
+    app.use((err: any, _req: Request, res: Response, _next: NextFunction) => {
+      console.error('Error:', err);
+      const status = err.status || err.statusCode || 500;
+      const message = err.message || "Internal Server Error";
+      res.status(status).json({ message });
+    });
 
-  if (app.get("env") === "development") {
-    await setupVite(app, server);
-  } else {
-    serveStatic(app);
+    // Set up static file serving for uploads
+    app.use('/uploads', express.static(uploadsDir));
+
+    if (app.get("env") === "development") {
+      await setupVite(app, server);
+    } else {
+      serveStatic(app);
+    }
+
+    const PORT = 5000;
+    server.listen(PORT, "0.0.0.0", () => {
+      log(`Server running on port ${PORT}`);
+    });
+  } catch (error) {
+    console.error('Failed to start server:', error);
+    process.exit(1);
   }
-
-  const PORT = 5000;
-  server.listen(PORT, "0.0.0.0", () => {
-    log(`Server running on port ${PORT}`);
-  });
 })();
