@@ -4,20 +4,17 @@ import { setupVite, serveStatic, log } from "./vite";
 import { setupAuth } from "./auth";
 import path from "path";
 import fs from "fs";
+import { createServer } from "http";
 
+// Create Express app and HTTP server
 const app = express();
+const server = createServer(app);
 
-// Basic middleware
+// Basic middleware setup
 app.use(express.json());
 app.use(express.urlencoded({ extended: false }));
 
-// Ensure uploads directory exists
-const uploadsDir = path.join(process.cwd(), 'uploads');
-if (!fs.existsSync(uploadsDir)) {
-  fs.mkdirSync(uploadsDir, { recursive: true });
-}
-
-// Set up request logging
+// Request logging middleware
 app.use((req, res, next) => {
   const start = Date.now();
   const path = req.path;
@@ -48,15 +45,24 @@ app.use((req, res, next) => {
   next();
 });
 
+// Create uploads directory if it doesn't exist
+const uploadsDir = path.join(process.cwd(), 'uploads');
+if (!fs.existsSync(uploadsDir)) {
+  fs.mkdirSync(uploadsDir, { recursive: true });
+}
+
+// Set up static file serving for uploads
+app.use('/uploads', express.static(uploadsDir));
+
 (async () => {
   try {
-    // Set up authentication before routes
+    // Initialize auth first as it sets up important middleware
     setupAuth(app);
 
-    // Register routes after auth is set up
-    const server = registerRoutes(app);
+    // Register API routes after auth is set up
+    registerRoutes(app);
 
-    // Global error handler
+    // Global error handler - must be after routes but before Vite
     app.use((err: any, _req: Request, res: Response, _next: NextFunction) => {
       console.error('Error:', err);
       const status = err.status || err.statusCode || 500;
@@ -64,15 +70,14 @@ app.use((req, res, next) => {
       res.status(status).json({ message });
     });
 
-    // Set up static file serving for uploads
-    app.use('/uploads', express.static(uploadsDir));
-
+    // Set up Vite or static serving as the last middleware
     if (app.get("env") === "development") {
       await setupVite(app, server);
     } else {
       serveStatic(app);
     }
 
+    // Start the server
     const PORT = 5000;
     server.listen(PORT, "0.0.0.0", () => {
       log(`Server running on port ${PORT}`);

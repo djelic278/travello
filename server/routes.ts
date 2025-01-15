@@ -1,111 +1,101 @@
-import type { Express } from "express";
-import { createServer, type Server } from "http";
+import type { Express, Request, Response, NextFunction } from "express";
 import { db } from "@db";
 import { travelForms, users } from "@db/schema";
 import { eq, and } from "drizzle-orm";
 import multer from 'multer';
 import path from 'path';
-import express from 'express';
 
 // Configure multer for file uploads
-const upload = multer({
-  storage: multer.diskStorage({
-    destination: './uploads/',
-    filename: (req, file, cb) => {
-      cb(null, `${Date.now()}-${file.originalname}`);
-    }
-  }),
-  limits: {
-    fileSize: 5 * 1024 * 1024 // 5MB limit
+const storage = multer.diskStorage({
+  destination: './uploads/',
+  filename: (req, file, cb) => {
+    const uniqueSuffix = `${Date.now()}-${Math.round(Math.random() * 1E9)}`;
+    cb(null, `${uniqueSuffix}-${file.originalname}`);
   }
 });
 
-export function registerRoutes(app: Express): Server {
-  // Set up static file serving for uploads
-  app.use('/uploads', express.static(path.join(process.cwd(), 'uploads')));
+const upload = multer({
+  storage: storage,
+  limits: {
+    fileSize: 5 * 1024 * 1024, // 5MB limit
+    files: 4 // Maximum 4 files
+  }
+});
+
+export function registerRoutes(app: Express): void {
+  // Wrap all route handlers with error catching
+  const asyncHandler = (fn: (req: Request, res: Response, next: NextFunction) => Promise<any>) => 
+    (req: Request, res: Response, next: NextFunction) => {
+      return Promise.resolve(fn(req, res, next)).catch(next);
+    };
 
   // Travel form routes
-  app.get("/api/forms", async (req, res) => {
+  app.get("/api/forms", asyncHandler(async (req: Request, res: Response) => {
     if (!req.isAuthenticated()) {
       return res.status(401).send("Not authenticated");
     }
 
-    try {
-      const forms = await db
-        .select()
-        .from(travelForms)
-        .where(
+    const forms = await db
+      .select()
+      .from(travelForms)
+      .where(
+        req.user.isAdmin 
+          ? undefined 
+          : eq(travelForms.userId, req.user.id)
+      );
+    res.json(forms);
+  }));
+
+  app.get("/api/forms/:id", asyncHandler(async (req: Request, res: Response) => {
+    if (!req.isAuthenticated()) {
+      return res.status(401).send("Not authenticated");
+    }
+
+    const [form] = await db
+      .select()
+      .from(travelForms)
+      .where(
+        and(
+          eq(travelForms.id, parseInt(req.params.id)),
           req.user.isAdmin 
             ? undefined 
             : eq(travelForms.userId, req.user.id)
-        );
-      res.json(forms);
-    } catch (error) {
-      console.error('Error fetching forms:', error);
-      res.status(500).send("Error fetching forms");
-    }
-  });
+        )
+      )
+      .limit(1);
 
-  app.get("/api/forms/:id", async (req, res) => {
+    if (!form) {
+      return res.status(404).send("Form not found");
+    }
+
+    res.json(form);
+  }));
+
+  app.post("/api/forms/pre-travel", asyncHandler(async (req: Request, res: Response) => {
     if (!req.isAuthenticated()) {
       return res.status(401).send("Not authenticated");
     }
 
-    try {
-      const [form] = await db
-        .select()
-        .from(travelForms)
-        .where(
-          and(
-            eq(travelForms.id, parseInt(req.params.id)),
-            req.user.isAdmin 
-              ? undefined 
-              : eq(travelForms.userId, req.user.id)
-          )
-        )
-        .limit(1);
+    const [form] = await db
+      .insert(travelForms)
+      .values({
+        ...req.body,
+        userId: req.user.id,
+        status: 'pending_approval'
+      })
+      .returning();
+    res.json(form);
+  }));
 
-      if (!form) {
-        return res.status(404).send("Form not found");
+  app.put("/api/forms/:id/post-travel", 
+    upload.array('files', 4),
+    asyncHandler(async (req: Request, res: Response) => {
+      if (!req.isAuthenticated()) {
+        return res.status(401).send("Not authenticated");
       }
 
-      res.json(form);
-    } catch (error) {
-      console.error('Error fetching form:', error);
-      res.status(500).send("Error fetching form");
-    }
-  });
+      const files = (req.files as Express.Multer.File[])?.map(f => f.path) || [];
 
-  app.post("/api/forms/pre-travel", async (req, res) => {
-    if (!req.isAuthenticated()) {
-      return res.status(401).send("Not authenticated");
-    }
-
-    try {
-      const [form] = await db
-        .insert(travelForms)
-        .values({
-          ...req.body,
-          userId: req.user.id,
-          status: 'pending_approval'
-        })
-        .returning();
-      res.json(form);
-    } catch (error) {
-      console.error('Error creating form:', error);
-      res.status(500).send("Error creating form");
-    }
-  });
-
-  app.put("/api/forms/:id/post-travel", upload.array('files', 4), async (req, res) => {
-    if (!req.isAuthenticated()) {
-      return res.status(401).send("Not authenticated");
-    }
-
-    const { id } = req.params;
-    const files = (req.files as Express.Multer.File[])?.map(f => f.path) || [];
-
-    try {
       const [form] = await db
         .update(travelForms)
         .set({
@@ -115,7 +105,7 @@ export function registerRoutes(app: Express): Server {
         })
         .where(
           and(
-            eq(travelForms.id, parseInt(id)),
+            eq(travelForms.id, parseInt(req.params.id)),
             eq(travelForms.userId, req.user.id)
           )
         )
@@ -126,37 +116,24 @@ export function registerRoutes(app: Express): Server {
       }
 
       res.json(form);
-    } catch (error) {
-      console.error('Error updating form:', error);
-      res.status(500).send("Error updating form");
-    }
-  });
+    })
+  );
 
-  app.put("/api/forms/:id/approve", async (req, res) => {
+  app.put("/api/forms/:id/approve", asyncHandler(async (req: Request, res: Response) => {
     if (!req.isAuthenticated() || !req.user.isAdmin) {
       return res.status(403).send("Not authorized");
     }
 
-    const { id } = req.params;
+    const [form] = await db
+      .update(travelForms)
+      .set({ status: 'approved' })
+      .where(eq(travelForms.id, parseInt(req.params.id)))
+      .returning();
 
-    try {
-      const [form] = await db
-        .update(travelForms)
-        .set({ status: 'approved' })
-        .where(eq(travelForms.id, parseInt(id)))
-        .returning();
-
-      if (!form) {
-        return res.status(404).send("Form not found");
-      }
-
-      res.json(form);
-    } catch (error) {
-      console.error('Error approving form:', error);
-      res.status(500).send("Error approving form");
+    if (!form) {
+      return res.status(404).send("Form not found");
     }
-  });
 
-  const httpServer = createServer(app);
-  return httpServer;
+    res.json(form);
+  }));
 }
