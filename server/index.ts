@@ -2,12 +2,8 @@ import express, { type Request, Response, NextFunction } from "express";
 import { registerRoutes } from "./routes";
 import { setupVite, serveStatic, log } from "./vite";
 import { setupAuth } from "./auth";
-import path from "path";
-import fs from "fs";
 import { getDb } from "@db";
-import { createServer } from 'http';
 
-// Create Express app
 const app = express();
 
 // Basic middleware setup
@@ -45,46 +41,32 @@ app.use((req, res, next) => {
   next();
 });
 
-// Create uploads directory if it doesn't exist
-const uploadsDir = path.join(process.cwd(), 'uploads');
-if (!fs.existsSync(uploadsDir)) {
-  fs.mkdirSync(uploadsDir, { recursive: true });
-}
-
-// Set up static file serving for uploads
-app.use('/uploads', express.static(uploadsDir));
-
 // Initialize server
 (async () => {
   try {
-    // Initialize database connection first
+    // Initialize database connection
     log("Initializing database connection...");
-    const db = await getDb();
+    await getDb();
     log("Database connection established successfully");
 
-    // Set up authentication after database is ready
+    // Set up authentication
     log("Setting up authentication...");
     setupAuth(app);
     log("Authentication setup complete");
 
-    // Create HTTP server
-    const server = createServer(app);
-
-    // Register routes after auth setup
+    // Register routes
     log("Registering routes...");
-    registerRoutes(app, server);
+    const server = registerRoutes(app);
     log("Routes registered");
 
-    // Set up Vite or static serving as the last middleware
-    log("Setting up frontend server...");
+    // Set up Vite or static serving
     if (app.get("env") === "development") {
       await setupVite(app, server);
     } else {
       serveStatic(app);
     }
-    log("Frontend server setup complete");
 
-    // Global error handler must be after all routes
+    // Global error handler
     app.use((err: any, _req: Request, res: Response, _next: NextFunction) => {
       console.error('Error:', err);
       const status = err.status || err.statusCode || 500;
@@ -97,7 +79,6 @@ app.use('/uploads', express.static(uploadsDir));
     server.listen(PORT, "0.0.0.0", () => {
       log(`Server running on port ${PORT}`);
     });
-
   } catch (error) {
     console.error('Failed to start server:', error);
     process.exit(1);
