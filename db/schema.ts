@@ -3,12 +3,14 @@ import { createInsertSchema, createSelectSchema } from "drizzle-zod";
 import { relations } from 'drizzle-orm';
 import { z } from 'zod';
 
-// Define user roles
+// Define user roles as a const to ensure type safety
 export const UserRole = {
   USER: 'user',
   COMPANY_ADMIN: 'company_admin',
   SUPER_ADMIN: 'super_admin',
 } as const;
+
+export type UserRoleType = (typeof UserRole)[keyof typeof UserRole];
 
 // Companies table
 export const companies = pgTable("companies", {
@@ -27,13 +29,16 @@ export const users = pgTable("users", {
   preferredEmail: text("preferred_email"),
   position: text("position"),
   dateOfBirth: date("date_of_birth"),
-  role: text("role", { enum: Object.values(UserRole) }).default(UserRole.USER).notNull(),
+  role: text("role", { enum: [UserRole.USER, UserRole.COMPANY_ADMIN, UserRole.SUPER_ADMIN] })
+    .default(UserRole.USER)
+    .notNull(),
   isAdmin: boolean("is_admin").default(false).notNull(),
   companyId: integer("company_id").references(() => companies.id),
   createdAt: timestamp("created_at").defaultNow().notNull(),
   updatedAt: timestamp("updated_at").defaultNow().notNull(),
 });
 
+// Settings table
 export const settings = pgTable("settings", {
   id: serial("id").primaryKey(),
   key: text("key").unique().notNull(),
@@ -70,6 +75,7 @@ export const travelForms = pgTable("travel_forms", {
   endMileage: decimal("end_mileage", { precision: 10, scale: 2 }),
   allowanceAmount: decimal("allowance_amount", { precision: 10, scale: 2 }),
   totalExpenses: decimal("total_expenses", { precision: 10, scale: 2 }),
+  companyId: integer("company_id").references(() => companies.id),
   createdAt: timestamp("created_at").defaultNow().notNull(),
   updatedAt: timestamp("updated_at").defaultNow().notNull(),
 });
@@ -108,6 +114,7 @@ export const usersRelations = relations(users, ({ one, many }) => ({
 
 export const companiesRelations = relations(companies, ({ many }) => ({
   users: many(users),
+  forms: many(travelForms),
 }));
 
 export const travelFormsRelations = relations(travelForms, ({ one, many }) => ({
@@ -120,6 +127,10 @@ export const travelFormsRelations = relations(travelForms, ({ one, many }) => ({
     fields: [travelForms.approverId],
     references: [users.id],
     relationName: "approver"
+  }),
+  company: one(companies, {
+    fields: [travelForms.companyId],
+    references: [companies.id],
   }),
   expenses: many(expenses)
 }));
@@ -171,7 +182,7 @@ export type SelectCompany = typeof companies.$inferSelect;
 
 export const updateUserProfileSchema = z.object({
   position: z.string().optional(),
-  dateOfBirth: z.string().optional(), // Will be converted to Date
+  dateOfBirth: z.string().optional(),
   preferredEmail: z.string().email().optional(),
   companyId: z.number().optional(),
 });

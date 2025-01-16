@@ -7,7 +7,7 @@ import { scrypt, randomBytes, timingSafeEqual } from "crypto";
 import { promisify } from "util";
 import { users } from "@db/schema";
 import { db } from "@db";
-import { eq } from "drizzle-orm";
+import { eq, or } from "drizzle-orm";
 import { z } from "zod";
 
 const scryptAsync = promisify(scrypt);
@@ -29,20 +29,6 @@ const crypto = {
     return timingSafeEqual(hashedPasswordBuf, suppliedPasswordBuf);
   },
 };
-
-// Extend express user object with our schema
-declare global {
-  namespace Express {
-    interface User {
-      id: number;
-      username: string;
-      email: string;
-      role: 'user' | 'company_admin' | 'super_admin';
-      isAdmin: boolean;
-      companyId?: number;
-    }
-  }
-}
 
 // Registration validation schema
 const registrationSchema = z.object({
@@ -84,28 +70,22 @@ export function setupAuth(app: Express) {
         const [user] = await db
           .select()
           .from(users)
-          .where(eq(users.username, username))
+          .where(or(
+            eq(users.username, username),
+            eq(users.email, username)
+          ))
           .limit(1);
 
-        // If not found by username, try email
-        const [userByEmail] = !user ? await db
-          .select()
-          .from(users)
-          .where(eq(users.email, username))
-          .limit(1) : [null];
-
-        const foundUser = user || userByEmail;
-
-        if (!foundUser) {
+        if (!user) {
           return done(null, false, { message: "Incorrect username or email." });
         }
 
-        const isMatch = await crypto.compare(password, foundUser.password);
+        const isMatch = await crypto.compare(password, user.password);
         if (!isMatch) {
           return done(null, false, { message: "Incorrect password." });
         }
 
-        return done(null, foundUser);
+        return done(null, user);
       } catch (err) {
         return done(err);
       }
@@ -129,6 +109,31 @@ export function setupAuth(app: Express) {
     }
   });
 
+  // Create initial superadmin user
+  const createSuperAdmin = async () => {
+    try {
+      const [existingSuperAdmin] = await db
+        .select()
+        .from(users)
+        .where(eq(users.email, 'jelic.dusan@gmail.com'))
+        .limit(1);
+
+      if (!existingSuperAdmin) {
+        const hashedPassword = await crypto.hash('admin123'); // Temporary password
+        await db.insert(users).values({
+          username: 'superadmin',
+          email: 'jelic.dusan@gmail.com',
+          password: hashedPassword,
+          role: 'super_admin',
+          isAdmin: true,
+        });
+        console.log('Superadmin account created successfully');
+      }
+    } catch (error) {
+      console.error('Error creating superadmin:', error);
+    }
+  };
+
   // Auth routes
   app.post("/api/register", async (req, res, next) => {
     try {
@@ -145,21 +150,16 @@ export function setupAuth(app: Express) {
       const [existingUser] = await db
         .select()
         .from(users)
-        .where(eq(users.username, username))
+        .where(or(
+          eq(users.username, username),
+          eq(users.email, email)
+        ))
         .limit(1);
 
       if (existingUser) {
-        return res.status(400).send("Username already exists");
-      }
-
-      // Check if email exists
-      const [existingEmail] = await db
-        .select()
-        .from(users)
-        .where(eq(users.email, email))
-        .limit(1);
-
-      if (existingEmail) {
+        if (existingUser.username === username) {
+          return res.status(400).send("Username already exists");
+        }
         return res.status(400).send("Email already exists");
       }
 
@@ -171,7 +171,7 @@ export function setupAuth(app: Express) {
           username,
           password: hashedPassword,
           email,
-          role: 'user', // Default role
+          role: 'user',
           isAdmin: false,
         })
         .returning();
@@ -237,4 +237,7 @@ export function setupAuth(app: Express) {
     }
     res.json(req.user);
   });
+
+  // Create initial superadmin account
+  createSuperAdmin();
 }
