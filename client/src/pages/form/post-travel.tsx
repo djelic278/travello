@@ -32,8 +32,6 @@ import {
   CardTitle,
   CardFooter,
 } from "@/components/ui/card";
-import { Loader2, Plus, X } from "lucide-react";
-import { FileText } from 'lucide-react';
 import {
   Table,
   TableBody,
@@ -42,6 +40,8 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
+import { Loader2, Plus, X } from "lucide-react";
+import { FileText } from 'lucide-react';
 
 export default function PostTravelForm() {
   const [showSignatureDialog, setShowSignatureDialog] = useState(false);
@@ -67,7 +67,6 @@ export default function PostTravelForm() {
       startMileage: form?.startMileage || 0,
       endMileage: form?.endMileage || 0,
       expenses: [],
-      files: []
     },
   });
 
@@ -77,24 +76,18 @@ export default function PostTravelForm() {
   });
 
   const mutation = useMutation({
-    mutationFn: async (data: PostTravelForm & { files: FileList }) => {
-      const formData = new FormData();
-
-      // Append form fields
-      formData.append('departureTime', data.departureTime.toISOString());
-      formData.append('returnTime', data.returnTime.toISOString());
-      formData.append('startMileage', data.startMileage.toString());
-      formData.append('endMileage', data.endMileage.toString());
-      formData.append('expenses', JSON.stringify(data.expenses));
-
-      // Append files
-      Array.from(data.files).forEach(file => {
-        formData.append('files', file);
-      });
-
+    mutationFn: async (data: PostTravelForm) => {
       const res = await fetch(`/api/forms/${params.id}/post-travel`, {
         method: "PUT",
-        body: formData,
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          departureTime: data.departureTime.toISOString(),
+          returnTime: data.returnTime.toISOString(),
+          startMileage: data.startMileage,
+          endMileage: data.endMileage,
+          expenses: data.expenses,
+          files: formHook.watch('files')
+        }),
         credentials: "include",
       });
 
@@ -157,23 +150,12 @@ export default function PostTravelForm() {
   const finalReimbursement = totalAllowances - prepaidAmount;
 
   const onSubmit = (data: PostTravelForm) => {
-    const files = formHook.watch('files');
-    if (!files || files.length === 0) {
-      toast({
-        title: "Error",
-        description: "Please select at least one receipt file",
-        variant: "destructive",
-      });
-      return;
-    }
-    // Instead of submitting directly, show the signature dialog
     setShowSignatureDialog(true);
   };
 
   const handleSignAndSubmit = () => {
     const data = formHook.getValues();
-    const files = formHook.watch('files');
-    mutation.mutate({ ...data, files: new FileList(files) });
+    mutation.mutate(data);
     setShowSignatureDialog(false);
   };
 
