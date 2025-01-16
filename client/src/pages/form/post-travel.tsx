@@ -55,11 +55,11 @@ export default function PostTravelForm() {
   });
 
   const { fields, append, remove } = formHook.control._fields.expenses || [];
-  
+
   const mutation = useMutation({
     mutationFn: async (data: PostTravelForm & { files: FileList }) => {
       const formData = new FormData();
-      
+
       // Append form fields
       formData.append('departureTime', data.departureTime.toISOString());
       formData.append('returnTime', data.returnTime.toISOString());
@@ -105,13 +105,19 @@ export default function PostTravelForm() {
     );
   }
 
+  // Calculate total kilometers
+  const startMileage = formHook.watch('startMileage');
+  const endMileage = formHook.watch('endMileage');
+  const totalKilometers = Math.max(0, endMileage - startMileage);
+
+  // Calculate total hours
   const totalHours = calculateTotalHours(
     formHook.watch('departureTime'),
     formHook.watch('returnTime')
   );
-  
+
   const allowance = calculateAllowance(totalHours);
-  
+
   const totalExpenses = formHook.watch('expenses').reduce(
     (sum, expense) => sum + (expense.amount || 0),
     0
@@ -140,6 +146,24 @@ export default function PostTravelForm() {
           </CardDescription>
         </CardHeader>
         <CardContent>
+          {/* Pre-travel form details */}
+          <div className="mb-6 p-4 bg-muted rounded-lg">
+            <div className="grid grid-cols-3 gap-4">
+              <div>
+                <p className="text-sm font-medium text-muted-foreground">Name</p>
+                <p className="text-base">{form?.firstName} {form?.lastName}</p>
+              </div>
+              <div>
+                <p className="text-sm font-medium text-muted-foreground">Destination</p>
+                <p className="text-base">{form?.destination}</p>
+              </div>
+              <div>
+                <p className="text-sm font-medium text-muted-foreground">Project Code</p>
+                <p className="text-base">{form?.projectCode}</p>
+              </div>
+            </div>
+          </div>
+
           <Form {...formHook}>
             <form onSubmit={formHook.handleSubmit(onSubmit)} className="space-y-6">
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
@@ -180,13 +204,16 @@ export default function PostTravelForm() {
                           value={field.value?.toISOString().slice(0, 16)}
                         />
                       </FormControl>
+                      <FormDescription>
+                        Total Hours: {totalHours}
+                      </FormDescription>
                       <FormMessage />
                     </FormItem>
                   )}
                 />
               </div>
 
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
                 <FormField
                   control={formHook.control}
                   name="startMileage"
@@ -226,6 +253,15 @@ export default function PostTravelForm() {
                     </FormItem>
                   )}
                 />
+
+                <div className="flex items-end">
+                  <div className="w-full">
+                    <FormLabel>Total Distance</FormLabel>
+                    <div className="h-10 px-3 py-2 rounded-md border border-input bg-muted flex items-center">
+                      {totalKilometers} km
+                    </div>
+                  </div>
+                </div>
               </div>
 
               <FormItem>
