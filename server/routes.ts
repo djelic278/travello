@@ -84,7 +84,7 @@ export function registerRoutes(app: Express): Server {
         isReturnTrip: req.body.isReturnTrip,
         projectCode: req.body.projectCode,
         requestedPrepayment: req.body.requestedPrepayment,
-        status: 'pending',
+        status: 'approved', // Auto-approve for testing
       })
       .returning();
     res.json(form);
