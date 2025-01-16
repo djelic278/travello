@@ -44,6 +44,11 @@ app.use((req, res, next) => {
 // Initialize server
 (async () => {
   try {
+    // Test database connection first
+    log("Testing database connection...");
+    await db.query.users.findFirst();
+    log("Database connection successful");
+
     // Set up authentication
     log("Setting up authentication...");
     setupAuth(app);

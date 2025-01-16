@@ -17,12 +17,3 @@ const client = postgres(process.env.DATABASE_URL, {
 
 // Create drizzle database instance
 export const db = drizzle(client, { schema });
-
-// Test database connection on startup
-try {
-  const result = client`SELECT 1+1 AS result`;
-  console.log('Database connection successful');
-} catch (error) {
-  console.error('Failed to connect to database:', error);
-  process.exit(1);
-}
