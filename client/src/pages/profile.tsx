@@ -37,20 +37,37 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { Badge } from "@/components/ui/badge";
 import { Loader2, ArrowLeft } from "lucide-react";
 import { Link } from "wouter";
 import { z } from "zod";
 import { Switch } from "@/components/ui/switch";
 import { Separator } from "@/components/ui/separator";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { ThemeMode } from "@db/schema";
+
+// Define user roles
+const UserRole = {
+  USER: 'user',
+  COMPANY_ADMIN: 'company_admin',
+  SUPER_ADMIN: 'super_admin',
+} as const;
+
+type UserRoleType = (typeof UserRole)[keyof typeof UserRole];
+
+const ThemeMode = {
+  LIGHT: 'light',
+  DARK: 'dark',
+  SYSTEM: 'system',
+} as const;
+
+type ThemeModeType = (typeof ThemeMode)[keyof typeof ThemeMode];
 
 const updateProfileSchema = z.object({
   position: z.string().min(1, "Position is required"),
   dateOfBirth: z.string().optional(),
   preferredEmail: z.string().email("Invalid email address"),
   companyId: z.number().optional(),
-  theme: z.enum([ThemeMode.LIGHT, ThemeMode.DARK, ThemeMode.SYSTEM]).optional(),
+  theme: z.enum(['light', 'dark', 'system'] as const).optional(),
   emailNotifications: z.boolean().optional(),
   dashboardLayout: z.object({ type: z.string() }).optional(),
 });
@@ -87,8 +104,8 @@ export default function ProfilePage() {
       dateOfBirth: user?.dateOfBirth ? new Date(user.dateOfBirth).toISOString().split('T')[0] : undefined,
       preferredEmail: user?.preferredEmail || user?.email || "",
       companyId: user?.companyId || undefined,
-      theme: user?.theme || ThemeMode.SYSTEM,
-      emailNotifications: user?.emailNotifications || false,
+      theme: (user?.theme as ThemeModeType) || 'system',
+      emailNotifications: user?.emailNotifications ?? true,
       dashboardLayout: user?.dashboardLayout || { type: 'default' },
     },
   });
@@ -174,6 +191,28 @@ export default function ProfilePage() {
     addCompanyMutation.mutate(data);
   };
 
+  const getRoleBadgeVariant = (role: UserRoleType | undefined): "destructive" | "default" | "secondary" => {
+    switch (role) {
+      case UserRole.SUPER_ADMIN:
+        return "destructive";
+      case UserRole.COMPANY_ADMIN:
+        return "default";
+      default:
+        return "secondary";
+    }
+  };
+
+  const getRoleDisplay = (role: UserRoleType | undefined): string => {
+    switch (role) {
+      case UserRole.SUPER_ADMIN:
+        return "Super Admin";
+      case UserRole.COMPANY_ADMIN:
+        return "Company Admin";
+      default:
+        return "User";
+    }
+  };
+
   if (!user) {
     return null;
   }
@@ -190,13 +229,20 @@ export default function ProfilePage() {
       </div>
       <Card>
         <CardHeader>
-          <CardTitle>User Profile & Preferences</CardTitle>
-          <CardDescription>
-            Update your profile information, company details, and preferences
-          </CardDescription>
+          <div className="flex items-center justify-between">
+            <div>
+              <CardTitle>User Profile & Preferences</CardTitle>
+              <CardDescription>
+                Update your profile information, company details, and preferences
+              </CardDescription>
+            </div>
+            <Badge variant={getRoleBadgeVariant(user.role as UserRoleType)}>
+              {getRoleDisplay(user.role as UserRoleType)}
+            </Badge>
+          </div>
         </CardHeader>
         <CardContent>
-          <Form {...form}> {/* Wrapping Tabs within Form */}
+          <Form {...form}>
             <Tabs defaultValue="profile" className="w-full">
               <TabsList className="grid w-full grid-cols-2">
                 <TabsTrigger value="profile">Profile Information</TabsTrigger>
@@ -384,9 +430,9 @@ export default function ProfilePage() {
                                 </SelectTrigger>
                               </FormControl>
                               <SelectContent>
-                                <SelectItem value={ThemeMode.LIGHT}>Light</SelectItem>
-                                <SelectItem value={ThemeMode.DARK}>Dark</SelectItem>
-                                <SelectItem value={ThemeMode.SYSTEM}>System</SelectItem>
+                                <SelectItem value="light">Light</SelectItem>
+                                <SelectItem value="dark">Dark</SelectItem>
+                                <SelectItem value="system">System</SelectItem>
                               </SelectContent>
                             </Select>
                             <FormMessage />
@@ -466,7 +512,7 @@ export default function ProfilePage() {
                 </div>
               </TabsContent>
             </Tabs>
-          </Form> {/* Closing Form */}
+          </Form>
         </CardContent>
       </Card>
     </div>
