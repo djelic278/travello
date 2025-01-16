@@ -1,3 +1,4 @@
+import { useState } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { preTraveFormSchema, type PreTravelForm, fieldDescriptions } from "@/lib/forms";
@@ -40,7 +41,6 @@ import {
   HoverCardContent,
   HoverCardTrigger,
 } from "@/components/ui/hover-card";
-import { useState } from "react";
 import { Check, ChevronsUpDown, HelpCircle } from "lucide-react";
 import { cn } from "@/lib/utils";
 
@@ -64,6 +64,7 @@ export default function PreTravelForm() {
   const [, navigate] = useLocation();
   const { toast } = useToast();
   const [open, setOpen] = useState(false);
+  const [inputValue, setInputValue] = useState("");
 
   // Fetch previous submission locations
   const { data: previousLocations } = useQuery<string[]>({
@@ -79,7 +80,7 @@ export default function PreTravelForm() {
       lastName: "",
       isReturnTrip: true,
       duration: 1,
-      requestedPrepayment: 0, // Added default value for prepayment
+      requestedPrepayment: 0,
     },
   });
 
@@ -152,16 +153,26 @@ export default function PreTravelForm() {
                                 "w-full justify-between",
                                 !field.value && "text-muted-foreground"
                               )}
+                              onClick={() => setOpen(true)}
                             >
-                              {field.value || "Select location..."}
+                              {field.value || "Select or enter location..."}
                               <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
                             </Button>
                           </FormControl>
                         </PopoverTrigger>
                         <PopoverContent className="w-full p-0">
                           <Command>
-                            <CommandInput placeholder="Search location..." />
-                            <CommandEmpty>No location found.</CommandEmpty>
+                            <CommandInput 
+                              placeholder="Search or enter new location..."
+                              value={inputValue}
+                              onValueChange={(value) => {
+                                setInputValue(value);
+                                form.setValue("submissionLocation", value);
+                              }}
+                            />
+                            <CommandEmpty>
+                              Press enter to use "{inputValue}"
+                            </CommandEmpty>
                             <CommandGroup>
                               {previousLocations?.map((location) => (
                                 <CommandItem
@@ -169,6 +180,7 @@ export default function PreTravelForm() {
                                   value={location}
                                   onSelect={() => {
                                     form.setValue("submissionLocation", location);
+                                    setInputValue(location);
                                     setOpen(false);
                                   }}
                                 >
