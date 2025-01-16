@@ -80,22 +80,32 @@ export function setupAuth(app: Express) {
   passport.use(
     new LocalStrategy(async (username, password, done) => {
       try {
+        // Try to find user by username or email
         const [user] = await db
           .select()
           .from(users)
           .where(eq(users.username, username))
           .limit(1);
 
-        if (!user) {
-          return done(null, false, { message: "Incorrect username." });
+        // If not found by username, try email
+        const [userByEmail] = !user ? await db
+          .select()
+          .from(users)
+          .where(eq(users.email, username))
+          .limit(1) : [null];
+
+        const foundUser = user || userByEmail;
+
+        if (!foundUser) {
+          return done(null, false, { message: "Incorrect username or email." });
         }
 
-        const isMatch = await crypto.compare(password, user.password);
+        const isMatch = await crypto.compare(password, foundUser.password);
         if (!isMatch) {
           return done(null, false, { message: "Incorrect password." });
         }
 
-        return done(null, user);
+        return done(null, foundUser);
       } catch (err) {
         return done(err);
       }
