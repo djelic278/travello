@@ -63,34 +63,36 @@ export function setupAuth(app: Express) {
   app.use(passport.initialize());
   app.use(passport.session());
 
-  passport.use(
-    new LocalStrategy(async (username, password, done) => {
-      try {
-        // Try to find user by username or email
-        const [user] = await db
-          .select()
-          .from(users)
-          .where(or(
-            eq(users.username, username),
-            eq(users.email, username)
-          ))
-          .limit(1);
+  // Configure passport to accept either username or email for login
+  passport.use(new LocalStrategy({
+    usernameField: 'username', // This can be either username or email
+    passwordField: 'password'
+  }, async (username, password, done) => {
+    try {
+      // Try to find user by username or email
+      const [user] = await db
+        .select()
+        .from(users)
+        .where(or(
+          eq(users.username, username),
+          eq(users.email, username)
+        ))
+        .limit(1);
 
-        if (!user) {
-          return done(null, false, { message: "Incorrect username or email." });
-        }
-
-        const isMatch = await crypto.compare(password, user.password);
-        if (!isMatch) {
-          return done(null, false, { message: "Incorrect password." });
-        }
-
-        return done(null, user);
-      } catch (err) {
-        return done(err);
+      if (!user) {
+        return done(null, false, { message: "Incorrect username or email." });
       }
-    })
-  );
+
+      const isMatch = await crypto.compare(password, user.password);
+      if (!isMatch) {
+        return done(null, false, { message: "Incorrect password." });
+      }
+
+      return done(null, user);
+    } catch (err) {
+      return done(err);
+    }
+  }));
 
   passport.serializeUser((user: any, done) => {
     done(null, user.id);
@@ -119,7 +121,7 @@ export function setupAuth(app: Express) {
         .limit(1);
 
       if (!existingSuperAdmin) {
-        const hashedPassword = await crypto.hash('admin123'); // Temporary password
+        const hashedPassword = await crypto.hash('admin123');
         await db.insert(users).values({
           username: 'superadmin',
           email: 'jelic.dusan@gmail.com',
@@ -128,21 +130,39 @@ export function setupAuth(app: Express) {
           isAdmin: true,
         });
         console.log('Superadmin account created successfully');
-      } else {
-        // Update password for existing superadmin if it's using the old hash
-        const hashedPassword = await crypto.hash('admin123');
-        await db
-          .update(users)
-          .set({ password: hashedPassword })
-          .where(eq(users.email, 'jelic.dusan@gmail.com'));
-        console.log('Superadmin password updated successfully');
       }
     } catch (error) {
-      console.error('Error managing superadmin:', error);
+      console.error('Error creating superadmin:', error);
     }
   };
 
   // Auth routes
+  app.post("/api/login", (req, res, next) => {
+    passport.authenticate("local", (err: any, user: any, info: any) => {
+      if (err) {
+        return next(err);
+      }
+      if (!user) {
+        return res.status(400).send(info?.message || "Login failed");
+      }
+      req.login(user, (err) => {
+        if (err) {
+          return next(err);
+        }
+        return res.json({
+          message: "Login successful",
+          user: {
+            id: user.id,
+            username: user.username,
+            email: user.email,
+            role: user.role,
+            isAdmin: user.isAdmin,
+          },
+        });
+      });
+    })(req, res, next);
+  });
+
   app.post("/api/register", async (req, res, next) => {
     try {
       const result = registrationSchema.safeParse(req.body);
@@ -202,32 +222,6 @@ export function setupAuth(app: Express) {
     } catch (error) {
       next(error);
     }
-  });
-
-  app.post("/api/login", (req, res, next) => {
-    passport.authenticate("local", (err: any, user: any, info: any) => {
-      if (err) {
-        return next(err);
-      }
-      if (!user) {
-        return res.status(400).send(info?.message || "Login failed");
-      }
-      req.login(user, (err) => {
-        if (err) {
-          return next(err);
-        }
-        return res.json({
-          message: "Login successful",
-          user: {
-            id: user.id,
-            username: user.username,
-            email: user.email,
-            role: user.role,
-            isAdmin: user.isAdmin,
-          },
-        });
-      });
-    })(req, res, next);
   });
 
   app.post("/api/logout", (req, res) => {
