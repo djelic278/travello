@@ -15,7 +15,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { Plus } from "lucide-react";
+import { Plus, FileText } from "lucide-react";
 import { Link } from "wouter";
 import { useUser } from "@/hooks/use-user";
 import { useToast } from "@/hooks/use-toast";
@@ -62,6 +62,7 @@ export default function Dashboard() {
                 <TableHead>Start Date</TableHead>
                 <TableHead>Duration (days)</TableHead>
                 <TableHead>Status</TableHead>
+                <TableHead className="text-right">Actions</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -73,11 +74,25 @@ export default function Dashboard() {
                   </TableCell>
                   <TableCell>{form.duration}</TableCell>
                   <TableCell>{form.status}</TableCell>
+                  <TableCell className="text-right">
+                    {form.status === 'pending' ? (
+                      <span className="text-sm text-muted-foreground">
+                        Awaiting approval
+                      </span>
+                    ) : (
+                      <Button asChild variant="ghost" size="sm">
+                        <Link href={`/forms/${form.id}/post-travel`}>
+                          <FileText className="mr-2 h-4 w-4" />
+                          Submit Form 2
+                        </Link>
+                      </Button>
+                    )}
+                  </TableCell>
                 </TableRow>
               ))}
               {!forms?.length && (
                 <TableRow>
-                  <TableCell colSpan={4} className="text-center">
+                  <TableCell colSpan={5} className="text-center">
                     No travel requests found
                   </TableCell>
                 </TableRow>
