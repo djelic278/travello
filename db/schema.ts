@@ -1,8 +1,17 @@
 import { pgTable, text, serial, integer, boolean, timestamp, decimal } from "drizzle-orm/pg-core";
 import { createInsertSchema, createSelectSchema } from "drizzle-zod";
+import { relations } from 'drizzle-orm';
+
+export const users = pgTable("users", {
+  id: serial("id").primaryKey(),
+  username: text("username").unique().notNull(),
+  password: text("password").notNull(),
+  isAdmin: boolean("is_admin").default(false).notNull(),
+});
 
 export const travelForms = pgTable("travel_forms", {
   id: serial("id").primaryKey(),
+  userId: integer("user_id").notNull().references(() => users.id),
   submissionLocation: text("submission_location").notNull(),
   submissionDate: timestamp("submission_date").defaultNow().notNull(),
   firstName: text("first_name").notNull(),
@@ -34,6 +43,19 @@ export const expenses = pgTable("expenses", {
   amount: decimal("amount", { precision: 10, scale: 2 }).notNull(),
   createdAt: timestamp("created_at").defaultNow().notNull(),
 });
+
+// Define relations
+export const travelFormsRelations = relations(travelForms, ({ one }) => ({
+  user: one(users, {
+    fields: [travelForms.userId],
+    references: [users.id],
+  }),
+}));
+
+export const insertUserSchema = createInsertSchema(users);
+export const selectUserSchema = createSelectSchema(users);
+export type InsertUser = typeof users.$inferInsert;
+export type SelectUser = typeof users.$inferSelect;
 
 export const insertTravelFormSchema = createInsertSchema(travelForms);
 export const selectTravelFormSchema = createSelectSchema(travelForms);

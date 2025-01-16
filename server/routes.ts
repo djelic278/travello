@@ -5,6 +5,14 @@ import { db } from "@db";
 import { travelForms, expenses } from "@db/schema";
 import { eq } from "drizzle-orm";
 
+// Middleware to check if user is authenticated
+const isAuthenticated = (req: Request, res: Response, next: NextFunction) => {
+  if (!req.isAuthenticated()) {
+    return res.status(401).send("Please login to continue");
+  }
+  next();
+};
+
 // Wrap async route handlers
 const asyncHandler = (fn: (req: Request, res: Response, next: NextFunction) => Promise<any>) =>
   (req: Request, res: Response, next: NextFunction) => {
@@ -12,17 +20,21 @@ const asyncHandler = (fn: (req: Request, res: Response, next: NextFunction) => P
   };
 
 export function registerRoutes(app: Express): Server {
-  // Get all travel forms
-  app.get("/api/forms", asyncHandler(async (_req: Request, res: Response) => {
-    const forms = await db.select().from(travelForms);
+  // Get all travel forms for the current user
+  app.get("/api/forms", isAuthenticated, asyncHandler(async (req: Request, res: Response) => {
+    const forms = await db
+      .select()
+      .from(travelForms)
+      .where(eq(travelForms.userId, req.user!.id));
     res.json(forms);
   }));
 
-  // Get unique submission locations
-  app.get("/api/submission-locations", asyncHandler(async (_req: Request, res: Response) => {
+  // Get unique submission locations for the current user
+  app.get("/api/submission-locations", isAuthenticated, asyncHandler(async (req: Request, res: Response) => {
     const locations = await db
       .select({ location: travelForms.submissionLocation })
       .from(travelForms)
+      .where(eq(travelForms.userId, req.user!.id))
       .groupBy(travelForms.submissionLocation)
       .limit(10);
 
@@ -30,11 +42,12 @@ export function registerRoutes(app: Express): Server {
   }));
 
   // Get a specific travel form
-  app.get("/api/forms/:id", asyncHandler(async (req: Request, res: Response) => {
+  app.get("/api/forms/:id", isAuthenticated, asyncHandler(async (req: Request, res: Response) => {
     const form = await db
       .select()
       .from(travelForms)
       .where(eq(travelForms.id, parseInt(req.params.id)))
+      .where(eq(travelForms.userId, req.user!.id))
       .limit(1);
 
     if (!form.length) {
@@ -45,17 +58,24 @@ export function registerRoutes(app: Express): Server {
   }));
 
   // Create new travel form (pre-travel)
-  app.post("/api/forms/pre-travel", asyncHandler(async (req: Request, res: Response) => {
+  app.post("/api/forms/pre-travel", isAuthenticated, asyncHandler(async (req: Request, res: Response) => {
     const [form] = await db
       .insert(travelForms)
       .values({
+        userId: req.user!.id,
         submissionLocation: req.body.submissionLocation,
         submissionDate: new Date(req.body.submissionDate),
+        firstName: req.body.firstName,
+        lastName: req.body.lastName,
         destination: req.body.destination,
+        tripPurpose: req.body.tripPurpose,
+        transportType: req.body.transportType,
+        transportDetails: req.body.transportDetails,
         startDate: new Date(req.body.startDate),
         duration: req.body.duration,
         isReturnTrip: req.body.isReturnTrip,
         projectCode: req.body.projectCode,
+        requestedPrepayment: req.body.requestedPrepayment,
         status: 'pending',
       })
       .returning();
@@ -63,8 +83,20 @@ export function registerRoutes(app: Express): Server {
   }));
 
   // Update travel form with post-travel details
-  app.put("/api/forms/:id/post-travel", asyncHandler(async (req: Request, res: Response) => {
+  app.put("/api/forms/:id/post-travel", isAuthenticated, asyncHandler(async (req: Request, res: Response) => {
     const { departureTime, returnTime, startMileage, endMileage, expenses: expenseItems } = req.body;
+
+    // Ensure the form belongs to the current user
+    const [existingForm] = await db
+      .select()
+      .from(travelForms)
+      .where(eq(travelForms.id, parseInt(req.params.id)))
+      .where(eq(travelForms.userId, req.user!.id))
+      .limit(1);
+
+    if (!existingForm) {
+      return res.status(404).json({ message: "Form not found" });
+    }
 
     // Update the travel form
     const [updatedForm] = await db
