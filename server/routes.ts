@@ -2,21 +2,21 @@ import type { Express } from "express";
 import type { Request, Response, NextFunction } from "express";
 import { createServer, type Server } from "http";
 import { db } from "@db";
-import { travelForms, expenses, settings, notifications, companies, users } from "@db/schema";
-import { eq, and, ilike } from "drizzle-orm";
+import { users, updateUserProfileSchema } from "@db/schema";
+import { eq } from "drizzle-orm";
 import { setupWebSocket } from "./websocket";
+import type {  } from "@db/schema";
+import { travelForms, expenses, settings, notifications, companies } from "@db/schema";
+import { eq, and, ilike } from "drizzle-orm";
 import * as XLSX from 'xlsx';
+
 
 // Middleware to check if user is authenticated
 const isAuthenticated = (req: Request, res: Response, next: NextFunction) => {
-  try {
-    if (!req.isAuthenticated()) {
-      return res.status(401).send("Please login to continue");
-    }
-    next();
-  } catch (error) {
-    next(error);
+  if (!req.isAuthenticated()) {
+    return res.status(401).send("Not logged in");
   }
+  next();
 };
 
 // Middleware to check if user is admin
@@ -34,8 +34,8 @@ const isAdmin = (req: Request, res: Response, next: NextFunction) => {
 // Middleware to check if user is company admin or super admin
 const isApprover = (req: Request, res: Response, next: NextFunction) => {
   try {
-    if (!req.isAuthenticated() || 
-        !(req.user?.role === 'company_admin' || req.user?.role === 'super_admin')) {
+    if (!req.isAuthenticated() ||
+      !(req.user?.role === 'company_admin' || req.user?.role === 'super_admin')) {
       return res.status(403).send("Approver access required");
     }
     next();
@@ -124,7 +124,7 @@ export function registerRoutes(app: Express): Server {
     if (isApprover) {
       // Approvers see forms from their company or all forms for super admin
       forms = await db.query.travelForms.findMany({
-        where: req.user?.role === 'super_admin' ? undefined : 
+        where: req.user?.role === 'super_admin' ? undefined :
           eq(travelForms.companyId, companyId),
         orderBy: (travelForms, { desc }) => [desc(travelForms.createdAt)]
       });
@@ -357,40 +357,39 @@ export function registerRoutes(app: Express): Server {
   }));
 
   // Update user profile
-  app.put("/api/user/profile", isAuthenticated, asyncHandler(async (req: Request, res: Response) => {
-    const { position, dateOfBirth, preferredEmail, companyId } = req.body;
-
-    // Check if the new preferred email is already used as a primary email by another user
-    if (preferredEmail) {
-      const [existingUser] = await db
-        .select()
-        .from(users)
-        .where(and(
-          eq(users.email, preferredEmail),
-          eq(users.id, req.user!.id)
-        ))
-        .limit(1);
-
-      if (existingUser) {
-        return res.status(400).json({ message: "Email already in use" });
+  app.put("/api/user/profile", isAuthenticated, async (req: Request, res: Response) => {
+    try {
+      const result = updateUserProfileSchema.safeParse(req.body);
+      if (!result.success) {
+        return res
+          .status(400)
+          .send("Invalid input: " + result.error.issues.map(i => i.message).join(", "));
       }
+
+      const { position, dateOfBirth, preferredEmail, companyId, theme, emailNotifications, dashboardLayout } = result.data;
+
+      // Update user profile with validation
+      const [updatedUser] = await db
+        .update(users)
+        .set({
+          position,
+          dateOfBirth: dateOfBirth ? new Date(dateOfBirth) : null,
+          preferredEmail,
+          companyId,
+          theme: theme || 'system',
+          emailNotifications: emailNotifications ?? true,
+          dashboardLayout: dashboardLayout || { type: 'default' },
+          updatedAt: new Date(),
+        })
+        .where(eq(users.id, req.user!.id))
+        .returning();
+
+      res.json(updatedUser);
+    } catch (error: any) {
+      console.error('Error updating profile:', error);
+      res.status(500).send(error.message || 'Error updating profile');
     }
-
-    // Update user profile
-    const [updatedUser] = await db
-      .update(users)
-      .set({
-        position,
-        dateOfBirth: dateOfBirth ? new Date(dateOfBirth) : null,
-        preferredEmail,
-        companyId,
-        updatedAt: new Date(),
-      })
-      .where(eq(users.id, req.user!.id))
-      .returning();
-
-    res.json(updatedUser);
-  }));
+  });
 
   // Add this new endpoint after the other routes
   app.get("/api/forms/export", isAuthenticated, asyncHandler(async (req: Request, res: Response) => {
@@ -401,7 +400,7 @@ export function registerRoutes(app: Express): Server {
     let forms;
     if (isApprover) {
       forms = await db.query.travelForms.findMany({
-        where: req.user?.role === 'super_admin' ? undefined : 
+        where: req.user?.role === 'super_admin' ? undefined :
           eq(travelForms.companyId, companyId),
         with: {
           user: true,

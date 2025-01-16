@@ -43,13 +43,12 @@ export const users = pgTable("users", {
     .notNull(),
   isAdmin: boolean("is_admin").default(false).notNull(),
   companyId: integer("company_id").references(() => companies.id),
-  // Add user preferences
   theme: text("theme", { enum: [ThemeMode.LIGHT, ThemeMode.DARK, ThemeMode.SYSTEM] })
     .default(ThemeMode.SYSTEM)
     .notNull(),
   emailNotifications: boolean("email_notifications").default(true).notNull(),
-  dashboardLayout: jsonb("dashboard_layout"),
-  preferences: jsonb("preferences").default({}).notNull(),
+  dashboardLayout: jsonb("dashboard_layout").$type<{ type: string }>(),
+  preferences: jsonb("preferences").$type<Record<string, unknown>>().default({}).notNull(),
   createdAt: timestamp("created_at").defaultNow().notNull(),
   updatedAt: timestamp("updated_at").defaultNow().notNull(),
 });
@@ -118,14 +117,11 @@ export const notifications = pgTable("notifications", {
 });
 
 // Define relations
-export const usersRelations = relations(users, ({ one, many }) => ({
+export const usersRelations = relations(users, ({ one }) => ({
   company: one(companies, {
     fields: [users.companyId],
     references: [companies.id],
   }),
-  formsSubmitted: many(travelForms, { relationName: "submitter" }),
-  formsApproved: many(travelForms, { relationName: "approver" }),
-  notifications: many(notifications),
 }));
 
 export const companiesRelations = relations(companies, ({ many }) => ({
@@ -165,7 +161,17 @@ export const notificationsRelations = relations(notifications, ({ one }) => ({
   }),
 }));
 
-// Create schemas
+// Create schemas for validation
+export const updateUserProfileSchema = z.object({
+  position: z.string().min(1, "Position is required"),
+  dateOfBirth: z.string().optional(),
+  preferredEmail: z.string().email("Invalid email address"),
+  companyId: z.number().optional(),
+  theme: z.enum([ThemeMode.LIGHT, ThemeMode.DARK, ThemeMode.SYSTEM]).optional(),
+  emailNotifications: z.boolean().optional(),
+  dashboardLayout: z.object({ type: z.string() }).optional(),
+});
+
 export const insertUserSchema = createInsertSchema(users);
 export const selectUserSchema = createSelectSchema(users);
 export type InsertUser = typeof users.$inferInsert;
@@ -195,14 +201,3 @@ export const insertCompanySchema = createInsertSchema(companies);
 export const selectCompanySchema = createSelectSchema(companies);
 export type InsertCompany = typeof companies.$inferInsert;
 export type SelectCompany = typeof companies.$inferSelect;
-
-export const updateUserProfileSchema = z.object({
-  position: z.string().optional(),
-  dateOfBirth: z.string().optional(),
-  preferredEmail: z.string().email().optional(),
-  companyId: z.number().optional(),
-  theme: z.enum([ThemeMode.LIGHT, ThemeMode.DARK, ThemeMode.SYSTEM]).optional(),
-  emailNotifications: z.boolean().optional(),
-  dashboardLayout: z.record(z.any()).optional(),
-  preferences: z.record(z.any()).optional(),
-});
