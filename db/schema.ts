@@ -21,6 +21,13 @@ export const ThemeMode = {
 
 export type ThemeModeType = (typeof ThemeMode)[keyof typeof ThemeMode];
 
+// Define invitation types
+export const InvitationType = {
+  COMPANY_ADMIN: 'company_admin',
+} as const;
+
+export type InvitationTypeType = (typeof InvitationType)[keyof typeof InvitationType];
+
 export const companies = pgTable("companies", {
   id: serial("id").primaryKey(),
   name: text("name").unique().notNull(),
@@ -113,6 +120,17 @@ export const settings = pgTable("settings", {
   updatedAt: timestamp("updated_at").defaultNow().notNull(),
 });
 
+// Add invitations table
+export const invitations = pgTable("invitations", {
+  id: serial("id").primaryKey(),
+  email: text("email").notNull(),
+  type: text("type", { enum: [InvitationType.COMPANY_ADMIN] }).notNull(),
+  token: text("token").unique().notNull(),
+  status: text("status", { enum: ['pending', 'accepted', 'expired'] }).default('pending').notNull(),
+  expiresAt: timestamp("expires_at").notNull(),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+});
+
 // Define relations
 export const usersRelations = relations(users, ({ one }) => ({
   company: one(companies, {
@@ -187,3 +205,15 @@ export const insertNotificationSchema = createInsertSchema(notifications);
 export const selectNotificationSchema = createSelectSchema(notifications);
 export type InsertNotification = typeof notifications.$inferInsert;
 export type SelectNotification = typeof notifications.$inferSelect;
+
+// Add invitation schema
+export const insertInvitationSchema = createInsertSchema(invitations);
+export const selectInvitationSchema = createSelectSchema(invitations);
+export type InsertInvitation = typeof invitations.$inferInsert;
+export type SelectInvitation = typeof invitations.$inferSelect;
+
+// Validation schema for sending invitations
+export const sendInvitationSchema = z.object({
+  email: z.string().email("Invalid email address"),
+  type: z.enum([InvitationType.COMPANY_ADMIN]),
+});

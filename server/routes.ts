@@ -3,10 +3,10 @@ import type { Request, Response, NextFunction } from "express";
 import { createServer, type Server } from "http";
 import { db } from "@db";
 import { users, updateUserProfileSchema } from "@db/schema";
-import { eq } from "drizzle-orm";
-import { setupWebSocket } from "./websocket";
-import { travelForms, expenses, settings, notifications, companies } from "@db/schema";
 import { eq, and } from "drizzle-orm";
+import { setupWebSocket } from "./websocket";
+import { travelForms, expenses, settings, notifications, companies, invitations, sendInvitationSchema } from "@db/schema";
+import { randomBytes } from "crypto";
 
 // Middleware to check if user is authenticated
 const isAuthenticated = (req: Request, res: Response, next: NextFunction) => {
@@ -257,6 +257,60 @@ export function registerRoutes(app: Express): Server {
       res.status(500).send(error.message || 'Error updating profile');
     }
   });
+
+  // Send invitation (super admin only)
+  app.post("/api/invitations", isAuthenticated, asyncHandler(async (req: Request, res: Response) => {
+    // Check if user is super admin
+    if (req.user?.role !== 'super_admin') {
+      return res.status(403).send("Only super admins can send invitations");
+    }
+
+    // Validate invitation data
+    const result = sendInvitationSchema.safeParse(req.body);
+    if (!result.success) {
+      return res.status(400).send("Invalid input: " + result.error.issues.map(i => i.message).join(", "));
+    }
+
+    const { email, type } = result.data;
+
+    // Check if invitation already exists
+    const [existingInvitation] = await db
+      .select()
+      .from(invitations)
+      .where(and(
+        eq(invitations.email, email),
+        eq(invitations.status, 'pending')
+      ))
+      .limit(1);
+
+    if (existingInvitation) {
+      return res.status(400).send("An invitation is already pending for this email");
+    }
+
+    // Generate a unique token
+    const token = randomBytes(32).toString('hex');
+    const expiresAt = new Date();
+    expiresAt.setDate(expiresAt.getDate() + 7); // Token expires in 7 days
+
+    const [invitation] = await db.insert(invitations).values({
+      email,
+      type,
+      token,
+      expiresAt,
+    }).returning();
+
+    // TODO: Send email with invitation link
+    // For now, just return the invitation details
+    res.json({
+      message: "Invitation sent successfully",
+      invitation: {
+        email: invitation.email,
+        type: invitation.type,
+        expiresAt: invitation.expiresAt,
+      }
+    });
+  }));
+
 
   // Initialize settings
   initializeSettings().catch(console.error);

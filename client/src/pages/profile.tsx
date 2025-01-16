@@ -92,6 +92,7 @@ export default function ProfilePage() {
   const { toast } = useToast();
   const queryClient = useQueryClient();
   const [isAddingCompany, setIsAddingCompany] = useState(false);
+  const [isInviting, setIsInviting] = useState(false);
 
   // Fetch companies
   const { data: companies = [] } = useQuery<Company[]>({
@@ -184,6 +185,40 @@ export default function ProfilePage() {
     },
   });
 
+  const inviteCompanyAdminMutation = useMutation({
+    mutationFn: async (email: string) => {
+      const response = await fetch('/api/invitations', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          email,
+          type: 'company_admin'
+        }),
+        credentials: 'include',
+      });
+
+      if (!response.ok) {
+        throw new Error(await response.text());
+      }
+
+      return response.json();
+    },
+    onSuccess: () => {
+      toast({
+        title: "Invitation Sent",
+        description: "The company admin invitation has been sent successfully.",
+      });
+      setIsInviting(false);
+    },
+    onError: (error: Error) => {
+      toast({
+        title: "Error",
+        description: error.message,
+        variant: "destructive",
+      });
+    },
+  });
+
   const onSubmit = (data: UpdateProfileForm) => {
     updateProfileMutation.mutate(data);
   };
@@ -228,6 +263,72 @@ export default function ProfilePage() {
           </Link>
         </Button>
       </div>
+
+      {user?.role === 'super_admin' && (
+        <Card className="mb-6">
+          <CardHeader>
+            <CardTitle>Company Admin Invitations</CardTitle>
+            <CardDescription>
+              Send invitations to new company administrators
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <Dialog open={isInviting} onOpenChange={setIsInviting}>
+              <DialogTrigger asChild>
+                <Button>
+                  Send Invite to Companies
+                </Button>
+              </DialogTrigger>
+              <DialogContent>
+                <DialogHeader>
+                  <DialogTitle>Send Company Admin Invitation</DialogTitle>
+                  <DialogDescription>
+                    Enter the email address of the new company administrator
+                  </DialogDescription>
+                </DialogHeader>
+                <Form {...form}>
+                  <form
+                    onSubmit={(e) => {
+                      e.preventDefault();
+                      const email = (e.target as HTMLFormElement).email.value;
+                      inviteCompanyAdminMutation.mutate(email);
+                    }}
+                    className="space-y-4"
+                  >
+                    <FormField
+                      control={form.control}
+                      name="email"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel>Email Address</FormLabel>
+                          <FormControl>
+                            <Input
+                              type="email"
+                              placeholder="example@company.com"
+                              {...field}
+                            />
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                    <Button
+                      type="submit"
+                      disabled={inviteCompanyAdminMutation.isPending}
+                    >
+                      {inviteCompanyAdminMutation.isPending && (
+                        <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                      )}
+                      Send Invitation
+                    </Button>
+                  </form>
+                </Form>
+              </DialogContent>
+            </Dialog>
+          </CardContent>
+        </Card>
+      )}
+
       <Card>
         <CardHeader>
           <div className="flex items-center justify-between">
