@@ -26,6 +26,7 @@ export default function Dashboard() {
   const { toast } = useToast();
   const { data: forms, isLoading } = useQuery<any[]>({
     queryKey: ["/api/forms"],
+    refetchInterval: 60000, // Refetch every minute (60000ms)
   });
 
   if (isLoading) {
@@ -79,14 +80,18 @@ export default function Dashboard() {
                       <span className="text-sm text-muted-foreground">
                         Awaiting approval
                       </span>
-                    ) : (
+                    ) : form.status === 'approved' ? (
                       <Button asChild variant="ghost" size="sm">
                         <Link href={`/forms/${form.id}/post-travel`}>
                           <FileText className="mr-2 h-4 w-4" />
                           Submit Form 2
                         </Link>
                       </Button>
-                    )}
+                    ) : form.status === 'submitted' ? (
+                      <span className="text-sm text-muted-foreground">
+                        Form 2 submitted
+                      </span>
+                    ) : null}
                   </TableCell>
                 </TableRow>
               ))}

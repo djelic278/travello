@@ -168,7 +168,7 @@ export function registerRoutes(app: Express): Server {
         returnTime: new Date(returnTime),
         startMileage,
         endMileage,
-        status: 'completed',  // Set status to completed when post-travel form is submitted
+        status: 'submitted',  // Changed from 'completed' to 'submitted'
       })
       .where(eq(travelForms.id, parseInt(req.params.id)))
       .returning();
