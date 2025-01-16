@@ -9,19 +9,37 @@ import ProfilePage from "./pages/profile";
 import NotFound from "@/pages/not-found";
 import AuthPage from "@/pages/auth-page";
 import { useUser } from "@/hooks/use-user";
-import { Loader2, User } from "lucide-react";
+import { Loader2, User, Home, Plus } from "lucide-react";
 import { NotificationsButton } from "@/components/notifications";
 import { Button } from "@/components/ui/button";
-import { Link } from "wouter";
+import { Link, useLocation } from "wouter";
 
 function Layout({ children }: { children: React.ReactNode }) {
+  const [location] = useLocation();
+
   return (
     <div className="min-h-screen bg-background">
       <header className="border-b">
         <div className="container mx-auto px-4 h-16 flex items-center justify-between">
-          <h1 className="text-lg font-semibold">Travel Allowance System</h1>
+          <div className="flex items-center space-x-6">
+            <h1 className="text-lg font-semibold">Travel Allowance System</h1>
+            <nav className="hidden md:flex items-center space-x-4">
+              <Button variant={location === "/" ? "default" : "ghost"} size="sm" asChild>
+                <Link href="/" className="flex items-center">
+                  <Home className="mr-2 h-4 w-4" />
+                  Dashboard
+                </Link>
+              </Button>
+              <Button variant={location === "/new-request" ? "default" : "ghost"} size="sm" asChild>
+                <Link href="/new-request" className="flex items-center">
+                  <Plus className="mr-2 h-4 w-4" />
+                  New Request
+                </Link>
+              </Button>
+            </nav>
+          </div>
           <div className="flex items-center space-x-4">
-            <Button variant="ghost" size="icon" asChild>
+            <Button variant={location === "/profile" ? "default" : "ghost"} size="icon" asChild>
               <Link href="/profile">
                 <User className="h-5 w-5" />
               </Link>
