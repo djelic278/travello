@@ -45,22 +45,23 @@ import { Switch } from "@/components/ui/switch";
 import { Separator } from "@/components/ui/separator";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 
-// Define user roles
+// Define user roles as a const to ensure type safety
 const UserRole = {
   USER: 'user',
   COMPANY_ADMIN: 'company_admin',
   SUPER_ADMIN: 'super_admin',
 } as const;
 
-type UserRoleType = (typeof UserRole)[keyof typeof UserRole];
+export type UserRoleType = (typeof UserRole)[keyof typeof UserRole];
 
+// Define theme options
 const ThemeMode = {
   LIGHT: 'light',
   DARK: 'dark',
   SYSTEM: 'system',
 } as const;
 
-type ThemeModeType = (typeof ThemeMode)[keyof typeof ThemeMode];
+export type ThemeModeType = (typeof ThemeMode)[keyof typeof ThemeMode];
 
 const updateProfileSchema = z.object({
   position: z.string().min(1, "Position is required"),
