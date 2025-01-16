@@ -1,7 +1,7 @@
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { preTraveFormSchema, type PreTravelForm } from "@/lib/forms";
-import { useMutation } from "@tanstack/react-query";
+import { useMutation, useQuery } from "@tanstack/react-query";
 import { useLocation } from "wouter";
 import { useToast } from "@/hooks/use-toast";
 import {
@@ -23,14 +23,37 @@ import {
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
+import {
+  Command,
+  CommandEmpty,
+  CommandGroup,
+  CommandInput,
+  CommandItem,
+} from "@/components/ui/command";
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@/components/ui/popover";
+import { useState } from "react";
+import { Check, ChevronsUpDown } from "lucide-react";
+import { cn } from "@/lib/utils";
 
 export default function PreTravelForm() {
   const [, navigate] = useLocation();
   const { toast } = useToast();
+  const [open, setOpen] = useState(false);
+
+  // Fetch previous submission locations
+  const { data: previousLocations } = useQuery<string[]>({
+    queryKey: ["/api/submission-locations"],
+  });
 
   const form = useForm<PreTravelForm>({
     resolver: zodResolver(preTraveFormSchema),
     defaultValues: {
+      submissionLocation: "",
+      submissionDate: new Date(),
       isReturnTrip: true,
       duration: 1,
     },
@@ -44,6 +67,7 @@ export default function PreTravelForm() {
         body: JSON.stringify({
           ...data,
           startDate: data.startDate.toISOString(),
+          submissionDate: data.submissionDate.toISOString(),
         }),
         credentials: "include",
       });
@@ -82,6 +106,83 @@ export default function PreTravelForm() {
               onSubmit={form.handleSubmit((data) => mutation.mutate(data))}
               className="space-y-6"
             >
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <FormField
+                  control={form.control}
+                  name="submissionLocation"
+                  render={({ field }) => (
+                    <FormItem className="flex flex-col">
+                      <FormLabel>Form Submission Location</FormLabel>
+                      <Popover open={open} onOpenChange={setOpen}>
+                        <PopoverTrigger asChild>
+                          <FormControl>
+                            <Button
+                              variant="outline"
+                              role="combobox"
+                              aria-expanded={open}
+                              className={cn(
+                                "w-full justify-between",
+                                !field.value && "text-muted-foreground"
+                              )}
+                            >
+                              {field.value || "Select location..."}
+                              <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
+                            </Button>
+                          </FormControl>
+                        </PopoverTrigger>
+                        <PopoverContent className="w-full p-0">
+                          <Command>
+                            <CommandInput placeholder="Search location..." />
+                            <CommandEmpty>No location found.</CommandEmpty>
+                            <CommandGroup>
+                              {previousLocations?.map((location) => (
+                                <CommandItem
+                                  key={location}
+                                  value={location}
+                                  onSelect={() => {
+                                    form.setValue("submissionLocation", location);
+                                    setOpen(false);
+                                  }}
+                                >
+                                  <Check
+                                    className={cn(
+                                      "mr-2 h-4 w-4",
+                                      location === field.value
+                                        ? "opacity-100"
+                                        : "opacity-0"
+                                    )}
+                                  />
+                                  {location}
+                                </CommandItem>
+                              ))}
+                            </CommandGroup>
+                          </Command>
+                        </PopoverContent>
+                      </Popover>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+
+                <FormField
+                  control={form.control}
+                  name="submissionDate"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Form Submission Date</FormLabel>
+                      <FormControl>
+                        <Input
+                          type="date"
+                          value={field.value instanceof Date ? field.value.toISOString().split('T')[0] : ''}
+                          disabled
+                        />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+              </div>
+
               <FormField
                 control={form.control}
                 name="destination"

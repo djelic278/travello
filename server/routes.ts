@@ -18,6 +18,17 @@ export function registerRoutes(app: Express): Server {
     res.json(forms);
   }));
 
+  // Get unique submission locations
+  app.get("/api/submission-locations", asyncHandler(async (_req: Request, res: Response) => {
+    const locations = await db
+      .select({ location: travelForms.submissionLocation })
+      .from(travelForms)
+      .groupBy(travelForms.submissionLocation)
+      .limit(10);
+
+    res.json(locations.map(l => l.location));
+  }));
+
   // Get a specific travel form
   app.get("/api/forms/:id", asyncHandler(async (req: Request, res: Response) => {
     const form = await db
@@ -38,6 +49,8 @@ export function registerRoutes(app: Express): Server {
     const [form] = await db
       .insert(travelForms)
       .values({
+        submissionLocation: req.body.submissionLocation,
+        submissionDate: new Date(req.body.submissionDate),
         destination: req.body.destination,
         startDate: new Date(req.body.startDate),
         duration: req.body.duration,

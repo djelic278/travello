@@ -1,6 +1,8 @@
 import { z } from "zod";
 
 export const preTraveFormSchema = z.object({
+  submissionLocation: z.string().min(1, "Submission location is required"),
+  submissionDate: z.date(),
   destination: z.string().min(1, "Destination is required"),
   isReturnTrip: z.boolean(),
   startDate: z.date(),

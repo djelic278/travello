@@ -3,6 +3,8 @@ import { createInsertSchema, createSelectSchema } from "drizzle-zod";
 
 export const travelForms = pgTable("travel_forms", {
   id: serial("id").primaryKey(),
+  submissionLocation: text("submission_location").notNull(),
+  submissionDate: timestamp("submission_date").defaultNow().notNull(),
   destination: text("destination").notNull(),
   startDate: timestamp("start_date").notNull(),
   duration: integer("duration").notNull(),
