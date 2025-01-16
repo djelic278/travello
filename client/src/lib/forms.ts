@@ -13,6 +13,7 @@ export const preTraveFormSchema = z.object({
   startDate: z.date(),
   duration: z.number().min(1, "Duration must be at least 1 day"),
   projectCode: z.string().min(1, "Project code is required"),
+  requestedPrepayment: z.number().min(0, "Prepayment amount must be positive").optional(),
 });
 
 export type PreTravelForm = z.infer<typeof preTraveFormSchema>;
@@ -31,6 +32,7 @@ export const fieldDescriptions = {
   startDate: "The date when your travel will begin",
   duration: "Number of days you plan to stay",
   projectCode: "The project code to which this travel will be billed",
+  requestedPrepayment: "Amount of money (in EUR) requested as advance payment before the trip",
 };
 
 export const expenseSchema = z.object({

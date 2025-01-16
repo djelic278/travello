@@ -15,6 +15,7 @@ export const travelForms = pgTable("travel_forms", {
   duration: integer("duration").notNull(),
   isReturnTrip: boolean("is_return_trip").default(true).notNull(),
   projectCode: text("project_code").notNull(),
+  requestedPrepayment: decimal("requested_prepayment", { precision: 10, scale: 2 }),
   status: text("status").default('pending').notNull(),
   departureTime: timestamp("departure_time"),
   returnTime: timestamp("return_time"),

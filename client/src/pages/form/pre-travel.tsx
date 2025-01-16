@@ -79,6 +79,7 @@ export default function PreTravelForm() {
       lastName: "",
       isReturnTrip: true,
       duration: 1,
+      requestedPrepayment: 0, // Added default value for prepayment
     },
   });
 
@@ -129,6 +130,7 @@ export default function PreTravelForm() {
               onSubmit={form.handleSubmit((data) => mutation.mutate(data))}
               className="space-y-6"
             >
+              {/* Location and Date row */}
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 <FormField
                   control={form.control}
@@ -212,6 +214,7 @@ export default function PreTravelForm() {
                 />
               </div>
 
+              {/* Name row */}
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 <FormField
                   control={form.control}
@@ -248,52 +251,19 @@ export default function PreTravelForm() {
                 />
               </div>
 
-              <FormField
-                control={form.control}
-                name="destination"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabelWithTooltip 
-                      label="Destination"
-                      description={fieldDescriptions.destination}
-                    />
-                    <FormControl>
-                      <Input {...field} />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-
-              <FormField
-                control={form.control}
-                name="tripPurpose"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabelWithTooltip 
-                      label="Trip Purpose"
-                      description={fieldDescriptions.tripPurpose}
-                    />
-                    <FormControl>
-                      <Input {...field} />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
-
+              {/* Destination and Purpose row */}
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 <FormField
                   control={form.control}
-                  name="transportType"
+                  name="destination"
                   render={({ field }) => (
-                    <FormItem>
+                    <FormItem className="flex-1">
                       <FormLabelWithTooltip 
-                        label="Transport Type"
-                        description={fieldDescriptions.transportType}
+                        label="Destination"
+                        description={fieldDescriptions.destination}
                       />
                       <FormControl>
-                        <Input {...field} placeholder="e.g., Car, Train, Bus" />
+                        <Input {...field} className="w-4/5" />
                       </FormControl>
                       <FormMessage />
                     </FormItem>
@@ -302,15 +272,15 @@ export default function PreTravelForm() {
 
                 <FormField
                   control={form.control}
-                  name="transportDetails"
+                  name="tripPurpose"
                   render={({ field }) => (
-                    <FormItem>
+                    <FormItem className="flex-[1.2]">
                       <FormLabelWithTooltip 
-                        label="Transport Details"
-                        description={fieldDescriptions.transportDetails}
+                        label="Trip Purpose"
+                        description={fieldDescriptions.tripPurpose}
                       />
                       <FormControl>
-                        <Input {...field} placeholder="Car type & registration (if applicable)" />
+                        <Input {...field} />
                       </FormControl>
                       <FormMessage />
                     </FormItem>
@@ -318,101 +288,175 @@ export default function PreTravelForm() {
                 />
               </div>
 
-              <FormField
-                control={form.control}
-                name="isReturnTrip"
-                render={({ field }) => (
-                  <FormItem className="flex flex-row items-center justify-between rounded-lg border p-4">
-                    <div className="space-y-0.5">
-                      <div className="flex items-center gap-2">
-                        <FormLabel className="text-base">Return Trip</FormLabel>
-                        <HoverCard>
-                          <HoverCardTrigger asChild>
-                            <HelpCircle className="h-4 w-4 text-muted-foreground cursor-help" />
-                          </HoverCardTrigger>
-                          <HoverCardContent className="w-80">
-                            <p className="text-sm text-muted-foreground">
-                              {fieldDescriptions.isReturnTrip}
-                            </p>
-                          </HoverCardContent>
-                        </HoverCard>
-                      </div>
-                      <FormDescription>
-                        Is this a return trip?
-                      </FormDescription>
-                    </div>
-                    <FormControl>
-                      <Switch
-                        checked={field.value}
-                        onCheckedChange={field.onChange}
-                      />
-                    </FormControl>
-                  </FormItem>
-                )}
-              />
+              {/* Transport and Return Trip row */}
+              <div className="grid grid-cols-12 gap-6">
+                <div className="col-span-2">
+                  <FormField
+                    control={form.control}
+                    name="transportType"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabelWithTooltip 
+                          label="Transport Type"
+                          description={fieldDescriptions.transportType}
+                        />
+                        <FormControl>
+                          <Input {...field} placeholder="e.g., Car, Train" />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                </div>
 
-              <FormField
-                control={form.control}
-                name="startDate"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabelWithTooltip 
-                      label="Start Date"
-                      description={fieldDescriptions.startDate}
-                    />
-                    <FormControl>
-                      <Input
-                        type="date"
-                        value={field.value instanceof Date ? field.value.toISOString().split('T')[0] : ''}
-                        onChange={(e) =>
-                          field.onChange(new Date(e.target.value))
-                        }
-                      />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
+                <div className="col-span-6">
+                  <FormField
+                    control={form.control}
+                    name="transportDetails"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabelWithTooltip 
+                          label="Transport Details"
+                          description={fieldDescriptions.transportDetails}
+                        />
+                        <FormControl>
+                          <Input {...field} placeholder="Car type & registration (if applicable)" />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                </div>
 
-              <FormField
-                control={form.control}
-                name="duration"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabelWithTooltip 
-                      label="Duration (days)"
-                      description={fieldDescriptions.duration}
-                    />
-                    <FormControl>
-                      <Input
-                        type="number"
-                        {...field}
-                        onChange={(e) =>
-                          field.onChange(parseInt(e.target.value))
-                        }
-                      />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
+                <div className="col-span-4">
+                  <FormField
+                    control={form.control}
+                    name="isReturnTrip"
+                    render={({ field }) => (
+                      <FormItem className="flex flex-row items-center justify-between rounded-lg border p-4 h-[90%]">
+                        <div className="space-y-0.5">
+                          <div className="flex items-center gap-2">
+                            <FormLabel className="text-base">Return Trip</FormLabel>
+                            <HoverCard>
+                              <HoverCardTrigger asChild>
+                                <HelpCircle className="h-4 w-4 text-muted-foreground cursor-help" />
+                              </HoverCardTrigger>
+                              <HoverCardContent className="w-80">
+                                <p className="text-sm text-muted-foreground">
+                                  {fieldDescriptions.isReturnTrip}
+                                </p>
+                              </HoverCardContent>
+                            </HoverCard>
+                          </div>
+                        </div>
+                        <FormControl>
+                          <Switch
+                            checked={field.value}
+                            onCheckedChange={field.onChange}
+                          />
+                        </FormControl>
+                      </FormItem>
+                    )}
+                  />
+                </div>
+              </div>
 
-              <FormField
-                control={form.control}
-                name="projectCode"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabelWithTooltip 
-                      label="Project Code"
-                      description={fieldDescriptions.projectCode}
-                    />
-                    <FormControl>
-                      <Input {...field} />
-                    </FormControl>
-                    <FormMessage />
-                  </FormItem>
-                )}
-              />
+              {/* Date and Duration row */}
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <FormField
+                  control={form.control}
+                  name="startDate"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabelWithTooltip 
+                        label="Start Date"
+                        description={fieldDescriptions.startDate}
+                      />
+                      <FormControl>
+                        <Input
+                          type="date"
+                          value={field.value instanceof Date ? field.value.toISOString().split('T')[0] : ''}
+                          onChange={(e) =>
+                            field.onChange(new Date(e.target.value))
+                          }
+                        />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+
+                <FormField
+                  control={form.control}
+                  name="duration"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabelWithTooltip 
+                        label="Duration (days)"
+                        description={fieldDescriptions.duration}
+                      />
+                      <FormControl>
+                        <Input
+                          type="number"
+                          {...field}
+                          onChange={(e) =>
+                            field.onChange(parseInt(e.target.value))
+                          }
+                        />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+              </div>
+
+              {/* Project Code and Prepayment row */}
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <FormField
+                  control={form.control}
+                  name="projectCode"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabelWithTooltip 
+                        label="Project Code"
+                        description={fieldDescriptions.projectCode}
+                      />
+                      <FormControl>
+                        <Input {...field} />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+
+                <FormField
+                  control={form.control}
+                  name="requestedPrepayment"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabelWithTooltip 
+                        label="Requested Prepayment (EUR)"
+                        description={fieldDescriptions.requestedPrepayment}
+                      />
+                      <FormControl>
+                        <Input 
+                          type="number" 
+                          step="0.01"
+                          {...field}
+                          onChange={(e) => field.onChange(parseFloat(e.target.value))}
+                        />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+              </div>
+
+              <div className="rounded-lg border p-4 bg-muted/50">
+                <p className="text-sm text-muted-foreground">
+                  <strong>Important:</strong> After completing your travel, you are required to submit Form 2 (post-travel form) within 10 days of your return date to justify the travel expenses and reconcile any prepayments.
+                </p>
+              </div>
 
               <Button type="submit" className="w-full">
                 Submit for Approval
