@@ -21,15 +21,6 @@ export const ThemeMode = {
 
 export type ThemeModeType = (typeof ThemeMode)[keyof typeof ThemeMode];
 
-// Define invitation types
-export const InvitationType = {
-  EMPLOYEE: 'employee',
-  COMPANY_ADMIN: 'company_admin',
-} as const;
-
-export type InvitationTypeType = (typeof InvitationType)[keyof typeof InvitationType];
-
-// Companies table
 export const companies = pgTable("companies", {
   id: serial("id").primaryKey(),
   name: text("name").unique().notNull(),
@@ -61,31 +52,9 @@ export const users = pgTable("users", {
   updatedAt: timestamp("updated_at").defaultNow().notNull(),
 });
 
-// New table for handling invitations
-export const invitations = pgTable("invitations", {
-  id: serial("id").primaryKey(),
-  email: text("email").notNull(),
-  type: text("type", { enum: [InvitationType.EMPLOYEE, InvitationType.COMPANY_ADMIN] }).notNull(),
-  token: text("token").unique().notNull(),
-  companyId: integer("company_id").references(() => companies.id),
-  invitedBy: integer("invited_by").references(() => users.id).notNull(),
-  status: text("status", { enum: ['pending', 'accepted', 'expired'] }).default('pending').notNull(),
-  expiresAt: timestamp("expires_at").notNull(),
-  createdAt: timestamp("created_at").defaultNow().notNull(),
-});
-
-// Settings table
-export const settings = pgTable("settings", {
-  id: serial("id").primaryKey(),
-  key: text("key").unique().notNull(),
-  value: text("value").notNull(),
-  updatedAt: timestamp("updated_at").defaultNow().notNull(),
-});
-
 export const travelForms = pgTable("travel_forms", {
   id: serial("id").primaryKey(),
   userId: integer("user_id").notNull().references(() => users.id),
-  approverId: integer("approver_id").references(() => users.id),
   submissionLocation: text("submission_location").notNull(),
   submissionDate: timestamp("submission_date").defaultNow().notNull(),
   firstName: text("first_name").notNull(),
@@ -99,12 +68,12 @@ export const travelForms = pgTable("travel_forms", {
   isReturnTrip: boolean("is_return_trip").default(true).notNull(),
   projectCode: text("project_code").notNull(),
   requestedPrepayment: decimal("requested_prepayment", { precision: 10, scale: 2 }),
-  status: text("status").default('pending').notNull(),
+  status: text("status", {
+    enum: ['pre_travel_submitted', 'post_travel_submitted', 'completed']
+  }).default('pre_travel_submitted').notNull(),
   approvalStatus: text("approval_status", {
     enum: ['pending', 'approved', 'rejected']
-  }).default('pending').notNull(),
-  approvalDate: timestamp("approval_date"),
-  approvalNotes: text("approval_notes"),
+  }).default('approved').notNull(), // Default to approved
   departureTime: timestamp("departure_time"),
   returnTime: timestamp("return_time"),
   startMileage: decimal("start_mileage", { precision: 10, scale: 2 }),
@@ -130,11 +99,18 @@ export const notifications = pgTable("notifications", {
   title: text("title").notNull(),
   message: text("message").notNull(),
   type: text("type", {
-    enum: ['form_approval', 'form_approved', 'form_rejected', 'other']
+    enum: ['form_submitted', 'form_completed', 'other']
   }).notNull(),
   metadata: jsonb("metadata"),
   read: boolean("read").default(false).notNull(),
   createdAt: timestamp("created_at").defaultNow().notNull(),
+});
+
+export const settings = pgTable("settings", {
+  id: serial("id").primaryKey(),
+  key: text("key").unique().notNull(),
+  value: text("value").notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().notNull(),
 });
 
 // Define relations
@@ -154,12 +130,6 @@ export const travelFormsRelations = relations(travelForms, ({ one, many }) => ({
   user: one(users, {
     fields: [travelForms.userId],
     references: [users.id],
-    relationName: "submitter"
-  }),
-  approver: one(users, {
-    fields: [travelForms.approverId],
-    references: [users.id],
-    relationName: "approver"
   }),
   company: one(companies, {
     fields: [travelForms.companyId],
@@ -178,18 +148,6 @@ export const expensesRelations = relations(expenses, ({ one }) => ({
 export const notificationsRelations = relations(notifications, ({ one }) => ({
   user: one(users, {
     fields: [notifications.userId],
-    references: [users.id],
-  }),
-}));
-
-// Add relations for invitations
-export const invitationsRelations = relations(invitations, ({ one }) => ({
-  company: one(companies, {
-    fields: [invitations.companyId],
-    references: [companies.id],
-  }),
-  inviter: one(users, {
-    fields: [invitations.invitedBy],
     references: [users.id],
   }),
 }));
@@ -229,20 +187,3 @@ export const insertNotificationSchema = createInsertSchema(notifications);
 export const selectNotificationSchema = createSelectSchema(notifications);
 export type InsertNotification = typeof notifications.$inferInsert;
 export type SelectNotification = typeof notifications.$inferSelect;
-
-export const insertCompanySchema = createInsertSchema(companies);
-export const selectCompanySchema = createSelectSchema(companies);
-export type InsertCompany = typeof companies.$inferInsert;
-export type SelectCompany = typeof companies.$inferSelect;
-
-export const insertInvitationSchema = createInsertSchema(invitations);
-export const selectInvitationSchema = createSelectSchema(invitations);
-export type InsertInvitation = typeof invitations.$inferInsert;
-export type SelectInvitation = typeof invitations.$inferSelect;
-
-// Validation schema for sending invitations
-export const sendInvitationSchema = z.object({
-  email: z.string().email("Invalid email address"),
-  type: z.enum([InvitationType.EMPLOYEE, InvitationType.COMPANY_ADMIN]),
-  companyId: z.number().optional(),
-});

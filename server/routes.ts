@@ -5,10 +5,8 @@ import { db } from "@db";
 import { users, updateUserProfileSchema } from "@db/schema";
 import { eq } from "drizzle-orm";
 import { setupWebSocket } from "./websocket";
-import type { InsertInvitation } from "@db/schema";
-import { travelForms, expenses, settings, notifications, companies, invitations } from "@db/schema";
+import { travelForms, expenses, settings, notifications, companies } from "@db/schema";
 import { eq, and } from "drizzle-orm";
-import { randomBytes } from "crypto";
 
 // Middleware to check if user is authenticated
 const isAuthenticated = (req: Request, res: Response, next: NextFunction) => {
@@ -40,24 +38,18 @@ async function initializeSettings() {
   }
 }
 
-// Create notification and send via WebSocket
-async function createNotification(userId: number, title: string, message: string, type: 'form_approval' | 'form_approved' | 'form_rejected' | 'other', metadata?: any) {
+// Create notification
+async function createNotification(userId: number, title: string, message: string, type: string, metadata?: any) {
   const [notification] = await db.insert(notifications).values({
     userId,
     title,
     message,
     type,
-    metadata: metadata ? JSON.stringify(metadata) : null,
+    metadata: metadata ? metadata : null,
   }).returning();
 
   return notification;
 }
-
-// Wrap async route handlers
-const asyncHandler = (fn: (req: Request, res: Response, next: NextFunction) => Promise<any>) =>
-  (req: Request, res: Response, next: NextFunction) => {
-    return Promise.resolve(fn(req, res, next)).catch(next);
-  };
 
 export function registerRoutes(app: Express): Server {
   // Get all travel forms for the current user
@@ -91,8 +83,8 @@ export function registerRoutes(app: Express): Server {
         isReturnTrip: req.body.isReturnTrip,
         projectCode: req.body.projectCode,
         requestedPrepayment: req.body.requestedPrepayment,
-        approvalStatus: 'approved',
-        approvalDate: new Date(),
+        status: 'pre_travel_submitted',
+        approvalStatus: 'approved', // Automatically approved
         companyId: req.user?.companyId
       })
       .returning();
@@ -101,8 +93,8 @@ export function registerRoutes(app: Express): Server {
     const notification = await createNotification(
       req.user!.id,
       'Travel Form Submitted',
-      `Your travel form for ${form.destination} has been automatically approved`,
-      'form_approved',
+      `Your pre-travel form for ${form.destination} has been automatically approved`,
+      'form_submitted',
       { formId: form.id }
     );
 
@@ -139,8 +131,8 @@ export function registerRoutes(app: Express): Server {
         returnTime: new Date(returnTime),
         startMileage,
         endMileage,
-        approvalStatus: 'approved',
-        approvalDate: new Date(),
+        status: 'completed',
+        approvalStatus: 'approved', // Automatically approved
       })
       .where(eq(travelForms.id, parseInt(req.params.id)))
       .returning();
@@ -159,9 +151,9 @@ export function registerRoutes(app: Express): Server {
     // Create notification for the form update
     const notification = await createNotification(
       req.user!.id,
-      'Travel Form Updated',
-      `Your post-travel details for ${updatedForm.destination} have been updated and approved`,
-      'form_approved',
+      'Travel Form Completed',
+      `Your travel form for ${updatedForm.destination} has been completed and automatically approved`,
+      'form_completed',
       { formId: updatedForm.id }
     );
 
@@ -174,54 +166,27 @@ export function registerRoutes(app: Express): Server {
     res.json(updatedForm);
   }));
 
-  // Get settings
-  app.get("/api/settings", isAuthenticated, asyncHandler(async (req: Request, res: Response) => {
-    const allSettings = await db.select().from(settings);
-    const settingsMap = Object.fromEntries(
-      allSettings.map(setting => [setting.key, setting.value])
-    );
-    res.json(settingsMap);
-  }));
-
   // Get notifications for the current user
   app.get("/api/notifications", isAuthenticated, asyncHandler(async (req: Request, res: Response) => {
-    const userNotifications = await db.query.notifications.findMany({
+    const notifications = await db.query.notifications.findMany({
       where: eq(notifications.userId, req.user!.id),
       orderBy: (notifications, { desc }) => [desc(notifications.createdAt)]
     });
-    res.json(userNotifications);
+    res.json(notifications);
   }));
 
   // Mark notification as read
   app.put("/api/notifications/:id/read", isAuthenticated, asyncHandler(async (req: Request, res: Response) => {
-    const { id } = req.params;
-
     const [notification] = await db
       .update(notifications)
       .set({ read: true })
       .where(and(
-        eq(notifications.id, parseInt(id)),
+        eq(notifications.id, parseInt(req.params.id)),
         eq(notifications.userId, req.user!.id)
       ))
       .returning();
 
     res.json(notification);
-  }));
-
-  // Get unique submission locations for the current user
-  app.get("/api/submission-locations", isAuthenticated, asyncHandler(async (req: Request, res: Response) => {
-    const locations = await db.query.travelForms.findMany({
-      where: eq(travelForms.userId, req.user!.id),
-      columns: {
-        submissionLocation: true
-      },
-      limit: 10
-    });
-
-    const uniqueLocations = Array.from(
-      new Set(locations.map(l => l.submissionLocation))
-    );
-    res.json(uniqueLocations);
   }));
 
   // Get all companies
@@ -302,3 +267,9 @@ export function registerRoutes(app: Express): Server {
 
   return server;
 }
+
+// Wrap async route handlers
+const asyncHandler = (fn: (req: Request, res: Response, next: NextFunction) => Promise<any>) =>
+  (req: Request, res: Response, next: NextFunction) => {
+    return Promise.resolve(fn(req, res, next)).catch(next);
+  };
