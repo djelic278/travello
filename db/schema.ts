@@ -12,6 +12,15 @@ export const UserRole = {
 
 export type UserRoleType = (typeof UserRole)[keyof typeof UserRole];
 
+// Define theme options
+export const ThemeMode = {
+  LIGHT: 'light',
+  DARK: 'dark',
+  SYSTEM: 'system',
+} as const;
+
+export type ThemeModeType = (typeof ThemeMode)[keyof typeof ThemeMode];
+
 // Companies table
 export const companies = pgTable("companies", {
   id: serial("id").primaryKey(),
@@ -34,6 +43,13 @@ export const users = pgTable("users", {
     .notNull(),
   isAdmin: boolean("is_admin").default(false).notNull(),
   companyId: integer("company_id").references(() => companies.id),
+  // Add user preferences
+  theme: text("theme", { enum: [ThemeMode.LIGHT, ThemeMode.DARK, ThemeMode.SYSTEM] })
+    .default(ThemeMode.SYSTEM)
+    .notNull(),
+  emailNotifications: boolean("email_notifications").default(true).notNull(),
+  dashboardLayout: jsonb("dashboard_layout"),
+  preferences: jsonb("preferences").default({}).notNull(),
   createdAt: timestamp("created_at").defaultNow().notNull(),
   updatedAt: timestamp("updated_at").defaultNow().notNull(),
 });
@@ -185,4 +201,8 @@ export const updateUserProfileSchema = z.object({
   dateOfBirth: z.string().optional(),
   preferredEmail: z.string().email().optional(),
   companyId: z.number().optional(),
+  theme: z.enum([ThemeMode.LIGHT, ThemeMode.DARK, ThemeMode.SYSTEM]).optional(),
+  emailNotifications: z.boolean().optional(),
+  dashboardLayout: z.record(z.any()).optional(),
+  preferences: z.record(z.any()).optional(),
 });
