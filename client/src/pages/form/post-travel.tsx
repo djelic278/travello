@@ -24,6 +24,7 @@ import {
   CardFooter,
 } from "@/components/ui/card";
 import { Loader2, Plus, X } from "lucide-react";
+import { FileText } from 'lucide-react';
 import {
   Table,
   TableBody,
@@ -51,6 +52,7 @@ export default function PostTravelForm() {
       startMileage: form?.startMileage || 0,
       endMileage: form?.endMileage || 0,
       expenses: form?.expenses || [],
+      files: [] // Add initial value for files
     },
   });
 
@@ -124,8 +126,8 @@ export default function PostTravelForm() {
   );
 
   const onSubmit = (data: PostTravelForm) => {
-    const fileInput = document.querySelector<HTMLInputElement>('input[type="file"]');
-    if (!fileInput?.files) {
+    const files = formHook.watch('files');
+    if (!files || files.length === 0) {
       toast({
         title: "Error",
         description: "Please select at least one receipt file",
@@ -133,7 +135,7 @@ export default function PostTravelForm() {
       });
       return;
     }
-    mutation.mutate({ ...data, files: fileInput.files });
+    mutation.mutate({ ...data, files: new FileList(files) });
   };
 
   return (
@@ -266,14 +268,68 @@ export default function PostTravelForm() {
 
               <FormItem>
                 <FormLabel>Receipt Files</FormLabel>
-                <FormControl>
-                  <Input
-                    type="file"
-                    multiple
-                    accept="image/*,.pdf"
-                    max={4}
-                  />
-                </FormControl>
+                <div className="space-y-4">
+                  <label
+                    className="flex items-center justify-center w-full h-32 px-4 transition bg-white border-2 border-gray-300 border-dashed rounded-md appearance-none cursor-pointer hover:border-primary/50 focus:outline-none">
+                    <div className="flex flex-col items-center space-y-2">
+                      <span className="flex items-center space-x-2">
+                        <svg xmlns="http://www.w3.org/2000/svg" className="w-6 h-6 text-gray-600" fill="none" viewBox="0 0 24 24"
+                          stroke="currentColor" strokeWidth="2">
+                          <path strokeLinecap="round" strokeLinejoin="round"
+                            d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12" />
+                        </svg>
+                        <span className="font-medium text-gray-600">
+                          Drop files to attach, or <span className="text-primary underline">browse</span>
+                        </span>
+                      </span>
+                      <span className="text-xs text-gray-500">Up to 4 files (images or PDFs)</span>
+                    </div>
+                    <FormControl>
+                      <Input
+                        type="file"
+                        multiple
+                        accept="image/*,.pdf"
+                        max={4}
+                        className="hidden"
+                        onChange={(e) => {
+                          const files = Array.from(e.target.files || []);
+                          const existingFiles = formHook.watch('files') || [];
+                          const newFiles = [...existingFiles, ...files].slice(0, 4);
+                          formHook.setValue('files', newFiles);
+                        }}
+                      />
+                    </FormControl>
+                  </label>
+
+                  {/* Display selected files */}
+                  {formHook.watch('files')?.length > 0 && (
+                    <div className="space-y-2">
+                      {Array.from(formHook.watch('files')).map((file: File, index) => (
+                        <div
+                          key={`${file.name}-${index}`}
+                          className="flex items-center justify-between p-2 bg-muted rounded-md"
+                        >
+                          <div className="flex items-center space-x-2">
+                            <FileText className="h-4 w-4 text-muted-foreground" />
+                            <span className="text-sm text-muted-foreground">{file.name}</span>
+                          </div>
+                          <Button
+                            type="button"
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => {
+                              const files = formHook.watch('files');
+                              const newFiles = Array.from(files).filter((_, i) => i !== index);
+                              formHook.setValue('files', newFiles);
+                            }}
+                          >
+                            <X className="h-4 w-4" />
+                          </Button>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
                 <FormDescription>
                   Upload up to 4 receipt files (images or PDFs)
                 </FormDescription>
