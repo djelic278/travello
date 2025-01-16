@@ -40,13 +40,19 @@ async function initializeSettings() {
 }
 
 // Create notification
-async function createNotification(userId: number, title: string, message: string, type: string, metadata?: any) {
+async function createNotification(
+  userId: number,
+  title: string,
+  message: string,
+  type: 'form_submitted' | 'form_completed' | 'other',
+  metadata?: any
+) {
   const [notification] = await db.insert(notifications).values({
     userId,
     title,
     message,
     type,
-    metadata: metadata ? metadata : null,
+    metadata: metadata ? JSON.stringify(metadata) : null,
   }).returning();
 
   return notification;
@@ -274,60 +280,85 @@ export function registerRoutes(app: Express): Server {
 
     const { email, type } = result.data;
 
-    // Check if invitation already exists
-    const [existingInvitation] = await db
-      .select()
-      .from(invitations)
-      .where(and(
-        eq(invitations.email, email),
-        eq(invitations.status, 'pending')
-      ))
-      .limit(1);
+    try {
+      // Check if invitation already exists
+      const [existingInvitation] = await db
+        .select()
+        .from(invitations)
+        .where(and(
+          eq(invitations.email, email),
+          eq(invitations.status, 'pending')
+        ))
+        .limit(1);
 
-    if (existingInvitation) {
-      return res.status(400).send("An invitation is already pending for this email");
-    }
+      if (existingInvitation) {
+        return res.status(400).json({
+          success: false,
+          error: "An invitation is already pending for this email"
+        });
+      }
 
-    // Generate a unique token
-    const token = randomBytes(32).toString('hex');
-    const expiresAt = new Date();
-    expiresAt.setDate(expiresAt.getDate() + 7); // Token expires in 7 days
+      // Generate a unique token
+      const token = randomBytes(32).toString('hex');
+      const expiresAt = new Date();
+      expiresAt.setDate(expiresAt.getDate() + 7); // Token expires in 7 days
 
-    const [invitation] = await db.insert(invitations).values({
-      email,
-      type,
-      token,
-      expiresAt,
-    }).returning();
+      // Create the invitation first
+      const [invitation] = await db.insert(invitations).values({
+        email,
+        type,
+        token,
+        expiresAt,
+        status: 'pending'
+      }).returning();
 
-    // Send invitation email
-    const emailResult = await sendInvitationEmail(email, token);
+      // Send invitation email
+      const emailResult = await sendInvitationEmail(email, token);
 
-    if (!emailResult.success) {
-      return res.status(200).json({
-        message: "Invitation created but email delivery failed. Please check logs.",
+      if (!emailResult.success) {
+        // Update invitation status to failed
+        await db.update(invitations)
+          .set({ status: 'failed' })
+          .where(eq(invitations.id, invitation.id));
+
+        return res.status(200).json({
+          success: false,
+          message: "Invitation created but email delivery failed",
+          error: emailResult.error,
+          invitation: {
+            id: invitation.id,
+            email: invitation.email,
+            type: invitation.type,
+            status: 'failed',
+            expiresAt: invitation.expiresAt,
+          }
+        });
+      }
+
+      // Email sent successfully
+      return res.json({
+        success: true,
+        message: "Invitation sent successfully",
         invitation: {
+          id: invitation.id,
           email: invitation.email,
           type: invitation.type,
+          status: invitation.status,
           expiresAt: invitation.expiresAt,
         },
-        error: emailResult.error
+        emailPreviewUrl: emailResult.previewUrl,
+        testEnvironment: {
+          note: "This is a test environment. Emails are not actually delivered but can be viewed at Ethereal Email.",
+          credentials: emailResult.testCredentials
+        }
+      });
+    } catch (error) {
+      console.error('Error sending invitation:', error);
+      return res.status(500).json({
+        success: false,
+        error: error instanceof Error ? error.message : 'An unexpected error occurred'
       });
     }
-
-    res.json({
-      message: "Invitation sent successfully",
-      invitation: {
-        email: invitation.email,
-        type: invitation.type,
-        expiresAt: invitation.expiresAt,
-      },
-      emailPreviewUrl: emailResult.previewUrl,
-      testEnvironment: {
-        note: "This is a test environment. Emails are not actually delivered but can be viewed at Ethereal Email.",
-        credentials: emailResult.testCredentials
-      }
-    });
   }));
 
   // Get all invitations (super admin only)

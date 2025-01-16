@@ -26,7 +26,9 @@ async function createTestAccount(): Promise<TestAccount> {
     return testAccount;
   } catch (error) {
     console.error('Error creating test account:', error);
-    throw new Error('Failed to create test email account. Please try again.');
+    throw new Error(
+      'Failed to create test email account. Did you forget to provision a database?',
+    );
   }
 }
 
