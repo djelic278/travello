@@ -1,6 +1,6 @@
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { preTraveFormSchema, type PreTravelForm } from "@/lib/forms";
+import { preTraveFormSchema, type PreTravelForm, fieldDescriptions } from "@/lib/forms";
 import { useMutation, useQuery } from "@tanstack/react-query";
 import { useLocation } from "wouter";
 import { useToast } from "@/hooks/use-toast";
@@ -35,9 +35,30 @@ import {
   PopoverContent,
   PopoverTrigger,
 } from "@/components/ui/popover";
+import {
+  HoverCard,
+  HoverCardContent,
+  HoverCardTrigger,
+} from "@/components/ui/hover-card";
 import { useState } from "react";
-import { Check, ChevronsUpDown } from "lucide-react";
+import { Check, ChevronsUpDown, HelpCircle } from "lucide-react";
 import { cn } from "@/lib/utils";
+
+function FormLabelWithTooltip({ label, description }: { label: string; description: string }) {
+  return (
+    <div className="flex items-center gap-2">
+      <FormLabel>{label}</FormLabel>
+      <HoverCard>
+        <HoverCardTrigger asChild>
+          <HelpCircle className="h-4 w-4 text-muted-foreground cursor-help" />
+        </HoverCardTrigger>
+        <HoverCardContent className="w-80">
+          <p className="text-sm text-muted-foreground">{description}</p>
+        </HoverCardContent>
+      </HoverCard>
+    </div>
+  );
+}
 
 export default function PreTravelForm() {
   const [, navigate] = useLocation();
@@ -54,6 +75,8 @@ export default function PreTravelForm() {
     defaultValues: {
       submissionLocation: "",
       submissionDate: new Date(),
+      firstName: "",
+      lastName: "",
       isReturnTrip: true,
       duration: 1,
     },
@@ -112,7 +135,10 @@ export default function PreTravelForm() {
                   name="submissionLocation"
                   render={({ field }) => (
                     <FormItem className="flex flex-col">
-                      <FormLabel>Form Submission Location</FormLabel>
+                      <FormLabelWithTooltip 
+                        label="Form Submission Location" 
+                        description={fieldDescriptions.submissionLocation}
+                      />
                       <Popover open={open} onOpenChange={setOpen}>
                         <PopoverTrigger asChild>
                           <FormControl>
@@ -169,7 +195,10 @@ export default function PreTravelForm() {
                   name="submissionDate"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel>Form Submission Date</FormLabel>
+                      <FormLabelWithTooltip 
+                        label="Form Submission Date"
+                        description={fieldDescriptions.submissionDate}
+                      />
                       <FormControl>
                         <Input
                           type="date"
@@ -183,12 +212,51 @@ export default function PreTravelForm() {
                 />
               </div>
 
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <FormField
+                  control={form.control}
+                  name="firstName"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabelWithTooltip 
+                        label="First Name"
+                        description={fieldDescriptions.firstName}
+                      />
+                      <FormControl>
+                        <Input {...field} />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+
+                <FormField
+                  control={form.control}
+                  name="lastName"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabelWithTooltip 
+                        label="Last Name"
+                        description={fieldDescriptions.lastName}
+                      />
+                      <FormControl>
+                        <Input {...field} />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+              </div>
+
               <FormField
                 control={form.control}
                 name="destination"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Destination</FormLabel>
+                    <FormLabelWithTooltip 
+                      label="Destination"
+                      description={fieldDescriptions.destination}
+                    />
                     <FormControl>
                       <Input {...field} />
                     </FormControl>
@@ -199,11 +267,76 @@ export default function PreTravelForm() {
 
               <FormField
                 control={form.control}
+                name="tripPurpose"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabelWithTooltip 
+                      label="Trip Purpose"
+                      description={fieldDescriptions.tripPurpose}
+                    />
+                    <FormControl>
+                      <Input {...field} />
+                    </FormControl>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
+
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <FormField
+                  control={form.control}
+                  name="transportType"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabelWithTooltip 
+                        label="Transport Type"
+                        description={fieldDescriptions.transportType}
+                      />
+                      <FormControl>
+                        <Input {...field} placeholder="e.g., Car, Train, Bus" />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+
+                <FormField
+                  control={form.control}
+                  name="transportDetails"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabelWithTooltip 
+                        label="Transport Details"
+                        description={fieldDescriptions.transportDetails}
+                      />
+                      <FormControl>
+                        <Input {...field} placeholder="Car type & registration (if applicable)" />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+              </div>
+
+              <FormField
+                control={form.control}
                 name="isReturnTrip"
                 render={({ field }) => (
                   <FormItem className="flex flex-row items-center justify-between rounded-lg border p-4">
                     <div className="space-y-0.5">
-                      <FormLabel className="text-base">Return Trip</FormLabel>
+                      <div className="flex items-center gap-2">
+                        <FormLabel className="text-base">Return Trip</FormLabel>
+                        <HoverCard>
+                          <HoverCardTrigger asChild>
+                            <HelpCircle className="h-4 w-4 text-muted-foreground cursor-help" />
+                          </HoverCardTrigger>
+                          <HoverCardContent className="w-80">
+                            <p className="text-sm text-muted-foreground">
+                              {fieldDescriptions.isReturnTrip}
+                            </p>
+                          </HoverCardContent>
+                        </HoverCard>
+                      </div>
                       <FormDescription>
                         Is this a return trip?
                       </FormDescription>
@@ -223,7 +356,10 @@ export default function PreTravelForm() {
                 name="startDate"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Start Date</FormLabel>
+                    <FormLabelWithTooltip 
+                      label="Start Date"
+                      description={fieldDescriptions.startDate}
+                    />
                     <FormControl>
                       <Input
                         type="date"
@@ -243,7 +379,10 @@ export default function PreTravelForm() {
                 name="duration"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Duration (days)</FormLabel>
+                    <FormLabelWithTooltip 
+                      label="Duration (days)"
+                      description={fieldDescriptions.duration}
+                    />
                     <FormControl>
                       <Input
                         type="number"
@@ -263,7 +402,10 @@ export default function PreTravelForm() {
                 name="projectCode"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel>Project Code</FormLabel>
+                    <FormLabelWithTooltip 
+                      label="Project Code"
+                      description={fieldDescriptions.projectCode}
+                    />
                     <FormControl>
                       <Input {...field} />
                     </FormControl>
