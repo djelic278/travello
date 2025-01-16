@@ -1,6 +1,6 @@
 import { useForm, useFieldArray } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { postTravelFormSchema, type PostTravelForm, calculateAllowance, calculateTotalHours } from "@/lib/forms";
+import { postTravelFormSchema, type PostTravelForm, calculateAllowance, calculateTotalHours, calculateDistanceAllowance } from "@/lib/forms";
 import { useMutation, useQuery } from "@tanstack/react-query";
 import { useLocation, useParams } from "wouter";
 import { useToast } from "@/hooks/use-toast";
@@ -38,6 +38,11 @@ export default function PostTravelForm() {
   const params = useParams<{ id: string }>();
   const [, navigate] = useLocation();
   const { toast } = useToast();
+
+  // Fetch settings
+  const { data: settings } = useQuery<Record<string, string>>({
+    queryKey: ["/api/settings"],
+  });
 
   const { data: form, isLoading } = useQuery({
     queryKey: [`/api/forms/${params.id}`],
@@ -115,13 +120,21 @@ export default function PostTravelForm() {
   const endMileage = formHook.watch('endMileage');
   const totalKilometers = Math.max(0, endMileage - startMileage);
 
-  // Calculate total hours
+  // Calculate allowances
   const totalHours = calculateTotalHours(
     formHook.watch('departureTime'),
     formHook.watch('returnTime')
   );
 
-  const allowance = calculateAllowance(totalHours);
+  const timeAllowance = calculateAllowance(
+    totalHours,
+    settings?.dailyAllowance ? parseFloat(settings.dailyAllowance) : 35
+  );
+
+  const distanceAllowance = calculateDistanceAllowance(
+    totalKilometers,
+    settings?.kilometerRate ? parseFloat(settings.kilometerRate) : 0.3
+  );
 
   const totalExpenses = formHook.watch('expenses').reduce(
     (sum, expense) => sum + (expense.amount || 0),
@@ -363,7 +376,7 @@ export default function PostTravelForm() {
                   </TableHeader>
                   <TableBody>
                     {fields.map((field, index) => (
-                      <TableRow key={index}> {/* Changed key to index */}
+                      <TableRow key={index}>
                         <TableCell>
                           <FormField
                             control={formHook.control}
@@ -413,18 +426,21 @@ export default function PostTravelForm() {
               </div>
 
               <CardFooter className="flex justify-between border-t pt-6">
-                <div>
+                <div className="space-y-1">
                   <p className="text-sm text-muted-foreground">
                     Total Hours: {totalHours}
                   </p>
                   <p className="text-sm text-muted-foreground">
-                    Travel Allowance: €{allowance}
+                    Time-based Allowance: €{timeAllowance.toFixed(2)}
                   </p>
                   <p className="text-sm text-muted-foreground">
-                    Additional Expenses: €{totalExpenses}
+                    Distance Allowance ({totalKilometers} km × €{settings?.kilometerRate || '0.30'}/km): €{distanceAllowance.toFixed(2)}
+                  </p>
+                  <p className="text-sm text-muted-foreground">
+                    Additional Expenses: €{totalExpenses.toFixed(2)}
                   </p>
                   <p className="font-semibold">
-                    Total Reimbursement: €{allowance + totalExpenses}
+                    Total Reimbursement: €{(timeAllowance + distanceAllowance + totalExpenses).toFixed(2)}
                   </p>
                 </div>
                 <Button type="submit">Submit Form</Button>

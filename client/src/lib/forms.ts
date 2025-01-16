@@ -73,6 +73,10 @@ export function calculateAllowance(hours: number, dailyAllowance: number = 35): 
   }
 }
 
+export function calculateDistanceAllowance(kilometers: number, ratePerKm: number = 0.3): number {
+  return Math.max(0, kilometers * ratePerKm);
+}
+
 export function calculateTotalHours(departure: Date, return_: Date): number {
   const diff = return_.getTime() - departure.getTime();
   return Math.max(0, Math.floor(diff / (1000 * 60 * 60)));
