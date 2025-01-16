@@ -1,9 +1,18 @@
+import { useState } from "react";
 import { useForm, useFieldArray } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { postTravelFormSchema, type PostTravelForm, calculateAllowance, calculateTotalHours, calculateDistanceAllowance } from "@/lib/forms";
 import { useMutation, useQuery } from "@tanstack/react-query";
 import { useLocation, useParams } from "wouter";
 import { useToast } from "@/hooks/use-toast";
+import {
+  AlertDialog,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import {
   Form,
   FormControl,
@@ -35,6 +44,7 @@ import {
 } from "@/components/ui/table";
 
 export default function PostTravelForm() {
+  const [showSignatureDialog, setShowSignatureDialog] = useState(false);
   const params = useParams<{ id: string }>();
   const [, navigate] = useLocation();
   const { toast } = useToast();
@@ -156,7 +166,15 @@ export default function PostTravelForm() {
       });
       return;
     }
+    // Instead of submitting directly, show the signature dialog
+    setShowSignatureDialog(true);
+  };
+
+  const handleSignAndSubmit = () => {
+    const data = formHook.getValues();
+    const files = formHook.watch('files');
     mutation.mutate({ ...data, files: new FileList(files) });
+    setShowSignatureDialog(false);
   };
 
   return (
@@ -462,6 +480,36 @@ export default function PostTravelForm() {
           </Form>
         </CardContent>
       </Card>
+
+      <AlertDialog open={showSignatureDialog} onOpenChange={setShowSignatureDialog}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Digital Signature Confirmation</AlertDialogTitle>
+            <AlertDialogDescription className="space-y-2">
+              <p>
+                Do you want to digitally sign this document and submit?
+              </p>
+              <p className="font-medium text-destructive">
+                Your digital signature will be placed on the form and you are legally responsible for its contents!
+              </p>
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <Button
+              variant="outline"
+              onClick={() => setShowSignatureDialog(false)}
+            >
+              Cancel
+            </Button>
+            <Button
+              variant="default"
+              onClick={handleSignAndSubmit}
+            >
+              Sign and Submit
+            </Button>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }
