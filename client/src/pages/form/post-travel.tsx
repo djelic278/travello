@@ -141,6 +141,10 @@ export default function PostTravelForm() {
     0
   );
 
+  const prepaidAmount = form?.requestedPrepayment || 0;
+  const totalAllowances = timeAllowance + distanceAllowance + totalExpenses;
+  const finalReimbursement = totalAllowances - prepaidAmount;
+
   const onSubmit = (data: PostTravelForm) => {
     const files = formHook.watch('files');
     if (!files || files.length === 0) {
@@ -439,8 +443,16 @@ export default function PostTravelForm() {
                   <p className="text-sm text-muted-foreground">
                     Additional Expenses: €{totalExpenses.toFixed(2)}
                   </p>
+                  <p className="text-sm text-muted-foreground">
+                    Prepaid Amount: -€{prepaidAmount.toFixed(2)}
+                  </p>
                   <p className="font-semibold">
-                    Total Reimbursement: €{(timeAllowance + distanceAllowance + totalExpenses).toFixed(2)}
+                    Total Reimbursement: €{finalReimbursement.toFixed(2)}
+                  </p>
+                  <p className="text-sm italic text-muted-foreground">
+                    {finalReimbursement >= 0
+                      ? "*Amount to be paid out to employee"
+                      : "*Amount to be returned to the company"}
                   </p>
                 </div>
                 <Button type="submit">Submit Form</Button>
