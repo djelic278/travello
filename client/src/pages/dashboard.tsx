@@ -15,7 +15,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { Plus, FileText } from "lucide-react";
+import { Plus, FileText, Download } from "lucide-react";
 import { Link } from "wouter";
 import { useUser } from "@/hooks/use-user";
 import { useToast } from "@/hooks/use-toast";
@@ -26,8 +26,49 @@ export default function Dashboard() {
   const { toast } = useToast();
   const { data: forms, isLoading } = useQuery<any[]>({
     queryKey: ["/api/forms"],
-    refetchInterval: 60000, // Refetch every minute (60000ms)
+    refetchInterval: 60000, // Refetch every minute
   });
+
+  const handleExport = async () => {
+    try {
+      const response = await fetch('/api/forms/export', {
+        credentials: 'include'
+      });
+
+      if (!response.ok) {
+        throw new Error('Failed to export data');
+      }
+
+      // Get the blob from response
+      const blob = await response.blob();
+
+      // Create download link
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = 'travel-forms.xlsx';
+
+      // Trigger download
+      document.body.appendChild(a);
+      a.click();
+
+      // Cleanup
+      window.URL.revokeObjectURL(url);
+      document.body.removeChild(a);
+
+      toast({
+        title: "Success",
+        description: "Travel forms exported successfully",
+      });
+    } catch (error) {
+      console.error('Export error:', error);
+      toast({
+        title: "Error",
+        description: "Failed to export travel forms",
+        variant: "destructive",
+      });
+    }
+  };
 
   if (isLoading) {
     return (
@@ -47,12 +88,16 @@ export default function Dashboard() {
           </CardDescription>
         </CardHeader>
         <CardContent>
-          <div className="mb-4">
+          <div className="mb-4 flex justify-between items-center">
             <Button asChild>
               <Link href="/new-request">
                 <Plus className="mr-2 h-4 w-4" />
                 New Request
               </Link>
+            </Button>
+            <Button variant="outline" onClick={handleExport}>
+              <Download className="mr-2 h-4 w-4" />
+              Export to Excel
             </Button>
           </div>
 

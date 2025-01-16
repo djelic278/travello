@@ -5,6 +5,7 @@ import { db } from "@db";
 import { travelForms, expenses, settings, notifications, companies, users } from "@db/schema";
 import { eq, and, ilike } from "drizzle-orm";
 import { setupWebSocket } from "./websocket";
+import * as XLSX from 'xlsx';
 
 // Middleware to check if user is authenticated
 const isAuthenticated = (req: Request, res: Response, next: NextFunction) => {
@@ -389,6 +390,67 @@ export function registerRoutes(app: Express): Server {
       .returning();
 
     res.json(updatedUser);
+  }));
+
+  // Add this new endpoint after the other routes
+  app.get("/api/forms/export", isAuthenticated, asyncHandler(async (req: Request, res: Response) => {
+    const isApprover = req.user?.role === 'company_admin' || req.user?.role === 'super_admin';
+    const companyId = req.user?.companyId;
+
+    // Fetch forms based on user role
+    let forms;
+    if (isApprover) {
+      forms = await db.query.travelForms.findMany({
+        where: req.user?.role === 'super_admin' ? undefined : 
+          eq(travelForms.companyId, companyId),
+        with: {
+          user: true,
+          expenses: true,
+        },
+        orderBy: (travelForms, { desc }) => [desc(travelForms.createdAt)]
+      });
+    } else {
+      forms = await db.query.travelForms.findMany({
+        where: eq(travelForms.userId, req.user!.id),
+        with: {
+          user: true,
+          expenses: true,
+        },
+        orderBy: (travelForms, { desc }) => [desc(travelForms.createdAt)]
+      });
+    }
+
+    // Transform data for Excel
+    const excelData = forms.map(form => ({
+      'Form ID': form.id,
+      'Submission Date': form.submissionDate.toLocaleDateString(),
+      'Employee': `${form.user?.firstName} ${form.user?.lastName}`,
+      'Destination': form.destination,
+      'Purpose': form.tripPurpose,
+      'Start Date': form.startDate.toLocaleDateString(),
+      'Duration (days)': form.duration,
+      'Status': form.approvalStatus,
+      'Total Expenses': form.expenses.reduce((sum, exp) => sum + Number(exp.amount), 0).toFixed(2),
+      'Travel Allowance': form.allowanceAmount?.toString() || '0',
+      'Project Code': form.projectCode,
+    }));
+
+    // Create workbook and worksheet
+    const wb = XLSX.utils.book_new();
+    const ws = XLSX.utils.json_to_sheet(excelData);
+
+    // Add worksheet to workbook
+    XLSX.utils.book_append_sheet(wb, ws, "Travel Forms");
+
+    // Generate Excel file
+    const excelBuffer = XLSX.write(wb, { type: 'buffer', bookType: 'xlsx' });
+
+    // Set headers for file download
+    res.setHeader('Content-Disposition', 'attachment; filename=travel-forms.xlsx');
+    res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
+
+    // Send file
+    res.send(excelBuffer);
   }));
 
   return server;
