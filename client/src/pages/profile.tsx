@@ -43,13 +43,14 @@ import { z } from "zod";
 import { Switch } from "@/components/ui/switch";
 import { Separator } from "@/components/ui/separator";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { ThemeMode } from "@db/schema";
 
 const updateProfileSchema = z.object({
   position: z.string().min(1, "Position is required"),
   dateOfBirth: z.string().optional(),
   preferredEmail: z.string().email("Invalid email address"),
   companyId: z.number().optional(),
-  theme: z.enum(['light', 'dark', 'system']).optional(),
+  theme: z.enum([ThemeMode.LIGHT, ThemeMode.DARK, ThemeMode.SYSTEM]).optional(),
   emailNotifications: z.boolean().optional(),
   dashboardLayout: z.object({ type: z.string() }).optional(),
 });
@@ -86,7 +87,7 @@ export default function ProfilePage() {
       dateOfBirth: user?.dateOfBirth ? new Date(user.dateOfBirth).toISOString().split('T')[0] : undefined,
       preferredEmail: user?.preferredEmail || user?.email || "",
       companyId: user?.companyId || undefined,
-      theme: (user?.theme as UpdateProfileForm['theme']) || 'system',
+      theme: user?.theme || ThemeMode.SYSTEM,
       emailNotifications: user?.emailNotifications || false,
       dashboardLayout: user?.dashboardLayout || { type: 'default' },
     },
@@ -384,9 +385,9 @@ export default function ProfilePage() {
                               </SelectTrigger>
                             </FormControl>
                             <SelectContent>
-                              <SelectItem value="light">Light</SelectItem>
-                              <SelectItem value="dark">Dark</SelectItem>
-                              <SelectItem value="system">System</SelectItem>
+                              <SelectItem value={ThemeMode.LIGHT}>Light</SelectItem>
+                              <SelectItem value={ThemeMode.DARK}>Dark</SelectItem>
+                              <SelectItem value={ThemeMode.SYSTEM}>System</SelectItem>
                             </SelectContent>
                           </Select>
                         </FormItem>
