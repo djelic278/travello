@@ -8,6 +8,7 @@ import { promisify } from "util";
 import { users } from "@db/schema";
 import { db } from "@db";
 import { eq } from "drizzle-orm";
+import { z } from "zod";
 
 const scryptAsync = promisify(scrypt);
 
@@ -35,10 +36,20 @@ declare global {
     interface User {
       id: number;
       username: string;
+      email: string;
+      role: 'user' | 'company_admin' | 'super_admin';
       isAdmin: boolean;
+      companyId?: number;
     }
   }
 }
+
+// Registration validation schema
+const registrationSchema = z.object({
+  username: z.string().min(3, "Username must be at least 3 characters"),
+  password: z.string().min(6, "Password must be at least 6 characters"),
+  email: z.string().email("Invalid email address"),
+});
 
 export function setupAuth(app: Express) {
   const MemoryStore = createMemoryStore(session);
@@ -111,11 +122,14 @@ export function setupAuth(app: Express) {
   // Auth routes
   app.post("/api/register", async (req, res, next) => {
     try {
-      const { username, password } = req.body;
-
-      if (!username || !password) {
-        return res.status(400).send("Username and password are required");
+      const result = registrationSchema.safeParse(req.body);
+      if (!result.success) {
+        return res
+          .status(400)
+          .send("Invalid input: " + result.error.issues.map(i => i.message).join(", "));
       }
+
+      const { username, password, email } = result.data;
 
       // Check if user exists
       const [existingUser] = await db
@@ -128,6 +142,17 @@ export function setupAuth(app: Express) {
         return res.status(400).send("Username already exists");
       }
 
+      // Check if email exists
+      const [existingEmail] = await db
+        .select()
+        .from(users)
+        .where(eq(users.email, email))
+        .limit(1);
+
+      if (existingEmail) {
+        return res.status(400).send("Email already exists");
+      }
+
       // Create new user
       const hashedPassword = await crypto.hash(password);
       const [newUser] = await db
@@ -135,6 +160,8 @@ export function setupAuth(app: Express) {
         .values({
           username,
           password: hashedPassword,
+          email,
+          role: 'user', // Default role
           isAdmin: false,
         })
         .returning();
@@ -145,7 +172,13 @@ export function setupAuth(app: Express) {
         }
         return res.json({
           message: "Registration successful",
-          user: { id: newUser.id, username: newUser.username, isAdmin: newUser.isAdmin },
+          user: {
+            id: newUser.id,
+            username: newUser.username,
+            email: newUser.email,
+            role: newUser.role,
+            isAdmin: newUser.isAdmin,
+          },
         });
       });
     } catch (error) {
@@ -154,7 +187,7 @@ export function setupAuth(app: Express) {
   });
 
   app.post("/api/login", (req, res, next) => {
-    passport.authenticate("local", (err, user, info) => {
+    passport.authenticate("local", (err: any, user: Express.User | false, info: any) => {
       if (err) {
         return next(err);
       }
@@ -167,7 +200,13 @@ export function setupAuth(app: Express) {
         }
         return res.json({
           message: "Login successful",
-          user: { id: user.id, username: user.username, isAdmin: user.isAdmin },
+          user: {
+            id: user.id,
+            username: user.username,
+            email: user.email,
+            role: user.role,
+            isAdmin: user.isAdmin,
+          },
         });
       });
     })(req, res, next);
