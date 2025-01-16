@@ -405,10 +405,24 @@ export function registerRoutes(app: Express): Server {
         isReturnTrip: req.body.isReturnTrip,
         projectCode: req.body.projectCode,
         requestedPrepayment: req.body.requestedPrepayment,
-        approvalStatus: 'pending', // Changed from 'approved'
-        companyId: req.user?.companyId // Add company ID
+        approvalStatus: 'approved', // Changed from 'pending' to 'approved'
+        approvalDate: new Date(), // Add approval date
+        companyId: req.user?.companyId
       })
       .returning();
+
+    // Create notification for the user
+    const notification = await createNotification(
+      req.user!.id,
+      'Travel Form Approved',
+      `Your travel form for ${form.destination} has been automatically approved`,
+      'form_approved',
+      { formId: form.id }
+    );
+
+    // Send real-time notification
+    sendNotification(form.userId, notification);
+
     res.json(form);
   }));
 
@@ -436,7 +450,8 @@ export function registerRoutes(app: Express): Server {
         returnTime: new Date(returnTime),
         startMileage,
         endMileage,
-        approvalStatus: 'submitted',  // Changed from 'completed' to 'submitted'
+        approvalStatus: 'approved',  // Changed from 'submitted' to 'approved'
+        approvalDate: new Date(), // Add approval date
       })
       .where(eq(travelForms.id, parseInt(req.params.id)))
       .returning();
@@ -451,6 +466,18 @@ export function registerRoutes(app: Express): Server {
         }))
       );
     }
+
+    // Create notification for the form submission
+    const notification = await createNotification(
+      req.user!.id,
+      'Travel Form Updated',
+      `Your post-travel details for ${updatedForm.destination} have been automatically approved`,
+      'form_approved',
+      { formId: updatedForm.id }
+    );
+
+    // Send real-time notification
+    sendNotification(updatedForm.userId, notification);
 
     res.json(updatedForm);
   }));
