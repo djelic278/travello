@@ -7,6 +7,7 @@ import { eq, and } from "drizzle-orm";
 import { setupWebSocket } from "./websocket";
 import { travelForms, expenses, settings, notifications, companies, invitations, sendInvitationSchema } from "@db/schema";
 import { randomBytes } from "crypto";
+import { sendInvitationEmail } from './email';
 
 // Middleware to check if user is authenticated
 const isAuthenticated = (req: Request, res: Response, next: NextFunction) => {
@@ -299,15 +300,31 @@ export function registerRoutes(app: Express): Server {
       expiresAt,
     }).returning();
 
-    // TODO: Send email with invitation link
-    // For now, just return the invitation details
+    // Send invitation email
+    const emailResult = await sendInvitationEmail(email, token);
+
+    if (!emailResult.success) {
+      // If email fails, still return success but with a warning
+      // In production, you might want to handle this differently
+      return res.json({
+        message: "Invitation created but email delivery failed. Please check logs.",
+        invitation: {
+          email: invitation.email,
+          type: invitation.type,
+          expiresAt: invitation.expiresAt,
+        },
+        emailPreviewUrl: emailResult.previewUrl
+      });
+    }
+
     res.json({
       message: "Invitation sent successfully",
       invitation: {
         email: invitation.email,
         type: invitation.type,
         expiresAt: invitation.expiresAt,
-      }
+      },
+      emailPreviewUrl: emailResult.previewUrl
     });
   }));
 
