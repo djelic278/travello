@@ -141,7 +141,8 @@ export default function PostTravelForm() {
     0
   );
 
-  const prepaidAmount = form?.requestedPrepayment || 0;
+  // Ensure prepaidAmount is a number
+  const prepaidAmount = form?.requestedPrepayment ? parseFloat(form.requestedPrepayment.toString()) : 0;
   const totalAllowances = timeAllowance + distanceAllowance + totalExpenses;
   const finalReimbursement = totalAllowances - prepaidAmount;
 
