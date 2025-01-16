@@ -42,10 +42,15 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
+import {
+  Alert,
+  AlertDescription,
+  AlertTitle,
+} from "@/components/ui/alert";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
-import { Loader2, ArrowLeft, RefreshCw, Trash2, ExternalLink } from "lucide-react";
+import { Loader2, ArrowLeft, RefreshCw, Trash2, ExternalLink, AlertCircle, CheckCircle2, Mail } from "lucide-react";
 import { Link } from "wouter";
 
 // Define invitation schema
@@ -60,7 +65,7 @@ type Invitation = {
   status: string;
   expiresAt: string;
   createdAt: string;
-  emailPreviewUrl?: string; // Added emailPreviewUrl
+  emailPreviewUrl?: string;
 };
 
 export default function AdminPage() {
@@ -68,6 +73,7 @@ export default function AdminPage() {
   const queryClient = useQueryClient();
   const [isInviting, setIsInviting] = useState(false);
   const [statusFilter, setStatusFilter] = useState<string>("all");
+  const [lastEmailResult, setLastEmailResult] = useState<any>(null);
 
   const form = useForm<z.infer<typeof invitationSchema>>({
     resolver: zodResolver(invitationSchema),
@@ -104,21 +110,17 @@ export default function AdminPage() {
       return response.json();
     },
     onSuccess: (data) => {
+      setLastEmailResult(data);
       toast({
         title: "Invitation Sent",
         description: "The company admin invitation has been sent successfully.",
       });
-      if (data.emailPreviewUrl) {
-        toast({
-          title: "Email Preview Available",
-          description: "View the email at: " + data.emailPreviewUrl,
-        });
-      }
       setIsInviting(false);
       queryClient.invalidateQueries({ queryKey: ['/api/invitations'] });
       form.reset();
     },
     onError: (error: Error) => {
+      setLastEmailResult({ error: error.message });
       toast({
         title: "Error",
         description: error.message,
@@ -141,6 +143,7 @@ export default function AdminPage() {
       return response.json();
     },
     onSuccess: (data) => {
+      setLastEmailResult(data);
       toast({
         title: "Invitation Resent",
         description: "The invitation has been resent successfully.",
@@ -154,6 +157,7 @@ export default function AdminPage() {
       queryClient.invalidateQueries({ queryKey: ['/api/invitations'] });
     },
     onError: (error: Error) => {
+      setLastEmailResult({ error: error.message });
       toast({
         title: "Error",
         description: error.message,
@@ -224,6 +228,52 @@ export default function AdminPage() {
         </CardHeader>
         <CardContent>
           <div className="space-y-6">
+            {lastEmailResult && (
+              <Alert variant={lastEmailResult.error ? "destructive" : "default"} className="mb-4">
+                {lastEmailResult.error ? (
+                  <>
+                    <AlertCircle className="h-4 w-4" />
+                    <AlertTitle>Invitation Failed</AlertTitle>
+                    <AlertDescription>{lastEmailResult.error}</AlertDescription>
+                  </>
+                ) : (
+                  <>
+                    <CheckCircle2 className="h-4 w-4" />
+                    <AlertTitle>Invitation Sent Successfully</AlertTitle>
+                    <AlertDescription className="space-y-2">
+                      <p>The invitation has been created and an email has been sent.</p>
+                      {lastEmailResult.testEnvironment && (
+                        <div className="mt-2 space-y-2">
+                          <p className="font-medium">Test Environment Details:</p>
+                          <p className="text-sm">{lastEmailResult.testEnvironment.note}</p>
+                          <div className="space-y-1">
+                            <p className="text-sm">To view the email:</p>
+                            <ol className="list-decimal list-inside text-sm space-y-1">
+                              <li>Visit <a href={lastEmailResult.testEnvironment.credentials.etherealUrl} target="_blank" rel="noopener noreferrer" className="text-primary hover:underline">Ethereal Email</a></li>
+                              <li>Login with:
+                                <div className="ml-4 font-mono text-xs">
+                                  <div>Email: {lastEmailResult.testEnvironment.credentials.email}</div>
+                                  <div>Password: {lastEmailResult.testEnvironment.credentials.password}</div>
+                                </div>
+                              </li>
+                            </ol>
+                          </div>
+                          {lastEmailResult.emailPreviewUrl && (
+                            <Button variant="outline" size="sm" className="mt-2" asChild>
+                              <a href={lastEmailResult.emailPreviewUrl} target="_blank" rel="noopener noreferrer">
+                                <Mail className="mr-2 h-4 w-4" />
+                                View Email Preview
+                              </a>
+                            </Button>
+                          )}
+                        </div>
+                      )}
+                    </AlertDescription>
+                  </>
+                )}
+              </Alert>
+            )}
+
             <div>
               <div className="flex justify-between items-center mb-4">
                 <div className="space-y-1">
