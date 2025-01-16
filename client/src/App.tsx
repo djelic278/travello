@@ -6,16 +6,18 @@ import Dashboard from "./pages/dashboard";
 import PreTravelForm from "./pages/form/pre-travel";
 import PostTravelForm from "./pages/form/post-travel";
 import ProfilePage from "./pages/profile";
+import AdminPage from "./pages/admin";
 import NotFound from "@/pages/not-found";
 import AuthPage from "@/pages/auth-page";
 import { useUser } from "@/hooks/use-user";
-import { Loader2, User, Home, Plus } from "lucide-react";
+import { Loader2, User, Home, Plus, Settings } from "lucide-react";
 import { NotificationsButton } from "@/components/notifications";
 import { Button } from "@/components/ui/button";
 import { Link, useLocation } from "wouter";
 
 function Layout({ children }: { children: React.ReactNode }) {
   const [location] = useLocation();
+  const { user } = useUser();
 
   return (
     <div className="min-h-screen bg-background">
@@ -36,6 +38,14 @@ function Layout({ children }: { children: React.ReactNode }) {
                   New Request
                 </Link>
               </Button>
+              {user?.role === 'super_admin' && (
+                <Button variant={location === "/admin" ? "default" : "ghost"} size="sm" asChild>
+                  <Link href="/admin" className="flex items-center">
+                    <Settings className="mr-2 h-4 w-4" />
+                    Administration
+                  </Link>
+                </Button>
+              )}
             </nav>
           </div>
           <div className="flex items-center space-x-4">
@@ -77,6 +87,9 @@ function Router() {
         <Route path="/new-request" component={PreTravelForm} />
         <Route path="/forms/:id/post-travel" component={PostTravelForm} />
         <Route path="/profile" component={ProfilePage} />
+        {user.role === 'super_admin' && (
+          <Route path="/admin" component={AdminPage} />
+        )}
         <Route component={NotFound} />
       </Switch>
     </Layout>
