@@ -37,7 +37,8 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { Loader2 } from "lucide-react";
+import { Loader2, ArrowLeft } from "lucide-react";
+import { Link } from "wouter";
 import { z } from "zod";
 
 const updateProfileSchema = z.object({
@@ -163,6 +164,14 @@ export default function ProfilePage() {
 
   return (
     <div className="container mx-auto py-6">
+      <div className="mb-6">
+        <Button variant="outline" asChild>
+          <Link href="/" className="flex items-center">
+            <ArrowLeft className="mr-2 h-4 w-4" />
+            Back to Dashboard
+          </Link>
+        </Button>
+      </div>
       <Card>
         <CardHeader>
           <CardTitle>User Profile</CardTitle>
