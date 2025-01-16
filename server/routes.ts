@@ -4,6 +4,7 @@ import { createServer, type Server } from "http";
 import { db } from "@db";
 import { travelForms, expenses, settings, notifications } from "@db/schema";
 import { eq, and } from "drizzle-orm";
+import { setupWebSocket } from "./websocket";
 
 // Middleware to check if user is authenticated
 const isAuthenticated = (req: Request, res: Response, next: NextFunction) => {
@@ -64,15 +65,17 @@ async function initializeSettings() {
   }
 }
 
-// Create notification
+// Create notification and send via WebSocket
 async function createNotification(userId: number, title: string, message: string, type: 'form_approval' | 'form_approved' | 'form_rejected' | 'other', metadata?: any) {
-  return db.insert(notifications).values({
+  const [notification] = await db.insert(notifications).values({
     userId,
     title,
     message,
     type,
     metadata: metadata ? JSON.stringify(metadata) : null,
   }).returning();
+
+  return notification;
 }
 
 // Wrap async route handlers
@@ -82,6 +85,9 @@ const asyncHandler = (fn: (req: Request, res: Response, next: NextFunction) => P
   };
 
 export function registerRoutes(app: Express): Server {
+  const server = createServer(app);
+  const { sendNotification } = setupWebSocket(server, app);
+
   // Initialize settings
   initializeSettings().catch(console.error);
 
@@ -172,14 +178,17 @@ export function registerRoutes(app: Express): Server {
       .where(eq(travelForms.id, parseInt(id)))
       .returning();
 
-    // Create notification for the form owner
-    await createNotification(
+    // Create notification and send via WebSocket
+    const notification = await createNotification(
       form.userId,
       `Travel Form ${status.toUpperCase()}`,
       `Your travel form for ${form.destination} has been ${status}${notes ? ': ' + notes : ''}`,
       status === 'approved' ? 'form_approved' : 'form_rejected',
       { formId: form.id }
     );
+
+    // Send real-time notification
+    sendNotification(form.userId, notification);
 
     res.json(updatedForm);
   }));
@@ -312,6 +321,5 @@ export function registerRoutes(app: Express): Server {
     res.json(updatedForm);
   }));
 
-  const httpServer = createServer(app);
-  return httpServer;
+  return server;
 }
