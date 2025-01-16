@@ -1,5 +1,5 @@
-import { drizzle } from 'drizzle-orm/postgres-js';
-import postgres from 'postgres';
+import { drizzle } from "drizzle-orm/neon-serverless";
+import ws from "ws";
 import * as schema from "@db/schema";
 
 if (!process.env.DATABASE_URL) {
@@ -8,13 +8,8 @@ if (!process.env.DATABASE_URL) {
   );
 }
 
-// Create postgres connection with connection pooling
-const client = postgres(process.env.DATABASE_URL, {
-  max: 1, // Adjust pool size based on Replit's limitations
-  idle_timeout: 20,
-  connect_timeout: 10,
+export const db = drizzle({
+  connection: process.env.DATABASE_URL,
+  schema,
+  ws: ws,
 });
-
-// Export both the client and db instance
-export const db = drizzle(client, { schema });
-export { client };

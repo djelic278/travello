@@ -1,8 +1,9 @@
 import express, { type Request, Response, NextFunction } from "express";
 import { registerRoutes } from "./routes";
 import { setupVite, serveStatic, log } from "./vite";
-import { db, client } from "@db";
+import { db } from "@db";
 import { setupAuth } from "./auth";
+import { sql } from "drizzle-orm";
 
 const app = express();
 
@@ -44,20 +45,6 @@ app.use((req, res, next) => {
   next();
 });
 
-// Graceful shutdown handler
-function shutdownGracefully() {
-  log("Received shutdown signal. Starting graceful shutdown...");
-
-  // Close database connections
-  client.end().then(() => {
-    log("Database connections closed.");
-    process.exit(0);
-  }).catch(err => {
-    console.error("Error during database shutdown:", err);
-    process.exit(1);
-  });
-}
-
 // Initialize server
 (async () => {
   let server;
@@ -65,12 +52,11 @@ function shutdownGracefully() {
   try {
     // Test database connection first
     log("Testing database connection...");
-    const result = await client`SELECT 1 + 1 AS result`;
-    if (!result || !result[0]) {
+    const result = await db.execute(sql`SELECT 1 + 1 AS result`);
+    if (!result) {
       throw new Error("Database connection test failed");
     }
     log("Database connection successful");
-
 
     // Register routes
     log("Registering routes...");
@@ -102,17 +88,17 @@ function shutdownGracefully() {
     });
 
     // Setup shutdown handlers
-    process.on('SIGTERM', shutdownGracefully);
-    process.on('SIGINT', shutdownGracefully);
+    process.on('SIGTERM', () => {
+      log("Received shutdown signal. Starting graceful shutdown...");
+      process.exit(0);
+    });
+    process.on('SIGINT', () => {
+      log("Received interrupt signal. Starting graceful shutdown...");
+      process.exit(0);
+    });
 
   } catch (error) {
     console.error('Failed to start server:', error);
-    // Attempt to close any open connections
-    try {
-      await client.end();
-    } catch (err) {
-      console.error('Error closing database connection:', err);
-    }
     process.exit(1);
   }
 })();
