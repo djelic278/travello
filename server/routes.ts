@@ -2,7 +2,7 @@ import type { Express } from "express";
 import type { Request, Response, NextFunction } from "express";
 import { createServer, type Server } from "http";
 import { db } from "@db";
-import { travelForms, expenses } from "@db/schema";
+import { travelForms, expenses, settings } from "@db/schema";
 import { eq, and } from "drizzle-orm";
 
 // Middleware to check if user is authenticated
@@ -17,6 +17,34 @@ const isAuthenticated = (req: Request, res: Response, next: NextFunction) => {
   }
 };
 
+// Middleware to check if user is admin
+const isAdmin = (req: Request, res: Response, next: NextFunction) => {
+  try {
+    if (!req.isAuthenticated() || !req.user?.isAdmin) {
+      return res.status(403).send("Admin access required");
+    }
+    next();
+  } catch (error) {
+    next(error);
+  }
+};
+
+// Initialize settings if they don't exist
+async function initializeSettings() {
+  const [existingSetting] = await db
+    .select()
+    .from(settings)
+    .where(eq(settings.key, 'dailyAllowance'))
+    .limit(1);
+
+  if (!existingSetting) {
+    await db.insert(settings).values({
+      key: 'dailyAllowance',
+      value: '35', // Default daily allowance in EUR
+    });
+  }
+}
+
 // Wrap async route handlers
 const asyncHandler = (fn: (req: Request, res: Response, next: NextFunction) => Promise<any>) =>
   (req: Request, res: Response, next: NextFunction) => {
@@ -24,6 +52,32 @@ const asyncHandler = (fn: (req: Request, res: Response, next: NextFunction) => P
   };
 
 export function registerRoutes(app: Express): Server {
+  // Initialize settings
+  initializeSettings().catch(console.error);
+
+  // Get settings
+  app.get("/api/settings", isAuthenticated, asyncHandler(async (req: Request, res: Response) => {
+    const allSettings = await db.select().from(settings);
+    const settingsMap = Object.fromEntries(
+      allSettings.map(setting => [setting.key, setting.value])
+    );
+    res.json(settingsMap);
+  }));
+
+  // Update setting (admin only)
+  app.put("/api/settings/:key", isAdmin, asyncHandler(async (req: Request, res: Response) => {
+    const { key } = req.params;
+    const { value } = req.body;
+
+    const [updated] = await db
+      .update(settings)
+      .set({ value, updatedAt: new Date() })
+      .where(eq(settings.key, key))
+      .returning();
+
+    res.json(updated);
+  }));
+
   // Get all travel forms for the current user
   app.get("/api/forms", isAuthenticated, asyncHandler(async (req: Request, res: Response) => {
     const forms = await db.query.travelForms.findMany({

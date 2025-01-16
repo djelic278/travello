@@ -51,20 +51,29 @@ export const postTravelFormSchema = z.object({
 export type PostTravelForm = z.infer<typeof postTravelFormSchema>;
 export type Expense = z.infer<typeof expenseSchema>;
 
-export function calculateAllowance(hours: number): number {
-  const fullDays = Math.floor(hours / 24);
-  const remainingHours = hours % 24;
-  const dailyRate = 70; // 35 EUR per 12 hours
+export function calculateAllowance(hours: number, dailyAllowance: number = 35): number {
+  if (hours < 6) {
+    return 0;
+  } else if (hours < 12) {
+    return dailyAllowance / 2; // Half day allowance
+  } else {
+    const fullDays = Math.floor(hours / 24);
+    const remainingHours = hours % 24;
 
-  let allowance = fullDays * dailyRate;
-  if (remainingHours >= 12) {
-    allowance += 35;
+    let allowance = fullDays * dailyAllowance;
+
+    // Check remaining hours
+    if (remainingHours >= 12) {
+      allowance += dailyAllowance; // Full day allowance
+    } else if (remainingHours >= 6) {
+      allowance += dailyAllowance / 2; // Half day allowance
+    }
+
+    return allowance;
   }
-
-  return allowance;
 }
 
 export function calculateTotalHours(departure: Date, return_: Date): number {
   const diff = return_.getTime() - departure.getTime();
-  return Math.floor(diff / (1000 * 60 * 60));
+  return Math.max(0, Math.floor(diff / (1000 * 60 * 60)));
 }

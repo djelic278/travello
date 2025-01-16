@@ -9,6 +9,13 @@ export const users = pgTable("users", {
   isAdmin: boolean("is_admin").default(false).notNull(),
 });
 
+export const settings = pgTable("settings", {
+  id: serial("id").primaryKey(),
+  key: text("key").unique().notNull(),
+  value: text("value").notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().notNull(),
+});
+
 export const travelForms = pgTable("travel_forms", {
   id: serial("id").primaryKey(),
   userId: integer("user_id").notNull().references(() => users.id),
@@ -45,13 +52,22 @@ export const expenses = pgTable("expenses", {
 });
 
 // Define relations
-export const travelFormsRelations = relations(travelForms, ({ one }) => ({
+export const travelFormsRelations = relations(travelForms, ({ one, many }) => ({
   user: one(users, {
     fields: [travelForms.userId],
     references: [users.id],
   }),
+  expenses: many(expenses)
 }));
 
+export const expensesRelations = relations(expenses, ({ one }) => ({
+  form: one(travelForms, {
+    fields: [expenses.formId],
+    references: [travelForms.id],
+  }),
+}));
+
+// Create schemas
 export const insertUserSchema = createInsertSchema(users);
 export const selectUserSchema = createSelectSchema(users);
 export type InsertUser = typeof users.$inferInsert;
@@ -66,3 +82,8 @@ export const insertExpenseSchema = createInsertSchema(expenses);
 export const selectExpenseSchema = createSelectSchema(expenses);
 export type InsertExpense = typeof expenses.$inferInsert;
 export type SelectExpense = typeof expenses.$inferSelect;
+
+export const insertSettingsSchema = createInsertSchema(settings);
+export const selectSettingsSchema = createSelectSchema(settings);
+export type InsertSettings = typeof settings.$inferInsert;
+export type SelectSettings = typeof settings.$inferSelect;
