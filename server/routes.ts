@@ -175,11 +175,11 @@ export function registerRoutes(app: Express): Server {
 
   // Get notifications for the current user
   app.get("/api/notifications", isAuthenticated, asyncHandler(async (req: Request, res: Response) => {
-    const notifications = await db.query.notifications.findMany({
+    const notificationList = await db.query.notifications.findMany({
       where: eq(notifications.userId, req.user!.id),
       orderBy: (notifications, { desc }) => [desc(notifications.createdAt)]
     });
-    res.json(notifications);
+    res.json(notificationList);
   }));
 
   // Mark notification as read

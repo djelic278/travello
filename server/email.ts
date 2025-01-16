@@ -27,7 +27,7 @@ async function createTestAccount(): Promise<TestAccount> {
   } catch (error) {
     console.error('Error creating test account:', error);
     throw new Error(
-      'Failed to create test email account. Did you forget to provision a database?',
+      'Failed to create test email account. Check the email service configuration.',
     );
   }
 }
@@ -36,7 +36,7 @@ async function getTransporter(): Promise<Transporter> {
   try {
     if (!transporter) {
       const account = await createTestAccount();
-      console.log('Creating new transporter...');
+      console.log('Creating new transporter with account:', account.user);
       transporter = nodemailer.createTransport({
         host: "smtp.ethereal.email",
         port: 587,
@@ -48,16 +48,22 @@ async function getTransporter(): Promise<Transporter> {
         debug: true, // Enable debug logs
         logger: true  // Log to console
       });
+
+      // Verify transporter
+      await transporter.verify();
+      console.log('Transporter verified successfully');
     }
     return transporter;
   } catch (error) {
-    console.error('Error creating transporter:', error);
-    throw new Error('Failed to create email transporter. Please try again.');
+    console.error('Error creating/verifying transporter:', error);
+    throw new Error('Failed to create email transporter. Please check SMTP configuration.');
   }
 }
 
 export async function sendInvitationEmail(email: string, token: string): Promise<EmailResult> {
   try {
+    console.log('Starting email send process to:', email);
+
     // Get or create transporter with retry logic
     let retryCount = 0;
     const maxRetries = 3;
@@ -83,6 +89,7 @@ export async function sendInvitationEmail(email: string, token: string): Promise
 
     // Create the invitation URL
     const invitationUrl = `${process.env.APP_URL || 'http://localhost:5000'}/register?token=${token}`;
+    console.log('Generated invitation URL:', invitationUrl);
 
     // Enhanced email template with better styling
     const mailOptions = {
@@ -113,7 +120,11 @@ export async function sendInvitationEmail(email: string, token: string): Promise
       `
     };
 
-    console.log('Sending email to:', email);
+    console.log('Attempting to send email with options:', {
+      to: mailOptions.to,
+      subject: mailOptions.subject
+    });
+
     const info = await currentTransporter.sendMail(mailOptions);
     console.log('Email sent successfully');
     console.log('Preview URL:', nodemailer.getTestMessageUrl(info));
