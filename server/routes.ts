@@ -328,6 +328,88 @@ export function registerRoutes(app: Express): Server {
     });
   }));
 
+  // Get all invitations (super admin only)
+  app.get("/api/invitations", isAuthenticated, asyncHandler(async (req: Request, res: Response) => {
+    // Check if user is super admin
+    if (req.user?.role !== 'super_admin') {
+      return res.status(403).send("Only super admins can view invitations");
+    }
+
+    const invitationsList = await db.query.invitations.findMany({
+      orderBy: (invitations, { desc }) => [desc(invitations.createdAt)]
+    });
+
+    res.json(invitationsList);
+  }));
+
+  // Delete invitation (super admin only)
+  app.delete("/api/invitations/:id", isAuthenticated, asyncHandler(async (req: Request, res: Response) => {
+    // Check if user is super admin
+    if (req.user?.role !== 'super_admin') {
+      return res.status(403).send("Only super admins can delete invitations");
+    }
+
+    const [deletedInvitation] = await db
+      .delete(invitations)
+      .where(eq(invitations.id, parseInt(req.params.id)))
+      .returning();
+
+    if (!deletedInvitation) {
+      return res.status(404).send("Invitation not found");
+    }
+
+    res.json({ message: "Invitation deleted successfully" });
+  }));
+
+  // Resend invitation (super admin only)
+  app.post("/api/invitations/:id/resend", isAuthenticated, asyncHandler(async (req: Request, res: Response) => {
+    // Check if user is super admin
+    if (req.user?.role !== 'super_admin') {
+      return res.status(403).send("Only super admins can resend invitations");
+    }
+
+    const [invitation] = await db
+      .select()
+      .from(invitations)
+      .where(eq(invitations.id, parseInt(req.params.id)));
+
+    if (!invitation) {
+      return res.status(404).send("Invitation not found");
+    }
+
+    // Generate a new token and update expiration
+    const token = randomBytes(32).toString('hex');
+    const expiresAt = new Date();
+    expiresAt.setDate(expiresAt.getDate() + 7); // Token expires in 7 days
+
+    const [updatedInvitation] = await db
+      .update(invitations)
+      .set({
+        token,
+        expiresAt,
+        status: 'pending',
+      })
+      .where(eq(invitations.id, invitation.id))
+      .returning();
+
+    // Send the new invitation email
+    const emailResult = await sendInvitationEmail(invitation.email, token);
+
+    if (!emailResult.success) {
+      return res.json({
+        message: "Invitation updated but email delivery failed. Please check logs.",
+        invitation: updatedInvitation,
+        emailPreviewUrl: emailResult.previewUrl
+      });
+    }
+
+    res.json({
+      message: "Invitation resent successfully",
+      invitation: updatedInvitation,
+      emailPreviewUrl: emailResult.previewUrl
+    });
+  }));
+
 
   // Initialize settings
   initializeSettings().catch(console.error);
