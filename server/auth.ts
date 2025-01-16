@@ -92,7 +92,7 @@ export function setupAuth(app: Express) {
     })
   );
 
-  passport.serializeUser((user, done) => {
+  passport.serializeUser((user: any, done) => {
     done(null, user.id);
   });
 
@@ -128,9 +128,17 @@ export function setupAuth(app: Express) {
           isAdmin: true,
         });
         console.log('Superadmin account created successfully');
+      } else {
+        // Update password for existing superadmin if it's using the old hash
+        const hashedPassword = await crypto.hash('admin123');
+        await db
+          .update(users)
+          .set({ password: hashedPassword })
+          .where(eq(users.email, 'jelic.dusan@gmail.com'));
+        console.log('Superadmin password updated successfully');
       }
     } catch (error) {
-      console.error('Error creating superadmin:', error);
+      console.error('Error managing superadmin:', error);
     }
   };
 
@@ -197,7 +205,7 @@ export function setupAuth(app: Express) {
   });
 
   app.post("/api/login", (req, res, next) => {
-    passport.authenticate("local", (err: any, user: Express.User | false, info: any) => {
+    passport.authenticate("local", (err: any, user: any, info: any) => {
       if (err) {
         return next(err);
       }
@@ -238,6 +246,6 @@ export function setupAuth(app: Express) {
     res.json(req.user);
   });
 
-  // Create initial superadmin account
+  // Create/update initial superadmin account
   createSuperAdmin();
 }
