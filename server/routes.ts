@@ -4,6 +4,7 @@ import { createServer, type Server } from "http";
 import { db } from "@db";
 import { travelForms } from "@db/schema";
 import { eq } from "drizzle-orm";
+import { setupAuth } from "./auth";
 
 export function registerRoutes(app: Express): Server {
   // Middleware to check if user is authenticated

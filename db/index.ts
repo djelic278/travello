@@ -10,10 +10,11 @@ if (!process.env.DATABASE_URL) {
 
 // Create postgres connection with connection pooling
 const client = postgres(process.env.DATABASE_URL, {
-  max: 10, // Maximum number of connections
-  idle_timeout: 20, // Idle connection timeout in seconds
-  connect_timeout: 10, // Connection timeout in seconds
+  max: 1, // Adjust pool size based on Replit's limitations
+  idle_timeout: 20,
+  connect_timeout: 10,
 });
 
-// Create drizzle database instance
+// Export both the client and db instance
 export const db = drizzle(client, { schema });
+export { client };
