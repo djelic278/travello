@@ -1,4 +1,4 @@
-import { pgTable, text, serial, integer, boolean, timestamp, decimal, jsonb } from "drizzle-orm/pg-core";
+import { pgTable, text, serial, integer, boolean, timestamp, decimal, jsonb, date } from "drizzle-orm/pg-core";
 import { createInsertSchema, createSelectSchema } from "drizzle-zod";
 import { relations } from 'drizzle-orm';
 import { z } from 'zod';
@@ -10,15 +10,28 @@ export const UserRole = {
   SUPER_ADMIN: 'super_admin',
 } as const;
 
+// Companies table
+export const companies = pgTable("companies", {
+  id: serial("id").primaryKey(),
+  name: text("name").unique().notNull(),
+  address: text("address"),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().notNull(),
+});
+
 export const users = pgTable("users", {
   id: serial("id").primaryKey(),
   username: text("username").unique().notNull(),
   password: text("password").notNull(),
   email: text("email").unique().notNull(),
+  preferredEmail: text("preferred_email"),
+  position: text("position"),
+  dateOfBirth: date("date_of_birth"),
   role: text("role", { enum: Object.values(UserRole) }).default(UserRole.USER).notNull(),
   isAdmin: boolean("is_admin").default(false).notNull(),
-  companyId: integer("company_id"),
+  companyId: integer("company_id").references(() => companies.id),
   createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().notNull(),
 });
 
 export const settings = pgTable("settings", {
@@ -46,8 +59,8 @@ export const travelForms = pgTable("travel_forms", {
   projectCode: text("project_code").notNull(),
   requestedPrepayment: decimal("requested_prepayment", { precision: 10, scale: 2 }),
   status: text("status").default('pending').notNull(),
-  approvalStatus: text("approval_status", { 
-    enum: ['pending', 'approved', 'rejected'] 
+  approvalStatus: text("approval_status", {
+    enum: ['pending', 'approved', 'rejected']
   }).default('pending').notNull(),
   approvalDate: timestamp("approval_date"),
   approvalNotes: text("approval_notes"),
@@ -74,7 +87,7 @@ export const notifications = pgTable("notifications", {
   userId: integer("user_id").notNull().references(() => users.id),
   title: text("title").notNull(),
   message: text("message").notNull(),
-  type: text("type", { 
+  type: text("type", {
     enum: ['form_approval', 'form_approved', 'form_rejected', 'other']
   }).notNull(),
   metadata: jsonb("metadata"),
@@ -83,10 +96,18 @@ export const notifications = pgTable("notifications", {
 });
 
 // Define relations
-export const usersRelations = relations(users, ({ many }) => ({
+export const usersRelations = relations(users, ({ one, many }) => ({
+  company: one(companies, {
+    fields: [users.companyId],
+    references: [companies.id],
+  }),
   formsSubmitted: many(travelForms, { relationName: "submitter" }),
   formsApproved: many(travelForms, { relationName: "approver" }),
   notifications: many(notifications),
+}));
+
+export const companiesRelations = relations(companies, ({ many }) => ({
+  users: many(users),
 }));
 
 export const travelFormsRelations = relations(travelForms, ({ one, many }) => ({
@@ -142,3 +163,15 @@ export const insertNotificationSchema = createInsertSchema(notifications);
 export const selectNotificationSchema = createSelectSchema(notifications);
 export type InsertNotification = typeof notifications.$inferInsert;
 export type SelectNotification = typeof notifications.$inferSelect;
+
+export const insertCompanySchema = createInsertSchema(companies);
+export const selectCompanySchema = createSelectSchema(companies);
+export type InsertCompany = typeof companies.$inferInsert;
+export type SelectCompany = typeof companies.$inferSelect;
+
+export const updateUserProfileSchema = z.object({
+  position: z.string().optional(),
+  dateOfBirth: z.string().optional(), // Will be converted to Date
+  preferredEmail: z.string().email().optional(),
+  companyId: z.number().optional(),
+});

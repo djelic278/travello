@@ -2,8 +2,8 @@ import type { Express } from "express";
 import type { Request, Response, NextFunction } from "express";
 import { createServer, type Server } from "http";
 import { db } from "@db";
-import { travelForms, expenses, settings, notifications } from "@db/schema";
-import { eq, and } from "drizzle-orm";
+import { travelForms, expenses, settings, notifications, companies, users } from "@db/schema";
+import { eq, and, ilike } from "drizzle-orm";
 import { setupWebSocket } from "./websocket";
 
 // Middleware to check if user is authenticated
@@ -319,6 +319,76 @@ export function registerRoutes(app: Express): Server {
     }
 
     res.json(updatedForm);
+  }));
+
+  // Get all companies
+  app.get("/api/companies", isAuthenticated, asyncHandler(async (req: Request, res: Response) => {
+    const companies = await db.query.companies.findMany({
+      orderBy: (companies, { asc }) => [asc(companies.name)]
+    });
+    res.json(companies);
+  }));
+
+  // Add new company
+  app.post("/api/companies", isAuthenticated, asyncHandler(async (req: Request, res: Response) => {
+    const { name, address } = req.body;
+
+    // Check if company exists
+    const [existingCompany] = await db
+      .select()
+      .from(companies)
+      .where(eq(companies.name, name))
+      .limit(1);
+
+    if (existingCompany) {
+      return res.status(400).json({ message: "Company already exists" });
+    }
+
+    const [company] = await db
+      .insert(companies)
+      .values({
+        name,
+        address,
+      })
+      .returning();
+
+    res.json(company);
+  }));
+
+  // Update user profile
+  app.put("/api/user/profile", isAuthenticated, asyncHandler(async (req: Request, res: Response) => {
+    const { position, dateOfBirth, preferredEmail, companyId } = req.body;
+
+    // Check if the new preferred email is already used as a primary email by another user
+    if (preferredEmail) {
+      const [existingUser] = await db
+        .select()
+        .from(users)
+        .where(and(
+          eq(users.email, preferredEmail),
+          eq(users.id, req.user!.id)
+        ))
+        .limit(1);
+
+      if (existingUser) {
+        return res.status(400).json({ message: "Email already in use" });
+      }
+    }
+
+    // Update user profile
+    const [updatedUser] = await db
+      .update(users)
+      .set({
+        position,
+        dateOfBirth: dateOfBirth ? new Date(dateOfBirth) : null,
+        preferredEmail,
+        companyId,
+        updatedAt: new Date(),
+      })
+      .where(eq(users.id, req.user!.id))
+      .returning();
+
+    res.json(updatedUser);
   }));
 
   return server;

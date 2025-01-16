@@ -5,11 +5,14 @@ import { Toaster } from "@/components/ui/toaster";
 import Dashboard from "./pages/dashboard";
 import PreTravelForm from "./pages/form/pre-travel";
 import PostTravelForm from "./pages/form/post-travel";
+import ProfilePage from "./pages/profile";
 import NotFound from "@/pages/not-found";
 import AuthPage from "@/pages/auth-page";
 import { useUser } from "@/hooks/use-user";
-import { Loader2 } from "lucide-react";
+import { Loader2, User } from "lucide-react";
 import { NotificationsButton } from "@/components/notifications";
+import { Button } from "@/components/ui/button";
+import { Link } from "wouter";
 
 function Layout({ children }: { children: React.ReactNode }) {
   return (
@@ -17,7 +20,14 @@ function Layout({ children }: { children: React.ReactNode }) {
       <header className="border-b">
         <div className="container mx-auto px-4 h-16 flex items-center justify-between">
           <h1 className="text-lg font-semibold">Travel Allowance System</h1>
-          <NotificationsButton />
+          <div className="flex items-center space-x-4">
+            <Button variant="ghost" size="icon" asChild>
+              <Link href="/profile">
+                <User className="h-5 w-5" />
+              </Link>
+            </Button>
+            <NotificationsButton />
+          </div>
         </div>
       </header>
       <main>
@@ -48,6 +58,7 @@ function Router() {
         <Route path="/" component={Dashboard} />
         <Route path="/new-request" component={PreTravelForm} />
         <Route path="/forms/:id/post-travel" component={PostTravelForm} />
+        <Route path="/profile" component={ProfilePage} />
         <Route component={NotFound} />
       </Switch>
     </Layout>
