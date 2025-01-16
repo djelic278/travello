@@ -1,12 +1,11 @@
 import express, { type Request, Response, NextFunction } from "express";
 import { registerRoutes } from "./routes";
 import { setupVite, serveStatic, log } from "./vite";
-import { setupAuth } from "./auth";
 import { db, client } from "@db";
 
 const app = express();
 
-// Basic middleware setup - MUST be before auth setup
+// Basic middleware setup
 app.use(express.json());
 app.use(express.urlencoded({ extended: false }));
 
@@ -68,10 +67,6 @@ function shutdownGracefully() {
     }
     log("Database connection successful");
 
-    // Set up authentication
-    log("Setting up authentication...");
-    setupAuth(app);
-    log("Authentication setup complete");
 
     // Register routes
     log("Registering routes...");

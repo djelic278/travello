@@ -2,47 +2,82 @@ import type { Express } from "express";
 import type { Request, Response, NextFunction } from "express";
 import { createServer, type Server } from "http";
 import { db } from "@db";
-import { travelForms } from "@db/schema";
+import { travelForms, expenses } from "@db/schema";
 import { eq } from "drizzle-orm";
-import { setupAuth } from "./auth";
 
-export function registerRoutes(app: Express): Server {
-  // Middleware to check if user is authenticated
-  const requireAuth = (req: Request, res: Response, next: NextFunction) => {
-    if (!req.isAuthenticated()) {
-      return res.status(401).send("Not authenticated");
-    }
-    next();
+// Wrap async route handlers
+const asyncHandler = (fn: (req: Request, res: Response, next: NextFunction) => Promise<any>) =>
+  (req: Request, res: Response, next: NextFunction) => {
+    return Promise.resolve(fn(req, res, next)).catch(next);
   };
 
-  // Wrap async route handlers
-  const asyncHandler = (fn: (req: Request, res: Response, next: NextFunction) => Promise<any>) =>
-    (req: Request, res: Response, next: NextFunction) => {
-      return Promise.resolve(fn(req, res, next)).catch(next);
-    };
-
-  // Get all travel forms for the current user
-  app.get("/api/forms", requireAuth, asyncHandler(async (req: Request, res: Response) => {
-    const forms = await db
-      .select()
-      .from(travelForms)
-      .where(eq(travelForms.userId, req.user!.id));
+export function registerRoutes(app: Express): Server {
+  // Get all travel forms
+  app.get("/api/forms", asyncHandler(async (_req: Request, res: Response) => {
+    const forms = await db.select().from(travelForms);
     res.json(forms);
   }));
 
+  // Get a specific travel form
+  app.get("/api/forms/:id", asyncHandler(async (req: Request, res: Response) => {
+    const form = await db
+      .select()
+      .from(travelForms)
+      .where(eq(travelForms.id, parseInt(req.params.id)))
+      .limit(1);
+
+    if (!form.length) {
+      return res.status(404).json({ message: "Form not found" });
+    }
+
+    res.json(form[0]);
+  }));
+
   // Create new travel form (pre-travel)
-  app.post("/api/forms/pre-travel", requireAuth, asyncHandler(async (req: Request, res: Response) => {
+  app.post("/api/forms/pre-travel", asyncHandler(async (req: Request, res: Response) => {
     const [form] = await db
       .insert(travelForms)
       .values({
-        userId: req.user!.id,
         destination: req.body.destination,
         startDate: new Date(req.body.startDate),
         duration: req.body.duration,
+        isReturnTrip: req.body.isReturnTrip,
+        projectCode: req.body.projectCode,
         status: 'pending',
       })
       .returning();
     res.json(form);
+  }));
+
+  // Update travel form with post-travel details
+  app.put("/api/forms/:id/post-travel", asyncHandler(async (req: Request, res: Response) => {
+    const { departureTime, returnTime, startMileage, endMileage, expenses: expenseItems } = req.body;
+
+    // Update the travel form
+    const [updatedForm] = await db
+      .update(travelForms)
+      .set({
+        departureTime: new Date(departureTime),
+        returnTime: new Date(returnTime),
+        startMileage,
+        endMileage,
+        status: 'completed',
+      })
+      .where(eq(travelForms.id, parseInt(req.params.id)))
+      .returning();
+
+    // Add expenses if provided
+    if (expenseItems?.length) {
+      await db.insert(expenses).values(
+        expenseItems.map((expense: any) => ({
+          formId: updatedForm.id,
+          name: expense.name,
+          amount: expense.amount,
+        }))
+      );
+    }
+
+    res.json(updatedForm);
   }));
 
   const httpServer = createServer(app);
