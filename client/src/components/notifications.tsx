@@ -13,6 +13,7 @@ import { Card, CardHeader, CardTitle, CardDescription } from "@/components/ui/ca
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { formatDistanceToNow } from "date-fns";
 import { Button } from "@/components/ui/button";
+import { useToast } from "@/hooks/use-toast";
 
 type Notification = {
   id: number;
@@ -27,43 +28,79 @@ type Notification = {
 export function NotificationsButton() {
   const [open, setOpen] = useState(false);
   const queryClient = useQueryClient();
-  
+  const { toast } = useToast();
+
   const { data: notifications = [] } = useQuery<Notification[]>({
     queryKey: ["/api/notifications"],
   });
 
   // Connect to WebSocket for real-time notifications
   useEffect(() => {
-    const ws = new WebSocket(`ws://${window.location.host}`);
+    const protocol = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+    const ws = new WebSocket(`${protocol}//${window.location.host}`);
+
+    ws.onopen = () => {
+      console.log('WebSocket connection established');
+    };
+
+    ws.onerror = (error) => {
+      console.error('WebSocket error:', error);
+      toast({
+        title: "Connection Error",
+        description: "Failed to connect to notification service. Notifications may be delayed.",
+        variant: "destructive",
+      });
+    };
 
     ws.onmessage = (event) => {
-      const data = JSON.parse(event.data);
-      if (data.type === "notification") {
-        // Update notifications cache
-        queryClient.setQueryData<Notification[]>(
-          ["/api/notifications"],
-          (old = []) => [data.data, ...old]
-        );
+      try {
+        const data = JSON.parse(event.data);
+        if (data.type === "notification") {
+          // Update notifications cache
+          queryClient.setQueryData<Notification[]>(
+            ["/api/notifications"],
+            (old = []) => [data.data, ...old]
+          );
+
+          // Show toast for new notification
+          toast({
+            title: data.data.title,
+            description: data.data.message,
+          });
+        }
+      } catch (error) {
+        console.error('Error processing notification:', error);
       }
     };
 
     return () => {
-      ws.close();
+      if (ws.readyState === WebSocket.OPEN) {
+        ws.close();
+      }
     };
-  }, [queryClient]);
+  }, [queryClient, toast]);
 
   // Mark notification as read
   const markAsRead = async (id: number) => {
-    await fetch(`/api/notifications/${id}/read`, {
-      method: "PUT",
-      credentials: "include",
-    });
-    
-    // Update cache
-    queryClient.setQueryData<Notification[]>(
-      ["/api/notifications"],
-      (old = []) => old.map(n => n.id === id ? { ...n, read: true } : n)
-    );
+    try {
+      await fetch(`/api/notifications/${id}/read`, {
+        method: "PUT",
+        credentials: "include",
+      });
+
+      // Update cache
+      queryClient.setQueryData<Notification[]>(
+        ["/api/notifications"],
+        (old = []) => old.map(n => n.id === id ? { ...n, read: true } : n)
+      );
+    } catch (error) {
+      console.error('Error marking notification as read:', error);
+      toast({
+        title: "Error",
+        description: "Failed to mark notification as read.",
+        variant: "destructive",
+      });
+    }
   };
 
   const unreadCount = notifications.filter(n => !n.read).length;
