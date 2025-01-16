@@ -3,14 +3,18 @@ import type { Request, Response, NextFunction } from "express";
 import { createServer, type Server } from "http";
 import { db } from "@db";
 import { travelForms, expenses } from "@db/schema";
-import { eq } from "drizzle-orm";
+import { eq, and } from "drizzle-orm";
 
 // Middleware to check if user is authenticated
 const isAuthenticated = (req: Request, res: Response, next: NextFunction) => {
-  if (!req.isAuthenticated()) {
-    return res.status(401).send("Please login to continue");
+  try {
+    if (!req.isAuthenticated()) {
+      return res.status(401).send("Please login to continue");
+    }
+    next();
+  } catch (error) {
+    next(error);
   }
-  next();
 };
 
 // Wrap async route handlers
@@ -22,39 +26,43 @@ const asyncHandler = (fn: (req: Request, res: Response, next: NextFunction) => P
 export function registerRoutes(app: Express): Server {
   // Get all travel forms for the current user
   app.get("/api/forms", isAuthenticated, asyncHandler(async (req: Request, res: Response) => {
-    const forms = await db
-      .select()
-      .from(travelForms)
-      .where(eq(travelForms.userId, req.user!.id));
+    const forms = await db.query.travelForms.findMany({
+      where: eq(travelForms.userId, req.user!.id)
+    });
     res.json(forms);
   }));
 
   // Get unique submission locations for the current user
   app.get("/api/submission-locations", isAuthenticated, asyncHandler(async (req: Request, res: Response) => {
-    const locations = await db
-      .select({ location: travelForms.submissionLocation })
-      .from(travelForms)
-      .where(eq(travelForms.userId, req.user!.id))
-      .groupBy(travelForms.submissionLocation)
-      .limit(10);
+    const locations = await db.query.travelForms.findMany({
+      where: eq(travelForms.userId, req.user!.id),
+      columns: {
+        submissionLocation: true
+      },
+      limit: 10
+    });
 
-    res.json(locations.map(l => l.location));
+    // Use Array.from to convert locations to an array and filter unique values
+    const uniqueLocations = Array.from(
+      new Set(locations.map(l => l.submissionLocation))
+    );
+    res.json(uniqueLocations);
   }));
 
   // Get a specific travel form
   app.get("/api/forms/:id", isAuthenticated, asyncHandler(async (req: Request, res: Response) => {
-    const form = await db
-      .select()
-      .from(travelForms)
-      .where(eq(travelForms.id, parseInt(req.params.id)))
-      .where(eq(travelForms.userId, req.user!.id))
-      .limit(1);
+    const form = await db.query.travelForms.findFirst({
+      where: and(
+        eq(travelForms.id, parseInt(req.params.id)),
+        eq(travelForms.userId, req.user!.id)
+      )
+    });
 
-    if (!form.length) {
+    if (!form) {
       return res.status(404).json({ message: "Form not found" });
     }
 
-    res.json(form[0]);
+    res.json(form);
   }));
 
   // Create new travel form (pre-travel)
@@ -87,12 +95,12 @@ export function registerRoutes(app: Express): Server {
     const { departureTime, returnTime, startMileage, endMileage, expenses: expenseItems } = req.body;
 
     // Ensure the form belongs to the current user
-    const [existingForm] = await db
-      .select()
-      .from(travelForms)
-      .where(eq(travelForms.id, parseInt(req.params.id)))
-      .where(eq(travelForms.userId, req.user!.id))
-      .limit(1);
+    const existingForm = await db.query.travelForms.findFirst({
+      where: and(
+        eq(travelForms.id, parseInt(req.params.id)),
+        eq(travelForms.userId, req.user!.id)
+      )
+    });
 
     if (!existingForm) {
       return res.status(404).json({ message: "Form not found" });

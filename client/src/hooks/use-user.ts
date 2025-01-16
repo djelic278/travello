@@ -3,7 +3,7 @@ import type { InsertUser, SelectUser } from "@db/schema";
 
 type RequestResult = {
   message: string;
-  user?: { id: number; username: string; isAdmin?: boolean };
+  user?: SelectUser;
 };
 
 async function handleRequest(
@@ -20,16 +20,13 @@ async function handleRequest(
     });
 
     if (!response.ok) {
-      if (response.status >= 500) {
-        throw new Error(response.statusText);
-      }
-
-      throw new Error(await response.text());
+      const errorText = await response.text();
+      throw new Error(errorText || response.statusText);
     }
 
     return response.json();
-  } catch (e: any) {
-    throw new Error(e.message);
+  } catch (error: any) {
+    throw new Error(error.message || 'An error occurred');
   }
 }
 
@@ -38,29 +35,49 @@ export function useUser() {
 
   const { data: user, isLoading } = useQuery<SelectUser>({
     queryKey: ['/api/user'],
+    queryFn: async () => {
+      try {
+        const response = await fetch('/api/user', {
+          credentials: 'include'
+        });
+
+        if (!response.ok) {
+          if (response.status === 401) {
+            return null;
+          }
+          throw new Error(await response.text());
+        }
+
+        return response.json();
+      } catch (error: any) {
+        console.error('Error fetching user:', error);
+        return null;
+      }
+    },
     retry: false,
+    staleTime: Infinity,
   });
 
   const loginMutation = useMutation({
     mutationFn: (userData: { username: string; password: string }) =>
       handleRequest('/api/login', 'POST', userData),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['/api/user'] });
+    onSuccess: (data) => {
+      queryClient.setQueryData(['/api/user'], data.user);
     },
   });
 
   const registerMutation = useMutation({
     mutationFn: (userData: { username: string; password: string }) =>
       handleRequest('/api/register', 'POST', userData),
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['/api/user'] });
+    onSuccess: (data) => {
+      queryClient.setQueryData(['/api/user'], data.user);
     },
   });
 
   const logoutMutation = useMutation({
     mutationFn: () => handleRequest('/api/logout', 'POST'),
     onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['/api/user'] });
+      queryClient.setQueryData(['/api/user'], null);
     },
   });
 
