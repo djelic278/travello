@@ -196,14 +196,14 @@ export default function ProfilePage() {
           </CardDescription>
         </CardHeader>
         <CardContent>
-          <Tabs defaultValue="profile" className="w-full">
-            <TabsList className="grid w-full grid-cols-2">
-              <TabsTrigger value="profile">Profile Information</TabsTrigger>
-              <TabsTrigger value="preferences">Preferences</TabsTrigger>
-            </TabsList>
+          <Form {...form}> {/* Wrapping Tabs within Form */}
+            <Tabs defaultValue="profile" className="w-full">
+              <TabsList className="grid w-full grid-cols-2">
+                <TabsTrigger value="profile">Profile Information</TabsTrigger>
+                <TabsTrigger value="preferences">Preferences</TabsTrigger>
+              </TabsList>
 
-            <TabsContent value="profile">
-              <Form {...form}>
+              <TabsContent value="profile">
                 <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
                   <div className="space-y-4">
                     <FormField
@@ -359,124 +359,114 @@ export default function ProfilePage() {
                     Save Changes
                   </Button>
                 </form>
-              </Form>
-            </TabsContent>
+              </TabsContent>
 
-            <TabsContent value="preferences">
-              <div className="space-y-6">
-                <div>
-                  <h3 className="text-lg font-medium">Theme</h3>
-                  <p className="text-sm text-muted-foreground">
-                    Choose how Travel Allowance System looks to you
-                  </p>
-                  <div className="mt-3">
-                    <FormField
-                      control={form.control}
-                      name="theme"
-                      render={({ field }) => (
-                        <FormItem>
-                          <Select
-                            value={field.value}
-                            onValueChange={field.onChange}
-                          >
+              <TabsContent value="preferences">
+                <div className="space-y-6">
+                  <div>
+                    <h3 className="text-lg font-medium">Theme</h3>
+                    <p className="text-sm text-muted-foreground">
+                      Choose how Travel Allowance System looks to you
+                    </p>
+                    <div className="mt-3">
+                      <FormField
+                        control={form.control}
+                        name="theme"
+                        render={({ field }) => (
+                          <FormItem>
+                            <Select
+                              value={field.value}
+                              onValueChange={field.onChange}
+                            >
+                              <FormControl>
+                                <SelectTrigger>
+                                  <SelectValue placeholder="Select theme" />
+                                </SelectTrigger>
+                              </FormControl>
+                              <SelectContent>
+                                <SelectItem value={ThemeMode.LIGHT}>Light</SelectItem>
+                                <SelectItem value={ThemeMode.DARK}>Dark</SelectItem>
+                                <SelectItem value={ThemeMode.SYSTEM}>System</SelectItem>
+                              </SelectContent>
+                            </Select>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
+                    </div>
+                  </div>
+
+                  <Separator />
+
+                  <div>
+                    <h3 className="text-lg font-medium">Email Notifications</h3>
+                    <p className="text-sm text-muted-foreground">
+                      Configure your email notification preferences
+                    </p>
+                    <div className="mt-3">
+                      <FormField
+                        control={form.control}
+                        name="emailNotifications"
+                        render={({ field }) => (
+                          <FormItem className="flex items-center justify-between rounded-lg border p-3 shadow-sm">
+                            <div className="space-y-0.5">
+                              <FormLabel>Email Notifications</FormLabel>
+                              <FormDescription>
+                                Receive notifications about your travel requests
+                              </FormDescription>
+                            </div>
                             <FormControl>
-                              <SelectTrigger>
-                                <SelectValue placeholder="Select theme" />
-                              </SelectTrigger>
+                              <Switch
+                                checked={field.value}
+                                onCheckedChange={field.onChange}
+                              />
                             </FormControl>
-                            <SelectContent>
-                              <SelectItem value={ThemeMode.LIGHT}>Light</SelectItem>
-                              <SelectItem value={ThemeMode.DARK}>Dark</SelectItem>
-                              <SelectItem value={ThemeMode.SYSTEM}>System</SelectItem>
-                            </SelectContent>
-                          </Select>
-                        </FormItem>
-                      )}
-                    />
+                          </FormItem>
+                        )}
+                      />
+                    </div>
+                  </div>
+
+                  <Separator />
+
+                  <div>
+                    <h3 className="text-lg font-medium">Dashboard Layout</h3>
+                    <p className="text-sm text-muted-foreground">
+                      Choose your preferred dashboard layout
+                    </p>
+                    <div className="mt-3">
+                      <FormField
+                        control={form.control}
+                        name="dashboardLayout"
+                        render={({ field }) => (
+                          <FormItem>
+                            <Select
+                              value={field.value?.type || 'default'}
+                              onValueChange={(value) =>
+                                field.onChange({ type: value })
+                              }
+                            >
+                              <FormControl>
+                                <SelectTrigger>
+                                  <SelectValue placeholder="Select layout" />
+                                </SelectTrigger>
+                              </FormControl>
+                              <SelectContent>
+                                <SelectItem value="default">Default</SelectItem>
+                                <SelectItem value="compact">Compact</SelectItem>
+                                <SelectItem value="comfortable">Comfortable</SelectItem>
+                              </SelectContent>
+                            </Select>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
+                    </div>
                   </div>
                 </div>
-
-                <Separator />
-
-                <div>
-                  <h3 className="text-lg font-medium">Email Notifications</h3>
-                  <p className="text-sm text-muted-foreground">
-                    Configure your email notification preferences
-                  </p>
-                  <div className="mt-3">
-                    <FormField
-                      control={form.control}
-                      name="emailNotifications"
-                      render={({ field }) => (
-                        <FormItem className="flex items-center justify-between rounded-lg border p-3 shadow-sm">
-                          <div className="space-y-0.5">
-                            <FormLabel>Email Notifications</FormLabel>
-                            <FormDescription>
-                              Receive notifications about your travel requests
-                            </FormDescription>
-                          </div>
-                          <FormControl>
-                            <Switch
-                              checked={field.value}
-                              onCheckedChange={field.onChange}
-                            />
-                          </FormControl>
-                        </FormItem>
-                      )}
-                    />
-                  </div>
-                </div>
-
-                <Separator />
-
-                <div>
-                  <h3 className="text-lg font-medium">Dashboard Layout</h3>
-                  <p className="text-sm text-muted-foreground">
-                    Choose your preferred dashboard layout
-                  </p>
-                  <div className="mt-3">
-                    <FormField
-                      control={form.control}
-                      name="dashboardLayout"
-                      render={({ field }) => (
-                        <FormItem>
-                          <Select
-                            value={field.value?.type || 'default'}
-                            onValueChange={(value) =>
-                              field.onChange({ type: value })
-                            }
-                          >
-                            <FormControl>
-                              <SelectTrigger>
-                                <SelectValue placeholder="Select layout" />
-                              </SelectTrigger>
-                            </FormControl>
-                            <SelectContent>
-                              <SelectItem value="default">Default</SelectItem>
-                              <SelectItem value="compact">Compact</SelectItem>
-                              <SelectItem value="comfortable">Comfortable</SelectItem>
-                            </SelectContent>
-                          </Select>
-                        </FormItem>
-                      )}
-                    />
-                  </div>
-                </div>
-
-                <Button
-                  type="submit"
-                  className="w-full"
-                  onClick={form.handleSubmit(onSubmit)}
-                  disabled={updateProfileMutation.isPending}
-                >
-                  {updateProfileMutation.isPending && (
-                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                  )}
-                  Save Preferences
-                </Button>
-              </div>
-            </TabsContent>
-          </Tabs>
+              </TabsContent>
+            </Tabs>
+          </Form> {/* Closing Form */}
         </CardContent>
       </Card>
     </div>
