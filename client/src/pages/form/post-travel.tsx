@@ -1,4 +1,4 @@
-import { useForm } from "react-hook-form";
+import { useForm, useFieldArray } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { postTravelFormSchema, type PostTravelForm, calculateAllowance, calculateTotalHours } from "@/lib/forms";
 import { useMutation, useQuery } from "@tanstack/react-query";
@@ -51,12 +51,15 @@ export default function PostTravelForm() {
       returnTime: form?.returnTime ? new Date(form.returnTime) : new Date(),
       startMileage: form?.startMileage || 0,
       endMileage: form?.endMileage || 0,
-      expenses: form?.expenses || [],
-      files: [] // Add initial value for files
+      expenses: [],
+      files: []
     },
   });
 
-  const { fields, append, remove } = formHook.control._fields.expenses || [];
+  const { fields, append, remove } = useFieldArray({
+    control: formHook.control,
+    name: "expenses"
+  });
 
   const mutation = useMutation({
     mutationFn: async (data: PostTravelForm & { files: FileList }) => {
@@ -359,8 +362,8 @@ export default function PostTravelForm() {
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                    {fields?.map((field, index) => (
-                      <TableRow key={field.id}>
+                    {fields.map((field, index) => (
+                      <TableRow key={index}> {/* Changed key to index */}
                         <TableCell>
                           <FormField
                             control={formHook.control}
