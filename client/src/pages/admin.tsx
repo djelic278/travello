@@ -34,10 +34,18 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import { Badge } from "@/components/ui/badge";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
-import { Loader2, ArrowLeft, RefreshCw, Trash2 } from "lucide-react";
+import { Loader2, ArrowLeft, RefreshCw, Trash2, ExternalLink } from "lucide-react";
 import { Link } from "wouter";
 
 // Define invitation schema
@@ -52,12 +60,14 @@ type Invitation = {
   status: string;
   expiresAt: string;
   createdAt: string;
+  emailPreviewUrl?: string; // Added emailPreviewUrl
 };
 
 export default function AdminPage() {
   const { toast } = useToast();
   const queryClient = useQueryClient();
   const [isInviting, setIsInviting] = useState(false);
+  const [statusFilter, setStatusFilter] = useState<string>("all");
 
   const form = useForm<z.infer<typeof invitationSchema>>({
     resolver: zodResolver(invitationSchema),
@@ -70,6 +80,10 @@ export default function AdminPage() {
   const { data: invitations = [] } = useQuery<Invitation[]>({
     queryKey: ['/api/invitations'],
   });
+
+  const filteredInvitations = invitations.filter(invitation => 
+    statusFilter === "all" ? true : invitation.status === statusFilter
+  );
 
   const inviteCompanyAdminMutation = useMutation({
     mutationFn: async (email: string) => {
@@ -177,6 +191,19 @@ export default function AdminPage() {
     },
   });
 
+  const getStatusBadgeVariant = (status: string) => {
+    switch (status) {
+      case 'pending':
+        return 'default';
+      case 'accepted':
+        return 'success';
+      case 'expired':
+        return 'destructive';
+      default:
+        return 'secondary';
+    }
+  };
+
   return (
     <div className="container mx-auto py-6">
       <div className="mb-6">
@@ -199,7 +226,12 @@ export default function AdminPage() {
           <div className="space-y-6">
             <div>
               <div className="flex justify-between items-center mb-4">
-                <h3 className="text-lg font-medium">Company Admin Invitations</h3>
+                <div className="space-y-1">
+                  <h3 className="text-lg font-medium">Company Admin Invitations</h3>
+                  <p className="text-sm text-muted-foreground">
+                    Track and manage all company administrator invitations
+                  </p>
+                </div>
                 <Dialog open={isInviting} onOpenChange={setIsInviting}>
                   <DialogTrigger asChild>
                     <Button>
@@ -252,6 +284,20 @@ export default function AdminPage() {
                 </Dialog>
               </div>
 
+              <div className="mb-4">
+                <Select value={statusFilter} onValueChange={setStatusFilter}>
+                  <SelectTrigger className="w-[180px]">
+                    <SelectValue placeholder="Filter by status" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">All Statuses</SelectItem>
+                    <SelectItem value="pending">Pending</SelectItem>
+                    <SelectItem value="accepted">Accepted</SelectItem>
+                    <SelectItem value="expired">Expired</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+
               <div className="border rounded-md">
                 <Table>
                   <TableHeader>
@@ -260,16 +306,41 @@ export default function AdminPage() {
                       <TableHead>Status</TableHead>
                       <TableHead>Created At</TableHead>
                       <TableHead>Expires</TableHead>
+                      <TableHead>Preview</TableHead>
                       <TableHead className="text-right">Actions</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                    {invitations.map((invitation) => (
+                    {filteredInvitations.map((invitation) => (
                       <TableRow key={invitation.id}>
                         <TableCell>{invitation.email}</TableCell>
-                        <TableCell className="capitalize">{invitation.status}</TableCell>
+                        <TableCell>
+                          <Badge variant={getStatusBadgeVariant(invitation.status)}>
+                            {invitation.status}
+                          </Badge>
+                        </TableCell>
                         <TableCell>{new Date(invitation.createdAt).toLocaleDateString()}</TableCell>
-                        <TableCell>{new Date(invitation.expiresAt).toLocaleDateString()}</TableCell>
+                        <TableCell>
+                          <span className={
+                            new Date(invitation.expiresAt) < new Date() 
+                              ? "text-destructive" 
+                              : "text-foreground"
+                          }>
+                            {new Date(invitation.expiresAt).toLocaleDateString()}
+                          </span>
+                        </TableCell>
+                        <TableCell>
+                          {invitation.emailPreviewUrl && (
+                            <a
+                              href={invitation.emailPreviewUrl}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="text-primary hover:underline inline-flex items-center"
+                            >
+                              View Email <ExternalLink className="ml-1 h-3 w-3" />
+                            </a>
+                          )}
+                        </TableCell>
                         <TableCell className="text-right">
                           <div className="flex justify-end gap-2">
                             <Button
@@ -292,10 +363,10 @@ export default function AdminPage() {
                         </TableCell>
                       </TableRow>
                     ))}
-                    {invitations.length === 0 && (
+                    {filteredInvitations.length === 0 && (
                       <TableRow>
-                        <TableCell colSpan={5} className="text-center text-muted-foreground">
-                          No pending invitations
+                        <TableCell colSpan={6} className="text-center text-muted-foreground">
+                          No invitations found
                         </TableCell>
                       </TableRow>
                     )}
