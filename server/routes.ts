@@ -304,16 +304,14 @@ export function registerRoutes(app: Express): Server {
     const emailResult = await sendInvitationEmail(email, token);
 
     if (!emailResult.success) {
-      // If email fails, still return success but with a warning
-      // In production, you might want to handle this differently
-      return res.json({
+      return res.status(200).json({
         message: "Invitation created but email delivery failed. Please check logs.",
         invitation: {
           email: invitation.email,
           type: invitation.type,
           expiresAt: invitation.expiresAt,
         },
-        emailPreviewUrl: emailResult.previewUrl
+        error: emailResult.error
       });
     }
 
@@ -324,7 +322,11 @@ export function registerRoutes(app: Express): Server {
         type: invitation.type,
         expiresAt: invitation.expiresAt,
       },
-      emailPreviewUrl: emailResult.previewUrl
+      emailPreviewUrl: emailResult.previewUrl,
+      testEnvironment: {
+        note: "This is a test environment. Emails are not actually delivered but can be viewed at Ethereal Email.",
+        credentials: emailResult.testCredentials
+      }
     });
   }));
 
