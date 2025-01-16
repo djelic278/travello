@@ -5,11 +5,10 @@ import { db } from "@db";
 import { users, updateUserProfileSchema } from "@db/schema";
 import { eq } from "drizzle-orm";
 import { setupWebSocket } from "./websocket";
-import type {  } from "@db/schema";
-import { travelForms, expenses, settings, notifications, companies } from "@db/schema";
+import type { InsertInvitation } from "@db/schema";
+import { travelForms, expenses, settings, notifications, companies, invitations } from "@db/schema";
 import { eq, and, ilike } from "drizzle-orm";
-import * as XLSX from 'xlsx';
-
+import { randomBytes } from "crypto";
 
 // Middleware to check if user is authenticated
 const isAuthenticated = (req: Request, res: Response, next: NextFunction) => {
@@ -37,6 +36,30 @@ const isApprover = (req: Request, res: Response, next: NextFunction) => {
     if (!req.isAuthenticated() ||
       !(req.user?.role === 'company_admin' || req.user?.role === 'super_admin')) {
       return res.status(403).send("Approver access required");
+    }
+    next();
+  } catch (error) {
+    next(error);
+  }
+};
+
+// Middleware to check if user is super admin
+const isSuperAdmin = (req: Request, res: Response, next: NextFunction) => {
+  try {
+    if (!req.isAuthenticated() || req.user?.role !== 'super_admin') {
+      return res.status(403).send("Super admin access required");
+    }
+    next();
+  } catch (error) {
+    next(error);
+  }
+};
+
+// Middleware to check if user is company admin
+const isCompanyAdmin = (req: Request, res: Response, next: NextFunction) => {
+  try {
+    if (!req.isAuthenticated() || req.user?.role !== 'company_admin') {
+      return res.status(403).send("Company admin access required");
     }
     next();
   } catch (error) {
@@ -113,6 +136,116 @@ export function registerRoutes(app: Express): Server {
       .returning();
 
     res.json(updated);
+  }));
+
+  // Send invitation (super admin for company admins, company admin for employees)
+  app.post("/api/invitations", isAuthenticated, asyncHandler(async (req: Request, res: Response) => {
+    const { email, type, companyId } = req.body;
+
+    // Validate invitation type based on user role
+    if (type === 'company_admin' && req.user?.role !== 'super_admin') {
+      return res.status(403).send("Only super admins can invite company administrators");
+    }
+
+    if (type === 'employee' && req.user?.role !== 'company_admin') {
+      return res.status(403).send("Only company admins can invite employees");
+    }
+
+    // For company admins, ensure they can only invite to their own company
+    if (req.user?.role === 'company_admin' && companyId !== req.user?.companyId) {
+      return res.status(403).send("Company admins can only invite to their own company");
+    }
+
+    // Generate a unique token
+    const token = randomBytes(32).toString('hex');
+    const expiresAt = new Date();
+    expiresAt.setDate(expiresAt.getDate() + 7); // Token expires in 7 days
+
+    const [invitation] = await db.insert(invitations).values({
+      email,
+      type,
+      token,
+      companyId,
+      invitedBy: req.user!.id,
+      expiresAt,
+    }).returning();
+
+    // TODO: Send email with invitation link
+    // For now, just return the invitation details
+    res.json(invitation);
+  }));
+
+  // Get invitations (for company admins and super admins)
+  app.get("/api/invitations", isApprover, asyncHandler(async (req: Request, res: Response) => {
+    const query = db.select().from(invitations);
+
+    // Company admins can only see invitations for their company
+    if (req.user?.role === 'company_admin') {
+      query.where(eq(invitations.companyId, req.user.companyId));
+    }
+
+    const allInvitations = await query;
+    res.json(allInvitations);
+  }));
+
+  // Accept invitation
+  app.post("/api/invitations/:token/accept", asyncHandler(async (req: Request, res: Response) => {
+    const { token } = req.params;
+    const { username, password } = req.body;
+
+    // Find and validate invitation
+    const [invitation] = await db
+      .select()
+      .from(invitations)
+      .where(and(
+        eq(invitations.token, token),
+        eq(invitations.status, 'pending')
+      ))
+      .limit(1);
+
+    if (!invitation) {
+      return res.status(404).send("Invalid or expired invitation");
+    }
+
+    if (new Date() > invitation.expiresAt) {
+      await db
+        .update(invitations)
+        .set({ status: 'expired' })
+        .where(eq(invitations.id, invitation.id));
+      return res.status(400).send("Invitation has expired");
+    }
+
+    // Create new user with appropriate role and company
+    const [newUser] = await db
+      .insert(users)
+      .values({
+        username,
+        password, // Note: This should be hashed in auth.ts
+        email: invitation.email,
+        role: invitation.type === 'company_admin' ? 'company_admin' : 'user',
+        companyId: invitation.companyId,
+        isAdmin: invitation.type === 'company_admin',
+      })
+      .returning();
+
+    // Mark invitation as accepted
+    await db
+      .update(invitations)
+      .set({ status: 'accepted' })
+      .where(eq(invitations.id, invitation.id));
+
+    // Create notification for the inviter
+    const notification = await createNotification(
+      invitation.invitedBy,
+      'Invitation Accepted',
+      `${invitation.email} has accepted your invitation`,
+      'other'
+    );
+
+    // Send real-time notification
+    sendNotification(invitation.invitedBy, notification);
+
+    res.json({ message: "Invitation accepted successfully" });
   }));
 
   // Get all travel forms for the current user or all forms for approvers
@@ -366,19 +499,19 @@ export function registerRoutes(app: Express): Server {
           .send("Invalid input: " + result.error.issues.map(i => i.message).join(", "));
       }
 
-      const { position, dateOfBirth, preferredEmail, companyId, theme, emailNotifications, dashboardLayout } = result.data;
+      const { companyId, ...otherData } = result.data;
+
+      // Only allow company changes for super admins
+      if (companyId !== undefined && req.user?.role !== 'super_admin') {
+        return res.status(403).send("Only super admins can change company assignments");
+      }
 
       // Update user profile with validation
       const [updatedUser] = await db
         .update(users)
         .set({
-          position,
-          dateOfBirth: dateOfBirth ? new Date(dateOfBirth) : null,
-          preferredEmail,
-          companyId,
-          theme: theme || 'system',
-          emailNotifications: emailNotifications ?? true,
-          dashboardLayout: dashboardLayout || { type: 'default' },
+          ...otherData,
+          ...(req.user?.role === 'super_admin' ? { companyId } : {}),
           updatedAt: new Date(),
         })
         .where(eq(users.id, req.user!.id))
