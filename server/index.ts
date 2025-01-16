@@ -11,8 +11,11 @@ const app = express();
 app.use(express.json());
 app.use(express.urlencoded({ extended: false }));
 
-// Setup authentication
-setupAuth(app);
+// Setup authentication and get session middleware
+const sessionMiddleware = setupAuth(app);
+
+// Make session middleware available to the app
+app.getSession = sessionMiddleware;
 
 // Request logging middleware
 app.use((req, res, next) => {

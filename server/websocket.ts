@@ -1,6 +1,7 @@
 import { WebSocket, WebSocketServer } from 'ws';
 import type { Server } from 'http';
 import type { Express } from 'express';
+import type { RequestHandler } from 'express';
 
 // Store connected clients with their user IDs
 const clients = new Map<number, Set<WebSocket>>();
@@ -14,8 +15,20 @@ export function setupWebSocket(server: Server, app: Express) {
       return;
     }
 
-    // @ts-ignore - session types
-    app.getSession(request, {}, () => {
+    // Create a new session parser middleware
+    const sessionParser = app._router.stack
+      .filter((layer: any) => layer.name === 'session')
+      .pop()?.handle;
+
+    if (!sessionParser) {
+      console.error('Session middleware not found');
+      socket.write('HTTP/1.1 500 Internal Server Error\r\n\r\n');
+      socket.destroy();
+      return;
+    }
+
+    // Parse the session
+    sessionParser(request, {}, () => {
       // @ts-ignore - session types
       if (!request.session?.passport?.user) {
         socket.write('HTTP/1.1 401 Unauthorized\r\n\r\n');
@@ -32,7 +45,7 @@ export function setupWebSocket(server: Server, app: Express) {
   wss.on('connection', (ws, request) => {
     // @ts-ignore - session types
     const userId = request.session?.passport?.user;
-    
+
     // Add client to the clients map
     if (!clients.has(userId)) {
       clients.set(userId, new Set());

@@ -39,7 +39,7 @@ const registrationSchema = z.object({
 
 export function setupAuth(app: Express) {
   const MemoryStore = createMemoryStore(session);
-  const sessionSettings: session.SessionOptions = {
+  const sessionMiddleware = session({
     secret: process.env.REPL_ID || "travel-allowance-secret",
     resave: false,
     saveUninitialized: false,
@@ -49,17 +49,16 @@ export function setupAuth(app: Express) {
     store: new MemoryStore({
       checkPeriod: 86400000, // prune expired entries every 24h
     }),
-  };
+  });
 
   if (app.get("env") === "production") {
     app.set("trust proxy", 1);
-    sessionSettings.cookie = {
-      ...sessionSettings.cookie,
+    sessionMiddleware.cookie = {
       secure: true,
     };
   }
 
-  app.use(session(sessionSettings));
+  app.use(sessionMiddleware);
   app.use(passport.initialize());
   app.use(passport.session());
 
@@ -242,4 +241,6 @@ export function setupAuth(app: Express) {
 
   // Create/update initial superadmin account
   createSuperAdmin();
+
+  return sessionMiddleware;
 }
