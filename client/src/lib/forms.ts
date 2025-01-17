@@ -40,12 +40,26 @@ export const expenseSchema = z.object({
   amount: z.number().min(0, "Amount must be positive"),
 });
 
+// Define the API response type for travel forms
+export type TravelFormResponse = {
+  id: number;
+  firstName: string;
+  lastName: string;
+  destination: string;
+  projectCode: string;
+  requestedPrepayment?: number;
+  departureTime?: string;
+  returnTime?: string;
+  emailPreviewUrl?: string;
+};
+
 export const postTravelFormSchema = z.object({
   departureTime: z.date(),
   returnTime: z.date(),
   startMileage: z.number().min(0),
   endMileage: z.number().min(0),
   expenses: z.array(expenseSchema),
+  files: z.array(z.custom<File>()).optional(),
 });
 
 export type PostTravelForm = z.infer<typeof postTravelFormSchema>;

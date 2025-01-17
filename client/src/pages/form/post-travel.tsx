@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { useForm, useFieldArray } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { postTravelFormSchema, type PostTravelForm, calculateAllowance, calculateTotalHours, calculateDistanceAllowance } from "@/lib/forms";
+import { postTravelFormSchema, type PostTravelForm, type TravelFormResponse, calculateAllowance, calculateTotalHours, calculateDistanceAllowance } from "@/lib/forms";
 import { useMutation, useQuery } from "@tanstack/react-query";
 import { useLocation, useParams } from "wouter";
 import { useToast } from "@/hooks/use-toast";
@@ -54,7 +54,7 @@ export default function PostTravelForm() {
     queryKey: ["/api/settings"],
   });
 
-  const { data: form, isLoading } = useQuery({
+  const { data: form, isLoading } = useQuery<TravelFormResponse>({
     queryKey: [`/api/forms/${params.id}`],
     enabled: !!params.id,
   });
@@ -64,9 +64,10 @@ export default function PostTravelForm() {
     defaultValues: {
       departureTime: form?.departureTime ? new Date(form.departureTime) : new Date(),
       returnTime: form?.returnTime ? new Date(form.returnTime) : new Date(),
-      startMileage: form?.startMileage || 0,
-      endMileage: form?.endMileage || 0,
+      startMileage: 0,
+      endMileage: 0,
       expenses: [],
+      files: [],
     },
   });
 
@@ -77,17 +78,25 @@ export default function PostTravelForm() {
 
   const mutation = useMutation({
     mutationFn: async (data: PostTravelForm) => {
+      const formData = new FormData();
+
+      // Add form fields
+      formData.append('departureTime', data.departureTime.toISOString());
+      formData.append('returnTime', data.returnTime.toISOString());
+      formData.append('startMileage', data.startMileage.toString());
+      formData.append('endMileage', data.endMileage.toString());
+      formData.append('expenses', JSON.stringify(data.expenses));
+
+      // Add files
+      if (data.files) {
+        for (const file of data.files) {
+          formData.append('files', file);
+        }
+      }
+
       const res = await fetch(`/api/forms/${params.id}/post-travel`, {
         method: "PUT",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          departureTime: data.departureTime.toISOString(),
-          returnTime: data.returnTime.toISOString(),
-          startMileage: data.startMileage,
-          endMileage: data.endMileage,
-          expenses: data.expenses,
-          files: formHook.watch('files')
-        }),
+        body: formData,
         credentials: "include",
       });
 
@@ -287,75 +296,87 @@ export default function PostTravelForm() {
                 </div>
               </div>
 
-              <FormItem>
-                <FormLabel>Receipt Files</FormLabel>
-                <div className="space-y-4">
-                  <label
-                    className="flex items-center justify-center w-full h-32 px-4 transition bg-white border-2 border-gray-300 border-dashed rounded-md appearance-none cursor-pointer hover:border-primary/50 focus:outline-none">
-                    <div className="flex flex-col items-center space-y-2">
-                      <span className="flex items-center space-x-2">
-                        <svg xmlns="http://www.w3.org/2000/svg" className="w-6 h-6 text-gray-600" fill="none" viewBox="0 0 24 24"
-                          stroke="currentColor" strokeWidth="2">
-                          <path strokeLinecap="round" strokeLinejoin="round"
-                            d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12" />
-                        </svg>
-                        <span className="font-medium text-gray-600">
-                          Drop files to attach, or <span className="text-primary underline">browse</span>
-                        </span>
-                      </span>
-                      <span className="text-xs text-gray-500">Up to 4 files (images or PDFs)</span>
-                    </div>
-                    <FormControl>
-                      <Input
-                        type="file"
-                        multiple
-                        accept="image/*,.pdf"
-                        max={4}
-                        className="hidden"
-                        onChange={(e) => {
-                          const files = Array.from(e.target.files || []);
-                          const existingFiles = formHook.watch('files') || [];
-                          const newFiles = [...existingFiles, ...files].slice(0, 4);
-                          formHook.setValue('files', newFiles);
-                        }}
-                      />
-                    </FormControl>
-                  </label>
-
-                  {/* Display selected files */}
-                  {formHook.watch('files')?.length > 0 && (
-                    <div className="space-y-2">
-                      {Array.from(formHook.watch('files')).map((file: File, index) => (
-                        <div
-                          key={`${file.name}-${index}`}
-                          className="flex items-center justify-between p-2 bg-muted rounded-md"
-                        >
-                          <div className="flex items-center space-x-2">
-                            <FileText className="h-4 w-4 text-muted-foreground" />
-                            <span className="text-sm text-muted-foreground">{file.name}</span>
-                          </div>
-                          <Button
-                            type="button"
-                            variant="ghost"
-                            size="sm"
-                            onClick={() => {
-                              const files = formHook.watch('files');
-                              const newFiles = Array.from(files).filter((_, i) => i !== index);
-                              formHook.setValue('files', newFiles);
-                            }}
-                          >
-                            <X className="h-4 w-4" />
-                          </Button>
+              <FormField
+                control={formHook.control}
+                name="files"
+                render={({ field: { onChange, value, ...field } }) => (
+                  <FormItem>
+                    <FormLabel>Receipt Files</FormLabel>
+                    <div className="space-y-4">
+                      <label className="flex items-center justify-center w-full h-32 px-4 transition bg-white border-2 border-gray-300 border-dashed rounded-md appearance-none cursor-pointer hover:border-primary/50 focus:outline-none">
+                        <div className="flex flex-col items-center space-y-2">
+                          <span className="flex items-center space-x-2">
+                            <svg xmlns="http://www.w3.org/2000/svg" className="w-6 h-6 text-gray-600" fill="none" viewBox="0 0 24 24"
+                              stroke="currentColor" strokeWidth="2">
+                              <path strokeLinecap="round" strokeLinejoin="round"
+                                d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12" />
+                            </svg>
+                            <span className="font-medium text-gray-600">
+                              Drop files to attach, or <span className="text-primary underline">browse</span>
+                            </span>
+                          </span>
+                          <span className="text-xs text-gray-500">Up to 4 files (images or PDFs)</span>
                         </div>
-                      ))}
+                        <FormControl>
+                          <Input
+                            type="file"
+                            multiple
+                            accept="image/*,.pdf"
+                            max={4}
+                            className="hidden"
+                            onChange={(e) => {
+                              const files = Array.from(e.target.files || []);
+                              if (files.length > 4) {
+                                toast({
+                                  title: "Error",
+                                  description: "Maximum 4 files allowed",
+                                  variant: "destructive",
+                                });
+                                return;
+                              }
+                              onChange(files);
+                            }}
+                            {...field}
+                          />
+                        </FormControl>
+                      </label>
+
+                      {/* Display selected files */}
+                      {value?.length > 0 && (
+                        <div className="space-y-2">
+                          {value.map((file: File, index: number) => (
+                            <div
+                              key={`${file.name}-${index}`}
+                              className="flex items-center justify-between p-2 bg-muted rounded-md"
+                            >
+                              <div className="flex items-center space-x-2">
+                                <FileText className="h-4 w-4 text-muted-foreground" />
+                                <span className="text-sm text-muted-foreground">{file.name}</span>
+                              </div>
+                              <Button
+                                type="button"
+                                variant="ghost"
+                                size="sm"
+                                onClick={() => {
+                                  const newFiles = [...value];
+                                  newFiles.splice(index, 1);
+                                  onChange(newFiles);
+                                }}
+                              >
+                                <X className="h-4 w-4" />
+                              </Button>
+                            </div>
+                          ))}
+                        </div>
+                      )}
                     </div>
-                  )}
-                </div>
-                <FormDescription>
-                  Upload up to 4 receipt files (images or PDFs)
-                </FormDescription>
-                <FormMessage />
-              </FormItem>
+                    <FormDescription>
+                      Upload up to 4 receipt files (images or PDFs)
+                    </FormDescription>
+                    <FormMessage />
+                  </FormItem>
+                )}
+              />
 
               <div className="space-y-4">
                 <div className="flex justify-between items-center">
