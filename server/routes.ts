@@ -8,6 +8,7 @@ import { setupWebSocket } from "./websocket";
 import { travelForms, expenses, settings, notifications, companies, invitations, sendInvitationSchema } from "@db/schema";
 import { randomBytes } from "crypto";
 import { sendInvitationEmail } from './email';
+import * as xlsx from 'xlsx';
 
 // Middleware to check if user is authenticated
 const isAuthenticated = (req: Request, res: Response, next: NextFunction) => {
@@ -59,6 +60,57 @@ async function createNotification(
 }
 
 export function registerRoutes(app: Express): Server {
+  // Get all users (super admin only)
+  app.get("/api/users", isAuthenticated, asyncHandler(async (req: Request, res: Response) => {
+    // Check if user is super admin
+    if (req.user?.role !== 'super_admin') {
+      return res.status(403).send("Only super admins can view all users");
+    }
+
+    const usersList = await db.query.users.findMany({
+      orderBy: (users, { asc }) => [asc(users.username)]
+    });
+
+    res.json(usersList);
+  }));
+
+  // Export users to Excel (super admin only)
+  app.get("/api/users/export", isAuthenticated, asyncHandler(async (req: Request, res: Response) => {
+    // Check if user is super admin
+    if (req.user?.role !== 'super_admin') {
+      return res.status(403).send("Only super admins can export users");
+    }
+
+    // Fetch all users
+    const usersList = await db.query.users.findMany({
+      orderBy: (users, { asc }) => [asc(users.username)]
+    });
+
+    // Create workbook and worksheet
+    const wb = xlsx.utils.book_new();
+    const ws = xlsx.utils.json_to_sheet(usersList.map(user => ({
+      Username: user.username,
+      Email: user.email,
+      'First Name': user.firstName || '',
+      'Last Name': user.lastName || '',
+      Organization: user.organization || '',
+      'Created At': new Date(user.createdAt).toLocaleString(),
+      Role: user.role || 'user'
+    })));
+
+    // Add worksheet to workbook
+    xlsx.utils.book_append_sheet(wb, ws, 'Users');
+
+    // Generate buffer
+    const buf = xlsx.write(wb, { type: 'buffer', bookType: 'xlsx' });
+
+    // Set headers for file download
+    res.setHeader('Content-Disposition', `attachment; filename=users-${new Date().toISOString().split('T')[0]}.xlsx`);
+    res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
+
+    res.send(buf);
+  }));
+
   // Get all travel forms for the current user
   app.get("/api/forms", isAuthenticated, asyncHandler(async (req: Request, res: Response) => {
     const forms = await db.query.travelForms.findMany({

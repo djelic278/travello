@@ -50,7 +50,7 @@ import {
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
-import { Loader2, ArrowLeft, RefreshCw, Trash2, ExternalLink, AlertCircle, CheckCircle2, Mail } from "lucide-react";
+import { Loader2, ArrowLeft, RefreshCw, Trash2, ExternalLink, AlertCircle, CheckCircle2, Mail, Download } from "lucide-react";
 import { Link } from "wouter";
 
 // Define invitation schema with proper validation
@@ -68,6 +68,16 @@ type Invitation = {
   emailPreviewUrl?: string;
 };
 
+type User = {
+  id: number;
+  username: string;
+  email: string;
+  firstName?: string;
+  lastName?: string;
+  organization?: string;
+  createdAt: string;
+};
+
 export default function AdminPage() {
   const { toast } = useToast();
   const queryClient = useQueryClient();
@@ -82,16 +92,14 @@ export default function AdminPage() {
     },
   });
 
+  // Fetch all users
+  const { data: users = [], isLoading: isLoadingUsers } = useQuery<User[]>({
+    queryKey: ['/api/users']
+  });
+
   // Fetch pending invitations
   const { data: invitations = [], isError: isLoadError } = useQuery<Invitation[]>({
-    queryKey: ['/api/invitations'],
-    onError: (error: Error) => {
-      toast({
-        title: "Error Loading Invitations",
-        description: error.message,
-        variant: "destructive",
-      });
-    },
+    queryKey: ['/api/invitations']
   });
 
   const filteredInvitations = invitations.filter(invitation => 
@@ -201,7 +209,7 @@ export default function AdminPage() {
 
       return response.json();
     },
-    onSuccess: (_, invitationId) => {
+    onSuccess: () => {
       toast({
         title: "Invitation Deleted",
         description: "The invitation has been deleted successfully.",
@@ -217,6 +225,48 @@ export default function AdminPage() {
     },
   });
 
+  const handleExportUsers = async () => {
+    try {
+      const response = await fetch('/api/users/export', {
+        credentials: 'include',
+      });
+
+      if (!response.ok) {
+        throw new Error('Failed to export users');
+      }
+
+      const blob = await response.blob();
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `users-${new Date().toISOString().split('T')[0]}.xlsx`;
+      document.body.appendChild(a);
+      a.click();
+      window.URL.revokeObjectURL(url);
+      document.body.removeChild(a);
+
+      toast({
+        title: "Export Successful",
+        description: "Users data has been exported successfully.",
+      });
+    } catch (error: any) {
+      toast({
+        title: "Export Failed",
+        description: error.message,
+        variant: "destructive",
+      });
+    }
+  };
+
+  const isValidUrl = (urlString: string): boolean => {
+    try {
+      new URL(urlString);
+      return true;
+    } catch {
+      return false;
+    }
+  };
+
   const getStatusBadgeVariant = (status: Invitation['status']) => {
     switch (status) {
       case 'pending':
@@ -227,16 +277,6 @@ export default function AdminPage() {
         return 'destructive';
       default:
         return 'secondary';
-    }
-  };
-
-  // Helper function to validate URLs
-  const isValidUrl = (urlString: string): boolean => {
-    try {
-      new URL(urlString);
-      return true;
-    } catch {
-      return false;
     }
   };
 
@@ -251,232 +291,310 @@ export default function AdminPage() {
         </Button>
       </div>
 
-      <Card>
-        <CardHeader>
-          <CardTitle>System Administration</CardTitle>
-          <CardDescription>
-            Manage company administrators and system settings
-          </CardDescription>
-        </CardHeader>
-        <CardContent>
-          <div className="space-y-6">
-            {lastEmailResult && (
-              <Alert variant={lastEmailResult.error ? "destructive" : "default"} className="mb-4">
-                {lastEmailResult.error ? (
-                  <>
-                    <AlertCircle className="h-4 w-4" />
-                    <AlertTitle>Invitation Failed</AlertTitle>
-                    <AlertDescription>{lastEmailResult.error}</AlertDescription>
-                  </>
-                ) : (
-                  <>
-                    <CheckCircle2 className="h-4 w-4" />
-                    <AlertTitle>Invitation Sent Successfully</AlertTitle>
-                    <AlertDescription className="space-y-2">
-                      <p>The invitation has been created and an email has been sent.</p>
-                      {lastEmailResult.testEnvironment && (
-                        <div className="mt-2 space-y-2">
-                          <p className="font-medium">Test Environment Details:</p>
-                          <p className="text-sm">{lastEmailResult.testEnvironment.note}</p>
-                          <div className="space-y-1">
-                            <p className="text-sm">To view the email:</p>
-                            <ol className="list-decimal list-inside text-sm space-y-1">
-                              <li>
-                                {isValidUrl(lastEmailResult.testEnvironment.credentials.etherealUrl) ? (
-                                  <a 
-                                    href={lastEmailResult.testEnvironment.credentials.etherealUrl} 
-                                    target="_blank" 
-                                    rel="noopener noreferrer" 
-                                    className="text-primary hover:underline"
-                                  >
-                                    Ethereal Email
-                                  </a>
-                                ) : (
-                                  'Ethereal Email (URL not available)'
-                                )}
-                              </li>
-                              <li>Login with:
-                                <div className="ml-4 font-mono text-xs">
-                                  <div>Email: {lastEmailResult.testEnvironment.credentials.email}</div>
-                                  <div>Password: {lastEmailResult.testEnvironment.credentials.password}</div>
-                                </div>
-                              </li>
-                            </ol>
-                          </div>
-                          {lastEmailResult.emailPreviewUrl && isValidUrl(lastEmailResult.emailPreviewUrl) && (
-                            <Button variant="outline" size="sm" className="mt-2" asChild>
-                              <a href={lastEmailResult.emailPreviewUrl} target="_blank" rel="noopener noreferrer">
-                                <Mail className="mr-2 h-4 w-4" />
-                                View Email Preview
-                              </a>
-                            </Button>
-                          )}
-                        </div>
-                      )}
-                    </AlertDescription>
-                  </>
-                )}
-              </Alert>
-            )}
-
-            <div>
-              <div className="flex justify-between items-center mb-4">
-                <div className="space-y-1">
-                  <h3 className="text-lg font-medium">Company Admin Invitations</h3>
-                  <p className="text-sm text-muted-foreground">
-                    Track and manage all company administrator invitations
-                  </p>
-                </div>
-                <Dialog open={isInviting} onOpenChange={setIsInviting}>
-                  <DialogTrigger asChild>
-                    <Button>
-                      Send New Invitation
-                    </Button>
-                  </DialogTrigger>
-                  <DialogContent>
-                    <DialogHeader>
-                      <DialogTitle>Send Company Admin Invitation</DialogTitle>
-                      <DialogDescription>
-                        Enter the email address of the new company administrator
-                      </DialogDescription>
-                    </DialogHeader>
-                    <Form {...form}>
-                      <form
-                        onSubmit={form.handleSubmit((data) => {
-                          inviteCompanyAdminMutation.mutate(data.email);
-                        })}
-                        className="space-y-4"
-                      >
-                        <FormField
-                          control={form.control}
-                          name="email"
-                          render={({ field }) => (
-                            <FormItem>
-                              <FormLabel>Email Address</FormLabel>
-                              <FormControl>
-                                <Input
-                                  type="email"
-                                  placeholder="example@company.com"
-                                  {...field}
-                                />
-                              </FormControl>
-                              <FormMessage />
-                            </FormItem>
-                          )}
-                        />
-                        <Button
-                          type="submit"
-                          disabled={inviteCompanyAdminMutation.isPending}
-                        >
-                          {inviteCompanyAdminMutation.isPending && (
-                            <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                          )}
-                          Send Invitation
-                        </Button>
-                      </form>
-                    </Form>
-                  </DialogContent>
-                </Dialog>
+      <div className="space-y-6">
+        {/* Users Management Section */}
+        <Card>
+          <CardHeader>
+            <div className="flex justify-between items-center">
+              <div>
+                <CardTitle>Registered Users</CardTitle>
+                <CardDescription>
+                  View and manage all registered users in the system
+                </CardDescription>
               </div>
-
-              <div className="mb-4">
-                <Select 
-                  value={statusFilter} 
-                  onValueChange={(value) => setStatusFilter(value as typeof statusFilter)}
-                >
-                  <SelectTrigger className="w-[180px]">
-                    <SelectValue placeholder="Filter by status" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="all">All Statuses</SelectItem>
-                    <SelectItem value="pending">Pending</SelectItem>
-                    <SelectItem value="accepted">Accepted</SelectItem>
-                    <SelectItem value="expired">Expired</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-
-              <div className="border rounded-md">
-                <Table>
-                  <TableHeader>
+              <Button onClick={handleExportUsers}>
+                <Download className="mr-2 h-4 w-4" />
+                Export Users
+              </Button>
+            </div>
+          </CardHeader>
+          <CardContent>
+            <div className="border rounded-md">
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>Username</TableHead>
+                    <TableHead>Email</TableHead>
+                    <TableHead>Name</TableHead>
+                    <TableHead>Organization</TableHead>
+                    <TableHead>Joined</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {isLoadingUsers ? (
                     <TableRow>
-                      <TableHead>Email</TableHead>
-                      <TableHead>Status</TableHead>
-                      <TableHead>Created At</TableHead>
-                      <TableHead>Expires</TableHead>
-                      <TableHead>Preview</TableHead>
-                      <TableHead className="text-right">Actions</TableHead>
+                      <TableCell colSpan={5} className="text-center py-4">
+                        <Loader2 className="h-6 w-6 animate-spin mx-auto" />
+                      </TableCell>
                     </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {filteredInvitations.map((invitation) => (
-                      <TableRow key={invitation.id}>
-                        <TableCell>{invitation.email}</TableCell>
+                  ) : users.length === 0 ? (
+                    <TableRow>
+                      <TableCell colSpan={5} className="text-center text-muted-foreground">
+                        No users found
+                      </TableCell>
+                    </TableRow>
+                  ) : (
+                    users.map((user) => (
+                      <TableRow key={user.id}>
+                        <TableCell>{user.username}</TableCell>
+                        <TableCell>{user.email}</TableCell>
                         <TableCell>
-                          <Badge variant={getStatusBadgeVariant(invitation.status)}>
-                            {invitation.status}
-                          </Badge>
+                          {user.firstName && user.lastName 
+                            ? `${user.firstName} ${user.lastName}`
+                            : "-"}
                         </TableCell>
-                        <TableCell>{new Date(invitation.createdAt).toLocaleDateString()}</TableCell>
-                        <TableCell>
-                          <span className={
-                            new Date(invitation.expiresAt) < new Date() 
-                              ? "text-destructive" 
-                              : "text-foreground"
-                          }>
-                            {new Date(invitation.expiresAt).toLocaleDateString()}
-                          </span>
-                        </TableCell>
-                        <TableCell>
-                          {invitation.emailPreviewUrl && isValidUrl(invitation.emailPreviewUrl) && (
-                            <a
-                              href={invitation.emailPreviewUrl}
-                              target="_blank"
-                              rel="noopener noreferrer"
-                              className="text-primary hover:underline inline-flex items-center"
-                            >
-                              View Email <ExternalLink className="ml-1 h-3 w-3" />
-                            </a>
-                          )}
-                        </TableCell>
-                        <TableCell className="text-right">
-                          <div className="flex justify-end gap-2">
-                            <Button
-                              variant="outline"
-                              size="icon"
-                              onClick={() => resendInvitationMutation.mutate(invitation.id)}
-                              disabled={resendInvitationMutation.isPending || invitation.status !== 'pending'}
-                              title={invitation.status !== 'pending' ? 'Only pending invitations can be resent' : 'Resend invitation'}
-                            >
-                              <RefreshCw className="h-4 w-4" />
-                            </Button>
-                            <Button
-                              variant="outline"
-                              size="icon"
-                              onClick={() => deleteInvitationMutation.mutate(invitation.id)}
-                              disabled={deleteInvitationMutation.isPending}
-                              title="Delete invitation"
-                            >
-                              <Trash2 className="h-4 w-4" />
-                            </Button>
+                        <TableCell>{user.organization || "-"}</TableCell>
+                        <TableCell>{new Date(user.createdAt).toLocaleDateString()}</TableCell>
+                      </TableRow>
+                    ))
+                  )}
+                </TableBody>
+              </Table>
+            </div>
+          </CardContent>
+        </Card>
+
+        {/* Invitations Management Section */}
+        <Card>
+          <CardHeader>
+            <CardTitle>Company Admin Invitations</CardTitle>
+            <CardDescription>
+              Track and manage all company administrator invitations
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <div className="space-y-6">
+              {lastEmailResult && (
+                <Alert variant={lastEmailResult.error ? "destructive" : "default"} className="mb-4">
+                  {lastEmailResult.error ? (
+                    <>
+                      <AlertCircle className="h-4 w-4" />
+                      <AlertTitle>Invitation Failed</AlertTitle>
+                      <AlertDescription>{lastEmailResult.error}</AlertDescription>
+                    </>
+                  ) : (
+                    <>
+                      <CheckCircle2 className="h-4 w-4" />
+                      <AlertTitle>Invitation Sent Successfully</AlertTitle>
+                      <AlertDescription className="space-y-2">
+                        <p>The invitation has been created and an email has been sent.</p>
+                        {lastEmailResult.testEnvironment && (
+                          <div className="mt-2 space-y-2">
+                            <p className="font-medium">Test Environment Details:</p>
+                            <p className="text-sm">{lastEmailResult.testEnvironment.note}</p>
+                            <div className="space-y-1">
+                              <p className="text-sm">To view the email:</p>
+                              <ol className="list-decimal list-inside text-sm space-y-1">
+                                <li>
+                                  {isValidUrl(lastEmailResult.testEnvironment.credentials.etherealUrl) ? (
+                                    <a 
+                                      href={lastEmailResult.testEnvironment.credentials.etherealUrl} 
+                                      target="_blank" 
+                                      rel="noopener noreferrer" 
+                                      className="text-primary hover:underline"
+                                    >
+                                      Ethereal Email
+                                    </a>
+                                  ) : (
+                                    'Ethereal Email (URL not available)'
+                                  )}
+                                </li>
+                                <li>Login with:
+                                  <div className="ml-4 font-mono text-xs">
+                                    <div>Email: {lastEmailResult.testEnvironment.credentials.email}</div>
+                                    <div>Password: {lastEmailResult.testEnvironment.credentials.password}</div>
+                                  </div>
+                                </li>
+                              </ol>
+                            </div>
+                            {lastEmailResult.emailPreviewUrl && isValidUrl(lastEmailResult.emailPreviewUrl) && (
+                              <Button variant="outline" size="sm" className="mt-2" asChild>
+                                <a href={lastEmailResult.emailPreviewUrl} target="_blank" rel="noopener noreferrer">
+                                  <Mail className="mr-2 h-4 w-4" />
+                                  View Email Preview
+                                </a>
+                              </Button>
+                            )}
                           </div>
-                        </TableCell>
-                      </TableRow>
-                    ))}
-                    {filteredInvitations.length === 0 && (
+                        )}
+                      </AlertDescription>
+                    </>
+                  )}
+                </Alert>
+              )}
+
+              <div>
+                <div className="flex justify-between items-center mb-4">
+                  <div className="space-y-1">
+                    <h3 className="text-lg font-medium">Company Admin Invitations</h3>
+                    <p className="text-sm text-muted-foreground">
+                      Track and manage all company administrator invitations
+                    </p>
+                  </div>
+                  <Dialog open={isInviting} onOpenChange={setIsInviting}>
+                    <DialogTrigger asChild>
+                      <Button>
+                        Send New Invitation
+                      </Button>
+                    </DialogTrigger>
+                    <DialogContent>
+                      <DialogHeader>
+                        <DialogTitle>Send Company Admin Invitation</DialogTitle>
+                        <DialogDescription>
+                          Enter the email address of the new company administrator
+                        </DialogDescription>
+                      </DialogHeader>
+                      <Form {...form}>
+                        <form
+                          onSubmit={form.handleSubmit((data) => {
+                            inviteCompanyAdminMutation.mutate(data.email);
+                          })}
+                          className="space-y-4"
+                        >
+                          <FormField
+                            control={form.control}
+                            name="email"
+                            render={({ field }) => (
+                              <FormItem>
+                                <FormLabel>Email Address</FormLabel>
+                                <FormControl>
+                                  <Input
+                                    type="email"
+                                    placeholder="example@company.com"
+                                    {...field}
+                                  />
+                                </FormControl>
+                                <FormMessage />
+                              </FormItem>
+                            )}
+                          />
+                          <Button
+                            type="submit"
+                            disabled={inviteCompanyAdminMutation.isPending}
+                          >
+                            {inviteCompanyAdminMutation.isPending && (
+                              <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                            )}
+                            Send Invitation
+                          </Button>
+                        </form>
+                      </Form>
+                    </DialogContent>
+                  </Dialog>
+                </div>
+
+                <div className="mb-4">
+                  <Select 
+                    value={statusFilter} 
+                    onValueChange={(value) => setStatusFilter(value as typeof statusFilter)}
+                  >
+                    <SelectTrigger className="w-[180px]">
+                      <SelectValue placeholder="Filter by status" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="all">All Statuses</SelectItem>
+                      <SelectItem value="pending">Pending</SelectItem>
+                      <SelectItem value="accepted">Accepted</SelectItem>
+                      <SelectItem value="expired">Expired</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                <div className="border rounded-md">
+                  <Table>
+                    <TableHeader>
                       <TableRow>
-                        <TableCell colSpan={6} className="text-center text-muted-foreground">
-                          No invitations found
-                        </TableCell>
+                        <TableHead>Email</TableHead>
+                        <TableHead>Status</TableHead>
+                        <TableHead>Created At</TableHead>
+                        <TableHead>Expires</TableHead>
+                        <TableHead>Preview</TableHead>
+                        <TableHead className="text-right">Actions</TableHead>
                       </TableRow>
-                    )}
-                  </TableBody>
-                </Table>
+                    </TableHeader>
+                    <TableBody>
+                      {filteredInvitations.map((invitation) => (
+                        <TableRow key={invitation.id}>
+                          <TableCell>{invitation.email}</TableCell>
+                          <TableCell>
+                            <Badge variant={getStatusBadgeVariant(invitation.status)}>
+                              {invitation.status}
+                            </Badge>
+                          </TableCell>
+                          <TableCell>{new Date(invitation.createdAt).toLocaleDateString()}</TableCell>
+                          <TableCell>
+                            <span className={
+                              new Date(invitation.expiresAt) < new Date() 
+                                ? "text-destructive" 
+                                : "text-foreground"
+                            }>
+                              {new Date(invitation.expiresAt).toLocaleDateString()}
+                            </span>
+                          </TableCell>
+                          <TableCell>
+                            {invitation.emailPreviewUrl && isValidUrl(invitation.emailPreviewUrl) && (
+                              <a
+                                href={invitation.emailPreviewUrl}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="text-primary hover:underline inline-flex items-center"
+                              >
+                                View Email <ExternalLink className="ml-1 h-3 w-3" />
+                              </a>
+                            )}
+                          </TableCell>
+                          <TableCell className="text-right">
+                            <div className="flex justify-end gap-2">
+                              <Button
+                                variant="outline"
+                                size="icon"
+                                onClick={() => resendInvitationMutation.mutate(invitation.id)}
+                                disabled={resendInvitationMutation.isPending || invitation.status !== 'pending'}
+                                title={invitation.status !== 'pending' ? 'Only pending invitations can be resent' : 'Resend invitation'}
+                              >
+                                <RefreshCw className="h-4 w-4" />
+                              </Button>
+                              <Button
+                                variant="outline"
+                                size="icon"
+                                onClick={() => deleteInvitationMutation.mutate(invitation.id)}
+                                disabled={deleteInvitationMutation.isPending}
+                                title="Delete invitation"
+                              >
+                                <Trash2 className="h-4 w-4" />
+                              </Button>
+                            </div>
+                          </TableCell>
+                        </TableRow>
+                      ))}
+                      {filteredInvitations.length === 0 && (
+                        <TableRow>
+                          <TableCell colSpan={6} className="text-center text-muted-foreground">
+                            No invitations found
+                          </TableCell>
+                        </TableRow>
+                      )}
+                    </TableBody>
+                  </Table>
+                </div>
               </div>
             </div>
-          </div>
-        </CardContent>
-      </Card>
+          </CardContent>
+        </Card>
+      </div>
     </div>
   );
 }
+
+const getStatusBadgeVariant = (status: Invitation['status']) => {
+  switch (status) {
+    case 'pending':
+      return 'default';
+    case 'accepted':
+      return 'success';
+    case 'expired':
+      return 'destructive';
+    default:
+      return 'secondary';
+  }
+};
