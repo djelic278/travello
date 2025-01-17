@@ -9,7 +9,7 @@ import ProfilePage from "./pages/profile";
 import AdminPage from "./pages/admin";
 import NotFound from "@/pages/not-found";
 import AuthPage from "@/pages/auth-page";
-import { useAuth } from "@/hooks/use-auth";
+import { useUser } from "@/hooks/use-user";
 import { Loader2, User, Home, Plus, Settings } from "lucide-react";
 import { NotificationsButton } from "@/components/notifications";
 import { Button } from "@/components/ui/button";
@@ -17,7 +17,7 @@ import { Link, useLocation } from "wouter";
 
 function Layout({ children }: { children: React.ReactNode }) {
   const [location] = useLocation();
-  const { user, signOut } = useAuth();
+  const { user, logout } = useUser();
 
   return (
     <div className="min-h-screen bg-background">
@@ -38,7 +38,7 @@ function Layout({ children }: { children: React.ReactNode }) {
                   New Request
                 </Link>
               </Button>
-              {user?.email?.endsWith('@admin.com') && (
+              {user?.role === 'super_admin' && (
                 <Button variant={location === "/admin" ? "default" : "ghost"} size="sm" asChild>
                   <Link href="/admin" className="flex items-center">
                     <Settings className="mr-2 h-4 w-4" />
@@ -49,7 +49,7 @@ function Layout({ children }: { children: React.ReactNode }) {
             </nav>
           </div>
           <div className="flex items-center space-x-4">
-            <Button variant="ghost" size="sm" onClick={signOut}>
+            <Button variant="ghost" size="sm" onClick={() => logout()}>
               Odjava
             </Button>
             <Button variant={location === "/profile" ? "default" : "ghost"} size="icon" asChild>
@@ -69,9 +69,9 @@ function Layout({ children }: { children: React.ReactNode }) {
 }
 
 function Router() {
-  const { user, loading } = useAuth();
+  const { user, isLoading } = useUser();
 
-  if (loading) {
+  if (isLoading) {
     return (
       <div className="flex items-center justify-center min-h-screen">
         <Loader2 className="h-8 w-8 animate-spin text-border" />
@@ -90,7 +90,7 @@ function Router() {
         <Route path="/new-request" component={PreTravelForm} />
         <Route path="/forms/:id/post-travel" component={PostTravelForm} />
         <Route path="/profile" component={ProfilePage} />
-        {user.email?.endsWith('@admin.com') && (
+        {user.role === 'super_admin' && (
           <Route path="/admin" component={AdminPage} />
         )}
         <Route component={NotFound} />
