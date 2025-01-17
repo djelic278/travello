@@ -53,16 +53,16 @@ import { z } from "zod";
 import { Loader2, ArrowLeft, RefreshCw, Trash2, ExternalLink, AlertCircle, CheckCircle2, Mail } from "lucide-react";
 import { Link } from "wouter";
 
-// Define invitation schema
+// Define invitation schema with proper validation
 const invitationSchema = z.object({
-  email: z.string().email("Invalid email address"),
+  email: z.string().email("Invalid email address").min(1, "Email is required"),
 });
 
 type Invitation = {
   id: number;
   email: string;
   type: string;
-  status: string;
+  status: 'pending' | 'accepted' | 'expired';
   expiresAt: string;
   createdAt: string;
   emailPreviewUrl?: string;
@@ -72,7 +72,7 @@ export default function AdminPage() {
   const { toast } = useToast();
   const queryClient = useQueryClient();
   const [isInviting, setIsInviting] = useState(false);
-  const [statusFilter, setStatusFilter] = useState<string>("all");
+  const [statusFilter, setStatusFilter] = useState<'all' | Invitation['status']>("all");
   const [lastEmailResult, setLastEmailResult] = useState<any>(null);
 
   const form = useForm<z.infer<typeof invitationSchema>>({
@@ -83,8 +83,15 @@ export default function AdminPage() {
   });
 
   // Fetch pending invitations
-  const { data: invitations = [] } = useQuery<Invitation[]>({
+  const { data: invitations = [], isError: isLoadError } = useQuery<Invitation[]>({
     queryKey: ['/api/invitations'],
+    onError: (error: Error) => {
+      toast({
+        title: "Error Loading Invitations",
+        description: error.message,
+        variant: "destructive",
+      });
+    },
   });
 
   const filteredInvitations = invitations.filter(invitation => 
@@ -104,7 +111,8 @@ export default function AdminPage() {
       });
 
       if (!response.ok) {
-        throw new Error(await response.text());
+        const errorText = await response.text();
+        throw new Error(errorText || 'Failed to send invitation');
       }
 
       return response.json();
@@ -137,7 +145,8 @@ export default function AdminPage() {
       });
 
       if (!response.ok) {
-        throw new Error(await response.text());
+        const errorText = await response.text();
+        throw new Error(errorText || 'Failed to resend invitation');
       }
 
       return response.json();
@@ -148,10 +157,22 @@ export default function AdminPage() {
         title: "Invitation Resent",
         description: "The invitation has been resent successfully.",
       });
-      if (data.emailPreviewUrl) {
+      if (data.emailPreviewUrl && isValidUrl(data.emailPreviewUrl)) {
         toast({
           title: "Email Preview Available",
-          description: "View the email at: " + data.emailPreviewUrl,
+          description: (
+            <span>
+              View the email at:{' '}
+              <a 
+                href={data.emailPreviewUrl} 
+                target="_blank" 
+                rel="noopener noreferrer"
+                className="underline hover:text-primary"
+              >
+                Preview Link
+              </a>
+            </span>
+          ),
         });
       }
       queryClient.invalidateQueries({ queryKey: ['/api/invitations'] });
@@ -174,12 +195,13 @@ export default function AdminPage() {
       });
 
       if (!response.ok) {
-        throw new Error(await response.text());
+        const errorText = await response.text();
+        throw new Error(errorText || 'Failed to delete invitation');
       }
 
       return response.json();
     },
-    onSuccess: () => {
+    onSuccess: (_, invitationId) => {
       toast({
         title: "Invitation Deleted",
         description: "The invitation has been deleted successfully.",
@@ -195,7 +217,7 @@ export default function AdminPage() {
     },
   });
 
-  const getStatusBadgeVariant = (status: string) => {
+  const getStatusBadgeVariant = (status: Invitation['status']) => {
     switch (status) {
       case 'pending':
         return 'default';
@@ -205,6 +227,16 @@ export default function AdminPage() {
         return 'destructive';
       default:
         return 'secondary';
+    }
+  };
+
+  // Helper function to validate URLs
+  const isValidUrl = (urlString: string): boolean => {
+    try {
+      new URL(urlString);
+      return true;
+    } catch {
+      return false;
     }
   };
 
@@ -249,7 +281,20 @@ export default function AdminPage() {
                           <div className="space-y-1">
                             <p className="text-sm">To view the email:</p>
                             <ol className="list-decimal list-inside text-sm space-y-1">
-                              <li>Visit <a href={lastEmailResult.testEnvironment.credentials.etherealUrl} target="_blank" rel="noopener noreferrer" className="text-primary hover:underline">Ethereal Email</a></li>
+                              <li>
+                                {isValidUrl(lastEmailResult.testEnvironment.credentials.etherealUrl) ? (
+                                  <a 
+                                    href={lastEmailResult.testEnvironment.credentials.etherealUrl} 
+                                    target="_blank" 
+                                    rel="noopener noreferrer" 
+                                    className="text-primary hover:underline"
+                                  >
+                                    Ethereal Email
+                                  </a>
+                                ) : (
+                                  'Ethereal Email (URL not available)'
+                                )}
+                              </li>
                               <li>Login with:
                                 <div className="ml-4 font-mono text-xs">
                                   <div>Email: {lastEmailResult.testEnvironment.credentials.email}</div>
@@ -258,7 +303,7 @@ export default function AdminPage() {
                               </li>
                             </ol>
                           </div>
-                          {lastEmailResult.emailPreviewUrl && (
+                          {lastEmailResult.emailPreviewUrl && isValidUrl(lastEmailResult.emailPreviewUrl) && (
                             <Button variant="outline" size="sm" className="mt-2" asChild>
                               <a href={lastEmailResult.emailPreviewUrl} target="_blank" rel="noopener noreferrer">
                                 <Mail className="mr-2 h-4 w-4" />
@@ -335,7 +380,10 @@ export default function AdminPage() {
               </div>
 
               <div className="mb-4">
-                <Select value={statusFilter} onValueChange={setStatusFilter}>
+                <Select 
+                  value={statusFilter} 
+                  onValueChange={(value) => setStatusFilter(value as typeof statusFilter)}
+                >
                   <SelectTrigger className="w-[180px]">
                     <SelectValue placeholder="Filter by status" />
                   </SelectTrigger>
@@ -380,7 +428,7 @@ export default function AdminPage() {
                           </span>
                         </TableCell>
                         <TableCell>
-                          {invitation.emailPreviewUrl && (
+                          {invitation.emailPreviewUrl && isValidUrl(invitation.emailPreviewUrl) && (
                             <a
                               href={invitation.emailPreviewUrl}
                               target="_blank"
@@ -397,7 +445,8 @@ export default function AdminPage() {
                               variant="outline"
                               size="icon"
                               onClick={() => resendInvitationMutation.mutate(invitation.id)}
-                              disabled={resendInvitationMutation.isPending}
+                              disabled={resendInvitationMutation.isPending || invitation.status !== 'pending'}
+                              title={invitation.status !== 'pending' ? 'Only pending invitations can be resent' : 'Resend invitation'}
                             >
                               <RefreshCw className="h-4 w-4" />
                             </Button>
@@ -406,6 +455,7 @@ export default function AdminPage() {
                               size="icon"
                               onClick={() => deleteInvitationMutation.mutate(invitation.id)}
                               disabled={deleteInvitationMutation.isPending}
+                              title="Delete invitation"
                             >
                               <Trash2 className="h-4 w-4" />
                             </Button>

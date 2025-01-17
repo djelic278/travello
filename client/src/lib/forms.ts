@@ -53,19 +53,40 @@ export type TravelFormResponse = {
   emailPreviewUrl?: string;
 };
 
+// Custom validator for dates
+const validateDates = (data: any) => {
+  if (data.departureTime && data.returnTime) {
+    const departure = new Date(data.departureTime);
+    const return_ = new Date(data.returnTime);
+
+    if (return_ < departure) {
+      throw new Error("Return time must be after departure time");
+    }
+  }
+  return true;
+};
+
 export const postTravelFormSchema = z.object({
   departureTime: z.date(),
   returnTime: z.date(),
-  startMileage: z.number().min(0),
-  endMileage: z.number().min(0),
+  startMileage: z.number().min(0, "Start mileage must be positive"),
+  endMileage: z.number().min(0, "End mileage must be positive"),
   expenses: z.array(expenseSchema),
-  files: z.array(z.custom<File>()).optional(),
+  files: z.array(z.custom<File>((val) => val instanceof File, "Must be a valid file")).max(4, "Maximum 4 files allowed").optional(),
+}).refine(validateDates, {
+  message: "Return time must be after departure time",
+  path: ["returnTime"],
 });
 
 export type PostTravelForm = z.infer<typeof postTravelFormSchema>;
 export type Expense = z.infer<typeof expenseSchema>;
 
 export function calculateAllowance(hours: number, dailyAllowance: number = 35): number {
+  // Ensure hours is a valid number
+  if (typeof hours !== 'number' || isNaN(hours) || hours < 0) {
+    return 0;
+  }
+
   if (hours < 6) {
     return 0;
   } else if (hours < 12) {
@@ -88,10 +109,22 @@ export function calculateAllowance(hours: number, dailyAllowance: number = 35): 
 }
 
 export function calculateDistanceAllowance(kilometers: number, ratePerKm: number = 0.3): number {
+  // Ensure inputs are valid numbers
+  if (typeof kilometers !== 'number' || typeof ratePerKm !== 'number' || 
+      isNaN(kilometers) || isNaN(ratePerKm) || 
+      kilometers < 0 || ratePerKm < 0) {
+    return 0;
+  }
   return Math.max(0, kilometers * ratePerKm);
 }
 
 export function calculateTotalHours(departure: Date, return_: Date): number {
+  // Validate inputs
+  if (!(departure instanceof Date) || !(return_ instanceof Date) || 
+      isNaN(departure.getTime()) || isNaN(return_.getTime())) {
+    return 0;
+  }
+
   const diff = return_.getTime() - departure.getTime();
   return Math.max(0, Math.floor(diff / (1000 * 60 * 60)));
 }
