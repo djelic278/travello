@@ -496,6 +496,33 @@ export function registerRoutes(app: Express): Server {
   }));
 
 
+  // Update user organization (super admin only)
+  app.put("/api/users/:id", isAuthenticated, asyncHandler(async (req: Request, res: Response) => {
+    // Check if user is super admin
+    if (req.user?.role !== 'super_admin') {
+      return res.status(403).send("Only super admins can update user organizations");
+    }
+
+    const userId = parseInt(req.params.id);
+    const { organization } = req.body;
+
+    // Update user
+    const [updatedUser] = await db
+      .update(users)
+      .set({ 
+        organization,
+        updatedAt: new Date()
+      })
+      .where(eq(users.id, userId))
+      .returning();
+
+    if (!updatedUser) {
+      return res.status(404).send("User not found");
+    }
+
+    res.json(updatedUser);
+  }));
+
   // Initialize settings
   initializeSettings().catch(console.error);
 

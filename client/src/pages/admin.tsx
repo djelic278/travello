@@ -50,7 +50,7 @@ import {
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
-import { Loader2, ArrowLeft, RefreshCw, Trash2, ExternalLink, AlertCircle, CheckCircle2, Mail, Download } from "lucide-react";
+import { Loader2, ArrowLeft, RefreshCw, Trash2, ExternalLink, AlertCircle, CheckCircle2, Mail, Download, Pencil } from "lucide-react";
 import { Link } from "wouter";
 
 // Define invitation schema with proper validation
@@ -82,6 +82,7 @@ export default function AdminPage() {
   const { toast } = useToast();
   const queryClient = useQueryClient();
   const [isInviting, setIsInviting] = useState(false);
+  const [editingUser, setEditingUser] = useState<User | null>(null);
   const [statusFilter, setStatusFilter] = useState<'all' | Invitation['status']>("all");
   const [lastEmailResult, setLastEmailResult] = useState<any>(null);
 
@@ -102,7 +103,7 @@ export default function AdminPage() {
     queryKey: ['/api/invitations']
   });
 
-  const filteredInvitations = invitations.filter(invitation => 
+  const filteredInvitations = invitations.filter(invitation =>
     statusFilter === "all" ? true : invitation.status === statusFilter
   );
 
@@ -171,9 +172,9 @@ export default function AdminPage() {
           description: (
             <span>
               View the email at:{' '}
-              <a 
-                href={data.emailPreviewUrl} 
-                target="_blank" 
+              <a
+                href={data.emailPreviewUrl}
+                target="_blank"
                 rel="noopener noreferrer"
                 className="underline hover:text-primary"
               >
@@ -280,6 +281,39 @@ export default function AdminPage() {
     }
   };
 
+  const updateUserMutation = useMutation({
+    mutationFn: async (data: { userId: number; organization: string }) => {
+      const response = await fetch(`/api/users/${data.userId}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ organization: data.organization }),
+        credentials: 'include',
+      });
+
+      if (!response.ok) {
+        const errorText = await response.text();
+        throw new Error(errorText || 'Failed to update user');
+      }
+
+      return response.json();
+    },
+    onSuccess: () => {
+      toast({
+        title: "Success",
+        description: "User organization updated successfully",
+      });
+      queryClient.invalidateQueries({ queryKey: ['/api/users'] });
+      setEditingUser(null);
+    },
+    onError: (error: Error) => {
+      toast({
+        title: "Error",
+        description: error.message,
+        variant: "destructive",
+      });
+    },
+  });
+
   return (
     <div className="container mx-auto py-6">
       <div className="mb-6">
@@ -339,11 +373,24 @@ export default function AdminPage() {
                         <TableCell>{user.username}</TableCell>
                         <TableCell>{user.email}</TableCell>
                         <TableCell>
-                          {user.firstName && user.lastName 
+                          {user.firstName && user.lastName
                             ? `${user.firstName} ${user.lastName}`
                             : "-"}
                         </TableCell>
-                        <TableCell>{user.organization || "-"}</TableCell>
+                        <TableCell>
+                          <div className="flex items-center gap-2">
+                            <span>{user.organization || "-"}</span>
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              onClick={() => setEditingUser(user)}
+                              className="h-8 w-8 p-0"
+                            >
+                              <Pencil className="h-4 w-4" />
+                              <span className="sr-only">Edit organization</span>
+                            </Button>
+                          </div>
+                        </TableCell>
                         <TableCell>{new Date(user.createdAt).toLocaleDateString()}</TableCell>
                       </TableRow>
                     ))
@@ -387,10 +434,10 @@ export default function AdminPage() {
                               <ol className="list-decimal list-inside text-sm space-y-1">
                                 <li>
                                   {isValidUrl(lastEmailResult.testEnvironment.credentials.etherealUrl) ? (
-                                    <a 
-                                      href={lastEmailResult.testEnvironment.credentials.etherealUrl} 
-                                      target="_blank" 
-                                      rel="noopener noreferrer" 
+                                    <a
+                                      href={lastEmailResult.testEnvironment.credentials.etherealUrl}
+                                      target="_blank"
+                                      rel="noopener noreferrer"
                                       className="text-primary hover:underline"
                                     >
                                       Ethereal Email
@@ -484,8 +531,8 @@ export default function AdminPage() {
                 </div>
 
                 <div className="mb-4">
-                  <Select 
-                    value={statusFilter} 
+                  <Select
+                    value={statusFilter}
                     onValueChange={(value) => setStatusFilter(value as typeof statusFilter)}
                   >
                     <SelectTrigger className="w-[180px]">
@@ -524,8 +571,8 @@ export default function AdminPage() {
                           <TableCell>{new Date(invitation.createdAt).toLocaleDateString()}</TableCell>
                           <TableCell>
                             <span className={
-                              new Date(invitation.expiresAt) < new Date() 
-                                ? "text-destructive" 
+                              new Date(invitation.expiresAt) < new Date()
+                                ? "text-destructive"
                                 : "text-foreground"
                             }>
                               {new Date(invitation.expiresAt).toLocaleDateString()}
@@ -582,6 +629,47 @@ export default function AdminPage() {
           </CardContent>
         </Card>
       </div>
+      {/* Add the edit organization dialog */}
+      <Dialog open={!!editingUser} onOpenChange={(open) => !open && setEditingUser(null)}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Edit Organization</DialogTitle>
+            <DialogDescription>
+              Update the organization for {editingUser?.username}
+            </DialogDescription>
+          </DialogHeader>
+          <form
+            onSubmit={(e) => {
+              e.preventDefault();
+              if (!editingUser) return;
+              const formData = new FormData(e.currentTarget);
+              updateUserMutation.mutate({
+                userId: editingUser.id,
+                organization: formData.get('organization') as string,
+              });
+            }}
+            className="space-y-4"
+          >
+            <div className="space-y-2">
+              <label htmlFor="organization">Organization</label>
+              <Input
+                id="organization"
+                name="organization"
+                defaultValue={editingUser?.organization || ''}
+              />
+            </div>
+            <Button
+              type="submit"
+              disabled={updateUserMutation.isPending}
+            >
+              {updateUserMutation.isPending && (
+                <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+              )}
+              Save Changes
+            </Button>
+          </form>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
