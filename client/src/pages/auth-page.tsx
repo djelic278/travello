@@ -1,15 +1,37 @@
+import { useState } from "react";
 import { useAuth } from "@/hooks/use-auth";
 import { useToast } from "@/hooks/use-toast";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Label } from "@/components/ui/label";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { FcGoogle } from "react-icons/fc";
 import { Loader2 } from "lucide-react";
-import { useState } from "react";
+import { Separator } from "@/components/ui/separator";
 
 export default function AuthPage() {
+  const [username, setUsername] = useState("");
+  const [password, setPassword] = useState("");
   const { signInWithGoogle } = useAuth();
   const { toast } = useToast();
   const [isLoading, setIsLoading] = useState(false);
+
+  const handleSubmit = async (action: "login" | "register") => {
+    try {
+      // Implementacija klasične prijave/registracije će biti dodana kasnije
+      toast({
+        title: "Uspjeh",
+        description: `${action === "login" ? "Prijava" : "Registracija"} uspješna`,
+      });
+    } catch (error: any) {
+      toast({
+        title: "Greška",
+        description: error.message,
+        variant: "destructive",
+      });
+    }
+  };
 
   const handleGoogleLogin = async () => {
     try {
@@ -38,7 +60,77 @@ export default function AuthPage() {
             Travel Allowance System
           </CardTitle>
         </CardHeader>
-        <CardContent>
+        <CardContent className="space-y-4">
+          <Tabs defaultValue="login" className="space-y-4">
+            <TabsList className="grid w-full grid-cols-2">
+              <TabsTrigger value="login">Prijava</TabsTrigger>
+              <TabsTrigger value="register">Registracija</TabsTrigger>
+            </TabsList>
+
+            <TabsContent value="login" className="space-y-4">
+              <div className="space-y-2">
+                <Label htmlFor="username">Korisničko ime</Label>
+                <Input
+                  id="username"
+                  value={username}
+                  onChange={(e) => setUsername(e.target.value)}
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="password">Lozinka</Label>
+                <Input
+                  id="password"
+                  type="password"
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                />
+              </div>
+              <Button
+                className="w-full"
+                onClick={() => handleSubmit("login")}
+              >
+                Prijava
+              </Button>
+            </TabsContent>
+
+            <TabsContent value="register" className="space-y-4">
+              <div className="space-y-2">
+                <Label htmlFor="reg-username">Korisničko ime</Label>
+                <Input
+                  id="reg-username"
+                  value={username}
+                  onChange={(e) => setUsername(e.target.value)}
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="reg-password">Lozinka</Label>
+                <Input
+                  id="reg-password"
+                  type="password"
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                />
+              </div>
+              <Button
+                className="w-full"
+                onClick={() => handleSubmit("register")}
+              >
+                Registracija
+              </Button>
+            </TabsContent>
+          </Tabs>
+
+          <div className="relative">
+            <div className="absolute inset-0 flex items-center">
+              <span className="w-full border-t" />
+            </div>
+            <div className="relative flex justify-center text-xs uppercase">
+              <span className="bg-background px-2 text-muted-foreground">
+                ili se prijavite pomoću
+              </span>
+            </div>
+          </div>
+
           <Button
             variant="outline"
             className="w-full"
