@@ -9,9 +9,9 @@ const firebaseConfig = {
   appId: import.meta.env.VITE_FIREBASE_APP_ID,
 };
 
-// Inicijalizacija Firebase
+// Initialize Firebase
 const app = initializeApp(firebaseConfig);
 
-// Izvoz auth instance i Google providera
+// Export auth instance and Google provider
 export const auth = getAuth(app);
 export const googleProvider = new GoogleAuthProvider();
