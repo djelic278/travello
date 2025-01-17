@@ -78,6 +78,12 @@ type User = {
   createdAt: string;
 };
 
+type Company = {
+  id: number;
+  name: string;
+  address?: string;
+};
+
 export default function AdminPage() {
   const { toast } = useToast();
   const queryClient = useQueryClient();
@@ -280,6 +286,12 @@ export default function AdminPage() {
         return 'secondary';
     }
   };
+
+  // New query to fetch companies
+  const { data: companies = [] } = useQuery<Company[]>({
+    queryKey: ['/api/companies']
+  });
+
 
   const updateUserMutation = useMutation({
     mutationFn: async (data: { userId: number; organization: string }) => {
@@ -629,7 +641,7 @@ export default function AdminPage() {
           </CardContent>
         </Card>
       </div>
-      {/* Add the edit organization dialog */}
+      {/* Update the edit organization dialog */}
       <Dialog open={!!editingUser} onOpenChange={(open) => !open && setEditingUser(null)}>
         <DialogContent>
           <DialogHeader>
@@ -652,11 +664,21 @@ export default function AdminPage() {
           >
             <div className="space-y-2">
               <label htmlFor="organization">Organization</label>
-              <Input
-                id="organization"
+              <Select
                 name="organization"
                 defaultValue={editingUser?.organization || ''}
-              />
+              >
+                <SelectTrigger>
+                  <SelectValue placeholder="Select an organization" />
+                </SelectTrigger>
+                <SelectContent>
+                  {companies.map((company) => (
+                    <SelectItem key={company.id} value={company.name}>
+                      {company.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
             </div>
             <Button
               type="submit"
