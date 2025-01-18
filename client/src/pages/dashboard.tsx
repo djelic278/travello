@@ -1,4 +1,4 @@
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useMutation } from "@tanstack/react-query";
 import { Button } from "@/components/ui/button";
 import {
   Card,
@@ -15,7 +15,7 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { Plus, FileText, Download } from "lucide-react";
+import { Plus, FileText, Download, Check, X } from "lucide-react";
 import { Link } from "wouter";
 import { useUser } from "@/hooks/use-user";
 import { useToast } from "@/hooks/use-toast";
@@ -24,10 +24,43 @@ import { Loader2 } from "lucide-react";
 export default function Dashboard() {
   const { user } = useUser();
   const { toast } = useToast();
-  const { data: forms, isLoading } = useQuery<any[]>({
+  const isAdmin = user?.role === 'super_admin' || user?.role === 'company_admin';
+
+  const { data: forms, isLoading, refetch } = useQuery<any[]>({
     queryKey: ["/api/forms"],
     refetchInterval: 60000, // Refetch every minute
   });
+
+  // Mutation for approving/rejecting forms
+  const { mutate: updateApproval } = useMutation({
+    mutationFn: async ({ formId, approved }: { formId: number; approved: boolean }) => {
+      const response = await fetch(`/api/forms/${formId}/approve`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        credentials: 'include',
+        body: JSON.stringify({ approved }),
+      });
+
+      if (!response.ok) {
+        throw new Error(await response.text());
+      }
+
+      return response.json();
+    },
+    onSuccess: () => {
+      refetch(); // Refresh the forms list
+      toast({
+        title: "Success",
+        description: "Travel request status updated successfully",
+      });
+    },
+  });
+
+  const handleApproval = (formId: number, approved: boolean) => {
+    updateApproval({ formId, approved });
+  };
 
   const handleExport = async () => {
     try {
@@ -39,20 +72,13 @@ export default function Dashboard() {
         throw new Error('Failed to export data');
       }
 
-      // Get the blob from response
       const blob = await response.blob();
-
-      // Create download link
       const url = window.URL.createObjectURL(blob);
       const a = document.createElement('a');
       a.href = url;
       a.download = 'travel-forms.xlsx';
-
-      // Trigger download
       document.body.appendChild(a);
       a.click();
-
-      // Cleanup
       window.URL.revokeObjectURL(url);
       document.body.removeChild(a);
 
@@ -108,7 +134,8 @@ export default function Dashboard() {
                 <TableHead>Start Date</TableHead>
                 <TableHead>Duration (days)</TableHead>
                 <TableHead>Status</TableHead>
-                <TableHead className="text-right">Actions</TableHead>
+                <TableHead>Approval Status</TableHead>
+                {isAdmin && <TableHead>Actions</TableHead>}
               </TableRow>
             </TableHeader>
             <TableBody>
@@ -120,29 +147,51 @@ export default function Dashboard() {
                   </TableCell>
                   <TableCell>{form.duration}</TableCell>
                   <TableCell>{form.status}</TableCell>
+                  <TableCell>{form.approvalStatus}</TableCell>
+                  {isAdmin && (
+                    <TableCell>
+                      {form.approvalStatus === 'pending' && (
+                        <div className="flex space-x-2">
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            className="text-green-600"
+                            onClick={() => handleApproval(form.id, true)}
+                          >
+                            <Check className="h-4 w-4" />
+                          </Button>
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            className="text-red-600"
+                            onClick={() => handleApproval(form.id, false)}
+                          >
+                            <X className="h-4 w-4" />
+                          </Button>
+                        </div>
+                      )}
+                    </TableCell>
+                  )}
                   <TableCell className="text-right">
-                    {form.status === 'pending' ? (
-                      <span className="text-sm text-muted-foreground">
-                        Awaiting approval
-                      </span>
-                    ) : form.status === 'approved' ? (
+                    {form.approvalStatus === 'approved' && form.status === 'pre_travel_submitted' && (
                       <Button asChild variant="ghost" size="sm">
                         <Link href={`/forms/${form.id}/post-travel`}>
                           <FileText className="mr-2 h-4 w-4" />
-                          Submit Form 2
+                          Submit Post-Travel Form
                         </Link>
                       </Button>
-                    ) : form.status === 'submitted' ? (
-                      <span className="text-sm text-muted-foreground">
-                        Form 2 submitted
+                    )}
+                    {form.approvalStatus === 'rejected' && (
+                      <span className="text-sm text-red-500">
+                        Request rejected
                       </span>
-                    ) : null}
+                    )}
                   </TableCell>
                 </TableRow>
               ))}
               {!forms?.length && (
                 <TableRow>
-                  <TableCell colSpan={5} className="text-center">
+                  <TableCell colSpan={6} className="text-center">
                     No travel requests found
                   </TableCell>
                 </TableRow>

@@ -225,6 +225,60 @@ export function registerRoutes(app: Express): Server {
     res.json(updatedForm);
   }));
 
+  // Add this route after other travel form routes
+  app.put("/api/forms/:id/approve", isAuthenticated, asyncHandler(async (req: Request, res: Response) => {
+    const formId = parseInt(req.params.id);
+    const { approved } = req.body;
+
+    // Check if user is authorized to approve forms
+    if (req.user?.role !== 'super_admin' && req.user?.role !== 'company_admin') {
+      return res.status(403).send("Only administrators can approve travel requests");
+    }
+
+    // Get the form
+    const form = await db.query.travelForms.findFirst({
+      where: and(
+        eq(travelForms.id, formId),
+        // Company admins can only approve forms from their company
+        req.user.role === 'company_admin'
+          ? eq(travelForms.companyId, req.user.companyId!)
+          : undefined
+      )
+    });
+
+    if (!form) {
+      return res.status(404).send("Form not found");
+    }
+
+    // Update approval status
+    const [updatedForm] = await db
+      .update(travelForms)
+      .set({
+        approvalStatus: approved ? 'approved' : 'rejected',
+        updatedAt: new Date(),
+      })
+      .where(eq(travelForms.id, formId))
+      .returning();
+
+    // Create notification for the form owner
+    const notification = await createNotification(
+      form.userId,
+      approved ? 'Travel Request Approved' : 'Travel Request Rejected',
+      `Your travel request to ${form.destination} has been ${approved ? 'approved' : 'rejected'}`,
+      'form_submitted',
+      { formId: form.id }
+    );
+
+    // Send real-time notification
+    if (req.app.get('sendNotification')) {
+      const sendNotification = req.app.get('sendNotification');
+      sendNotification(form.userId, notification);
+    }
+
+    res.json(updatedForm);
+  }));
+
+
   // Get notifications for the current user
   app.get("/api/notifications", isAuthenticated, asyncHandler(async (req: Request, res: Response) => {
     const notificationList = await db.query.notifications.findMany({
@@ -509,7 +563,7 @@ export function registerRoutes(app: Express): Server {
     // Update user
     const [updatedUser] = await db
       .update(users)
-      .set({ 
+      .set({
         organization,
         updatedAt: new Date()
       })
