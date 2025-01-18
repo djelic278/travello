@@ -96,7 +96,7 @@ export default function AdminPage() {
   const { toast } = useToast();
   const queryClient = useQueryClient();
   const [isInviting, setIsInviting] = useState(false);
-  const [selectedRole, setSelectedRole] = useState<string | null>(null);
+  const [selectedRole, setSelectedRole] = useState<User['role'] | 'all'>('all');
   const [editingUser, setEditingUser] = useState<User | null>(null);
   const [statusFilter, setStatusFilter] = useState<'all' | Invitation['status']>("all");
   const [lastEmailResult, setLastEmailResult] = useState<any>(null);
@@ -122,7 +122,9 @@ export default function AdminPage() {
     statusFilter === "all" ? true : invitation.status === statusFilter
   );
 
-  const filteredUsers = users.filter(user => !selectedRole || user.role === selectedRole);
+  const filteredUsers = selectedRole === 'all'
+    ? users
+    : users.filter(user => user.role === selectedRole);
 
 
   const inviteCompanyAdminMutation = useMutation({
@@ -387,13 +389,12 @@ export default function AdminPage() {
     },
   });
 
-
   const handleRoleChange = (userId: number, newRole: User['role']) => {
     updateRoleMutation.mutate({ userId, role: newRole });
   };
 
   const handleCompanyChange = (userId: number, newCompanyId: string) => {
-    updateCompanyMutation.mutate({ userId, companyId: newCompanyId ? parseInt(newCompanyId) : null });
+    updateCompanyMutation.mutate({ userId, companyId: newCompanyId === "none" ? null : parseInt(newCompanyId) });
   };
 
   return (
@@ -424,14 +425,14 @@ export default function AdminPage() {
             <TabsContent value="users" className="space-y-4">
               <div className="mb-4">
                 <Select
-                  value={selectedRole || ""}
-                  onValueChange={(value) => setSelectedRole(value || null)}
+                  value={selectedRole}
+                  onValueChange={(value: User['role'] | 'all') => setSelectedRole(value)}
                 >
                   <SelectTrigger className="w-[200px]">
                     <SelectValue placeholder="Filter by role" />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="">All Roles</SelectItem>
+                    <SelectItem value="all">All Roles</SelectItem>
                     <SelectItem value="super_admin">Super Admin</SelectItem>
                     <SelectItem value="company_admin">Company Admin</SelectItem>
                     <SelectItem value="user">User</SelectItem>
@@ -490,7 +491,7 @@ export default function AdminPage() {
                           <TableCell>
                             <Select
                               value={user.role}
-                              onValueChange={(newRole) => handleRoleChange(user.id, newRole)}
+                              onValueChange={(value: User['role']) => handleRoleChange(user.id, value)}
                               disabled={updateRoleMutation.isPending}
                             >
                               <SelectTrigger className="w-[180px]">
@@ -508,15 +509,15 @@ export default function AdminPage() {
                           </TableCell>
                           <TableCell>
                             <Select
-                              value={user.companyId?.toString() || ""}
-                              onValueChange={(newCompanyId) => handleCompanyChange(user.id, newCompanyId)}
+                              value={user.companyId?.toString() ?? "none"}
+                              onValueChange={(newCompanyId) => handleCompanyChange(user.id, newCompanyId === "none" ? "" : newCompanyId)}
                               disabled={updateCompanyMutation.isPending}
                             >
                               <SelectTrigger className="w-[180px]">
                                 <SelectValue placeholder="Select company" />
                               </SelectTrigger>
                               <SelectContent>
-                                <SelectItem value="">No Company</SelectItem>
+                                <SelectItem value="none">No Company</SelectItem>
                                 {companies.map((company) => (
                                   <SelectItem key={company.id} value={company.id.toString()}>
                                     {company.name}
@@ -755,7 +756,6 @@ export default function AdminPage() {
           </Tabs>
         </CardContent>
       </Card>
-      {/* Update the edit organization dialog */}
       <Dialog open={!!editingUser} onOpenChange={(open) => !open && setEditingUser(null)}>
         <DialogContent>
           <DialogHeader>
