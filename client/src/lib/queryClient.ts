@@ -14,12 +14,8 @@ const formatErrorMessage = (error: any): string => {
 
 // Get the base URL for API calls
 const getBaseUrl = () => {
-  // In development, use the current origin
-  if (window.location.origin.includes('.replit.dev')) {
-    return window.location.origin;
-  }
-  // For local development
-  return 'http://localhost:5000';
+  // Always use the current origin in both development and production
+  return window.location.origin;
 };
 
 // Create a new query client with enhanced error handling and retry logic
@@ -33,7 +29,6 @@ export const queryClient = new QueryClient({
 
           // Construct the full URL
           const url = `${getBaseUrl()}${queryKey[0]}`;
-          console.log('Making request to:', url); // Debug log
 
           const res = await fetch(url, {
             credentials: "include",
@@ -74,13 +69,6 @@ export const queryClient = new QueryClient({
       refetchInterval: false,
       refetchOnWindowFocus: false,
       staleTime: Infinity,
-      onError: (error) => {
-        toast({
-          title: "Error",
-          description: formatErrorMessage(error),
-          variant: "destructive",
-        });
-      },
     },
     mutations: {
       retry: (failureCount, error) => {
