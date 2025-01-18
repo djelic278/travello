@@ -23,17 +23,25 @@ for (const envVar of requiredEnvVars) {
 
 const app = express();
 
-// Basic middleware setup with security headers and CORS for development
+// Basic middleware setup
 app.use(express.json());
 app.use(express.urlencoded({ extended: false }));
 
-// Add CORS headers for development
+// CORS configuration for Replit
 app.use((req, res, next) => {
-  // Allow requests from any origin in development
-  res.setHeader('Access-Control-Allow-Origin', '*');
-  res.setHeader('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS');
-  res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization');
-  res.setHeader('Access-Control-Allow-Credentials', 'true');
+  const origin = req.headers.origin;
+
+  // Allow Replit domains and localhost for development
+  if (origin && (
+    origin.endsWith('.replit.dev') || 
+    origin === 'http://localhost:5000' ||
+    origin === 'http://localhost:3000'
+  )) {
+    res.setHeader('Access-Control-Allow-Origin', origin);
+    res.setHeader('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS');
+    res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization');
+    res.setHeader('Access-Control-Allow-Credentials', 'true');
+  }
 
   // Handle preflight requests
   if (req.method === 'OPTIONS') {
@@ -54,7 +62,7 @@ const sessionMiddleware = setupAuth(app);
 // Make session middleware available to the app
 app.set('session', sessionMiddleware);
 
-// Request logging middleware with enhanced error tracking
+// Request logging middleware
 app.use((req, res, next) => {
   const start = Date.now();
   const path = req.path;
@@ -137,7 +145,6 @@ app.get('/health', (req, res) => {
 
       log(`Error occurred: ${status} - ${err.message || err}`);
 
-      // Send minimal error details in production
       res.status(status).json({
         message,
         ...(process.env.NODE_ENV !== 'production' && { stack: err.stack })
