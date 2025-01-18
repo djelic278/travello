@@ -63,6 +63,11 @@ const sessionMiddleware = setupAuth(app);
 // Make session middleware available to the app
 app.set('session', sessionMiddleware);
 
+// Health check endpoint - moved here for better accessibility
+app.get('/health', (req, res) => {
+  res.json({ status: 'ok', environment: app.get('env') });
+});
+
 // Request logging middleware
 app.use((req, res, next) => {
   const start = Date.now();
@@ -94,11 +99,6 @@ app.use((req, res, next) => {
   next();
 });
 
-// Health check endpoint
-app.get('/health', (req, res) => {
-  res.json({ status: 'ok', environment: app.get('env') });
-});
-
 // Initialize server
 (async () => {
   try {
@@ -116,13 +116,14 @@ app.get('/health', (req, res) => {
     }
     log("Database connection successful");
 
-    // Register routes
+    // Register routes before setting up Vite
     log("Registering routes...");
     const server = registerRoutes(app);
     log("Routes registered successfully");
 
     // Set up Vite or static serving based on environment
     if (app.get("env") === "development") {
+      log("Initializing Vite development server...");
       await setupVite(app, server);
       log("Vite development server initialized");
     } else {
@@ -134,6 +135,7 @@ app.get('/health', (req, res) => {
     const PORT = 5000;
     server.listen(PORT, "0.0.0.0", () => {
       log(`Server running on port ${PORT} in ${app.get("env")} mode`);
+      log(`Server URL: ${process.env.REPL_SLUG ? `https://${process.env.REPL_SLUG}.${process.env.REPL_OWNER}.repl.co` : `http://localhost:${PORT}`}`);
     });
 
   } catch (error) {

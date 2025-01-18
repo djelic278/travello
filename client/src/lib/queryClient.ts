@@ -27,6 +27,7 @@ export const queryClient = new QueryClient({
             headers: {
               'Accept': 'application/json',
               'Content-Type': 'application/json',
+              'X-Requested-With': 'XMLHttpRequest', // Add this header for CORS
             }
           });
 
