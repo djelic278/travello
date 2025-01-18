@@ -55,7 +55,14 @@ export default function AuthPage() {
   const handleGoogleLogin = async () => {
     try {
       setIsLoading(true);
+      console.log('Starting Google login process...');
+
       const result = await signInWithPopup(auth, googleProvider);
+      console.log('Google sign-in successful:', { 
+        email: result.user.email,
+        uid: result.user.uid 
+      });
+
       if (result.user) {
         toast({
           title: "Login successful",
@@ -64,10 +71,25 @@ export default function AuthPage() {
         navigate("/");
       }
     } catch (error: any) {
-      console.error("Google login error:", error);
+      console.error('Detailed Google login error:', {
+        code: error.code,
+        message: error.message,
+        customData: error.customData
+      });
+
+      // More user-friendly error messages
+      let errorMessage = "There was a problem logging in. Please try again.";
+      if (error.code === 'auth/configuration-not-found') {
+        errorMessage = "The application is not properly configured for Google login. Please contact support.";
+      } else if (error.code === 'auth/popup-blocked') {
+        errorMessage = "The login popup was blocked. Please allow popups for this site and try again.";
+      } else if (error.code === 'auth/popup-closed-by-user') {
+        errorMessage = "The login popup was closed. Please try again.";
+      }
+
       toast({
         title: "Login Error",
-        description: error.message || "There was a problem logging in. Please try again.",
+        description: errorMessage,
         variant: "destructive",
       });
     } finally {
