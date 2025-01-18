@@ -289,6 +289,57 @@ export function registerRoutes(app: Express): Server {
   }));
 
 
+  // Get all users (super admin only)
+  app.get("/api/admin/users", isAuthenticated, asyncHandler(async (req: Request, res: Response) => {
+    // Check if user is super admin
+    if (req.user?.role !== 'super_admin') {
+      return res.status(403).send("Only super admins can view all users");
+    }
+
+    const usersList = await db.query.users.findMany({
+      orderBy: (users, { asc }) => [asc(users.username)]
+    });
+
+    res.json(usersList);
+  }));
+
+  // Update user role (super admin only)
+  app.put("/api/admin/users/:id/role", isAuthenticated, asyncHandler(async (req: Request, res: Response) => {
+    // Check if user is super admin
+    if (req.user?.role !== 'super_admin') {
+      return res.status(403).send("Only super admins can update user roles");
+    }
+
+    const userId = parseInt(req.params.id);
+    const { role } = req.body;
+
+    // Validate role
+    if (!['super_admin', 'company_admin', 'user'].includes(role)) {
+      return res.status(400).send("Invalid role");
+    }
+
+    // Prevent super admin from modifying their own role
+    if (userId === req.user!.id) {
+      return res.status(403).send("Cannot modify your own role");
+    }
+
+    // Update user role
+    const [updatedUser] = await db
+      .update(users)
+      .set({
+        role,
+        updatedAt: new Date(),
+      })
+      .where(eq(users.id, userId))
+      .returning();
+
+    if (!updatedUser) {
+      return res.status(404).send("User not found");
+    }
+
+    res.json(updatedUser);
+  }));
+
   // Get notifications for the current user
   app.get("/api/notifications", isAuthenticated, asyncHandler(async (req: Request, res: Response) => {
     const notificationList = await db.query.notifications.findMany({
