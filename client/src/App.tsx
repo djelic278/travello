@@ -14,6 +14,7 @@ import { Loader2, User, Home, Plus, Settings } from "lucide-react";
 import { NotificationsButton } from "@/components/notifications";
 import { Button } from "@/components/ui/button";
 import { Link, useLocation } from "wouter";
+import ErrorBoundary from "@/components/ErrorBoundary";
 
 function Layout({ children }: { children: React.ReactNode }) {
   const [location] = useLocation();
@@ -50,7 +51,7 @@ function Layout({ children }: { children: React.ReactNode }) {
           </div>
           <div className="flex items-center space-x-4">
             <Button variant="ghost" size="sm" onClick={() => logout()}>
-              Odjava
+              Logout
             </Button>
             <Button variant={location === "/profile" ? "default" : "ghost"} size="icon" asChild>
               <Link href="/profile">
@@ -62,7 +63,9 @@ function Layout({ children }: { children: React.ReactNode }) {
         </div>
       </header>
       <main>
-        {children}
+        <ErrorBoundary>
+          {children}
+        </ErrorBoundary>
       </main>
     </div>
   );
@@ -101,10 +104,12 @@ function Router() {
 
 function App() {
   return (
-    <QueryClientProvider client={queryClient}>
-      <Router />
-      <Toaster />
-    </QueryClientProvider>
+    <ErrorBoundary>
+      <QueryClientProvider client={queryClient}>
+        <Router />
+        <Toaster />
+      </QueryClientProvider>
+    </ErrorBoundary>
   );
 }
 
