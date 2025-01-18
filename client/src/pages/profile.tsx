@@ -45,24 +45,6 @@ import { Switch } from "@/components/ui/switch";
 import { Separator } from "@/components/ui/separator";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 
-// Define user roles as a const to ensure type safety
-const UserRole = {
-  USER: 'user',
-  COMPANY_ADMIN: 'company_admin',
-  SUPER_ADMIN: 'super_admin',
-} as const;
-
-export type UserRoleType = (typeof UserRole)[keyof typeof UserRole];
-
-// Define theme options
-const ThemeMode = {
-  LIGHT: 'light',
-  DARK: 'dark',
-  SYSTEM: 'system',
-} as const;
-
-export type ThemeModeType = (typeof ThemeMode)[keyof typeof ThemeMode];
-
 const updateProfileSchema = z.object({
   position: z.string().min(1, "Position is required"),
   dateOfBirth: z.string().optional(),
@@ -88,53 +70,52 @@ type UpdateProfileForm = z.infer<typeof updateProfileSchema>;
 type AddCompanyForm = z.infer<typeof addCompanySchema>;
 
 export default function ProfilePage() {
+  // All hooks at the top level
   const { user, isLoading: userLoading } = useUser();
   const { toast } = useToast();
   const queryClient = useQueryClient();
   const [isAddingCompany, setIsAddingCompany] = useState(false);
 
-  // Fetch companies using the same endpoint as admin page
   const { data: companies = [], isLoading: companiesLoading } = useQuery<Company[]>({
     queryKey: ['/api/companies'],
+    enabled: !!user, // Only fetch companies when user is available
   });
 
-  // Initialize form with user data when it's available
   const form = useForm<UpdateProfileForm>({
     resolver: zodResolver(updateProfileSchema),
     defaultValues: {
       position: "",
-      dateOfBirth: undefined,
+      dateOfBirth: "",
       preferredEmail: "",
-      organization: undefined,
+      organization: "",
       theme: 'system',
       emailNotifications: true,
       dashboardLayout: { type: 'default' },
     },
   });
 
-  // Update form values when user data changes
+  const companyForm = useForm<AddCompanyForm>({
+    resolver: zodResolver(addCompanySchema),
+    defaultValues: {
+      name: "",
+      address: "",
+    },
+  });
+
+  // Update form when user data is available
   useEffect(() => {
     if (user) {
       form.reset({
         position: user.position || "",
-        dateOfBirth: user.dateOfBirth ? new Date(user.dateOfBirth).toISOString().split('T')[0] : undefined,
+        dateOfBirth: user.dateOfBirth ? new Date(user.dateOfBirth).toISOString().split('T')[0] : "",
         preferredEmail: user.preferredEmail || user.email || "",
-        organization: user.organization || undefined,
-        theme: (user.theme as ThemeModeType) || 'system',
+        organization: user.organization || "",
+        theme: (user.theme as "light" | "dark" | "system") || 'system',
         emailNotifications: user.emailNotifications ?? true,
         dashboardLayout: user.dashboardLayout || { type: 'default' },
       });
     }
-  }, [user]);
-
-  // Show loading state while data is being fetched
-  if (userLoading || companiesLoading) {
-    return (
-      <div className="flex items-center justify-center min-h-screen">
-        <Loader2 className="h-8 w-4 animate-spin" />
-      </div>
-    );
-  }
+  }, [user, form]);
 
   const updateProfileMutation = useMutation({
     mutationFn: async (data: UpdateProfileForm) => {
@@ -186,6 +167,7 @@ export default function ProfilePage() {
       form.setValue('organization', data.name);
       setIsAddingCompany(false);
       companyForm.reset();
+      queryClient.invalidateQueries({ queryKey: ['/api/companies'] });
       toast({
         title: "Company Added",
         description: "New company has been added successfully.",
@@ -200,14 +182,6 @@ export default function ProfilePage() {
     },
   });
 
-  const companyForm = useForm<AddCompanyForm>({
-    resolver: zodResolver(addCompanySchema),
-    defaultValues: {
-      name: "",
-      address: "",
-    },
-  });
-
   const onSubmit = (data: UpdateProfileForm) => {
     updateProfileMutation.mutate(data);
   };
@@ -216,27 +190,14 @@ export default function ProfilePage() {
     addCompanyMutation.mutate(data);
   };
 
-  const getRoleBadgeVariant = (role: UserRoleType | undefined): "destructive" | "default" | "secondary" => {
-    switch (role) {
-      case UserRole.SUPER_ADMIN:
-        return "destructive";
-      case UserRole.COMPANY_ADMIN:
-        return "default";
-      default:
-        return "secondary";
-    }
-  };
-
-  const getRoleDisplay = (role: UserRoleType | undefined): string => {
-    switch (role) {
-      case UserRole.SUPER_ADMIN:
-        return "Super Admin";
-      case UserRole.COMPANY_ADMIN:
-        return "Company Admin";
-      default:
-        return "User";
-    }
-  };
+  // Show loading state while initial data is being fetched
+  if (userLoading) {
+    return (
+      <div className="flex items-center justify-center min-h-screen">
+        <Loader2 className="h-8 w-8 animate-spin" />
+      </div>
+    );
+  }
 
   if (!user) {
     return null;
@@ -262,21 +223,21 @@ export default function ProfilePage() {
                 Update your profile information, company details, and preferences
               </CardDescription>
             </div>
-            <Badge variant={getRoleBadgeVariant(user.role as UserRoleType)}>
-              {getRoleDisplay(user.role as UserRoleType)}
+            <Badge variant={user.role === 'super_admin' ? "destructive" : user.role === 'company_admin' ? "default" : "secondary"}>
+              {user.role === 'super_admin' ? "Super Admin" : user.role === 'company_admin' ? "Company Admin" : "User"}
             </Badge>
           </div>
         </CardHeader>
         <CardContent>
           <Form {...form}>
-            <Tabs defaultValue="profile" className="w-full">
-              <TabsList className="grid w-full grid-cols-2">
-                <TabsTrigger value="profile">Profile Information</TabsTrigger>
-                <TabsTrigger value="preferences">Preferences</TabsTrigger>
-              </TabsList>
+            <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
+              <Tabs defaultValue="profile" className="w-full">
+                <TabsList className="grid w-full grid-cols-2">
+                  <TabsTrigger value="profile">Profile Information</TabsTrigger>
+                  <TabsTrigger value="preferences">Preferences</TabsTrigger>
+                </TabsList>
 
-              <TabsContent value="profile">
-                <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
+                <TabsContent value="profile">
                   <div className="space-y-4">
                     <FormField
                       control={form.control}
@@ -414,125 +375,125 @@ export default function ProfilePage() {
                       </Dialog>
                     </div>
                   </div>
+                </TabsContent>
 
-                  <Button
-                    type="submit"
-                    className="w-full"
-                    disabled={updateProfileMutation.isPending}
-                  >
-                    {updateProfileMutation.isPending && (
-                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                    )}
-                    Save Changes
-                  </Button>
-                </form>
-              </TabsContent>
+                <TabsContent value="preferences">
+                  <div className="space-y-6">
+                    <div>
+                      <h3 className="text-lg font-medium">Theme</h3>
+                      <p className="text-sm text-muted-foreground">
+                        Choose how Travel Allowance System looks to you
+                      </p>
+                      <div className="mt-3">
+                        <FormField
+                          control={form.control}
+                          name="theme"
+                          render={({ field }) => (
+                            <FormItem>
+                              <Select
+                                value={field.value}
+                                onValueChange={field.onChange}
+                              >
+                                <FormControl>
+                                  <SelectTrigger>
+                                    <SelectValue placeholder="Select theme" />
+                                  </SelectTrigger>
+                                </FormControl>
+                                <SelectContent>
+                                  <SelectItem value="light">Light</SelectItem>
+                                  <SelectItem value="dark">Dark</SelectItem>
+                                  <SelectItem value="system">System</SelectItem>
+                                </SelectContent>
+                              </Select>
+                              <FormMessage />
+                            </FormItem>
+                          )}
+                        />
+                      </div>
+                    </div>
 
-              <TabsContent value="preferences">
-                <div className="space-y-6">
-                  <div>
-                    <h3 className="text-lg font-medium">Theme</h3>
-                    <p className="text-sm text-muted-foreground">
-                      Choose how Travel Allowance System looks to you
-                    </p>
-                    <div className="mt-3">
-                      <FormField
-                        control={form.control}
-                        name="theme"
-                        render={({ field }) => (
-                          <FormItem>
-                            <Select
-                              value={field.value}
-                              onValueChange={field.onChange}
-                            >
+                    <Separator />
+
+                    <div>
+                      <h3 className="text-lg font-medium">Email Notifications</h3>
+                      <p className="text-sm text-muted-foreground">
+                        Configure your email notification preferences
+                      </p>
+                      <div className="mt-3">
+                        <FormField
+                          control={form.control}
+                          name="emailNotifications"
+                          render={({ field }) => (
+                            <FormItem className="flex items-center justify-between rounded-lg border p-3 shadow-sm">
+                              <div className="space-y-0.5">
+                                <FormLabel>Email Notifications</FormLabel>
+                                <FormDescription>
+                                  Receive notifications about your travel requests
+                                </FormDescription>
+                              </div>
                               <FormControl>
-                                <SelectTrigger>
-                                  <SelectValue placeholder="Select theme" />
-                                </SelectTrigger>
+                                <Switch
+                                  checked={field.value}
+                                  onCheckedChange={field.onChange}
+                                />
                               </FormControl>
-                              <SelectContent>
-                                <SelectItem value="light">Light</SelectItem>
-                                <SelectItem value="dark">Dark</SelectItem>
-                                <SelectItem value="system">System</SelectItem>
-                              </SelectContent>
-                            </Select>
-                            <FormMessage />
-                          </FormItem>
-                        )}
-                      />
+                            </FormItem>
+                          )}
+                        />
+                      </div>
+                    </div>
+
+                    <Separator />
+
+                    <div>
+                      <h3 className="text-lg font-medium">Dashboard Layout</h3>
+                      <p className="text-sm text-muted-foreground">
+                        Choose your preferred dashboard layout
+                      </p>
+                      <div className="mt-3">
+                        <FormField
+                          control={form.control}
+                          name="dashboardLayout"
+                          render={({ field }) => (
+                            <FormItem>
+                              <Select
+                                value={field.value?.type || 'default'}
+                                onValueChange={(value) =>
+                                  field.onChange({ type: value })
+                                }
+                              >
+                                <FormControl>
+                                  <SelectTrigger>
+                                    <SelectValue placeholder="Select layout" />
+                                  </SelectTrigger>
+                                </FormControl>
+                                <SelectContent>
+                                  <SelectItem value="default">Default</SelectItem>
+                                  <SelectItem value="compact">Compact</SelectItem>
+                                  <SelectItem value="comfortable">Comfortable</SelectItem>
+                                </SelectContent>
+                              </Select>
+                              <FormMessage />
+                            </FormItem>
+                          )}
+                        />
+                      </div>
                     </div>
                   </div>
+                </TabsContent>
+              </Tabs>
 
-                  <Separator />
-
-                  <div>
-                    <h3 className="text-lg font-medium">Email Notifications</h3>
-                    <p className="text-sm text-muted-foreground">
-                      Configure your email notification preferences
-                    </p>
-                    <div className="mt-3">
-                      <FormField
-                        control={form.control}
-                        name="emailNotifications"
-                        render={({ field }) => (
-                          <FormItem className="flex items-center justify-between rounded-lg border p-3 shadow-sm">
-                            <div className="space-y-0.5">
-                              <FormLabel>Email Notifications</FormLabel>
-                              <FormDescription>
-                                Receive notifications about your travel requests
-                              </FormDescription>
-                            </div>
-                            <FormControl>
-                              <Switch
-                                checked={field.value}
-                                onCheckedChange={field.onChange}
-                              />
-                            </FormControl>
-                          </FormItem>
-                        )}
-                      />
-                    </div>
-                  </div>
-
-                  <Separator />
-
-                  <div>
-                    <h3 className="text-lg font-medium">Dashboard Layout</h3>
-                    <p className="text-sm text-muted-foreground">
-                      Choose your preferred dashboard layout
-                    </p>
-                    <div className="mt-3">
-                      <FormField
-                        control={form.control}
-                        name="dashboardLayout"
-                        render={({ field }) => (
-                          <FormItem>
-                            <Select
-                              value={field.value?.type || 'default'}
-                              onValueChange={(value) =>
-                                field.onChange({ type: value })
-                              }
-                            >
-                              <FormControl>
-                                <SelectTrigger>
-                                  <SelectValue placeholder="Select layout" />
-                                </SelectTrigger>
-                              </FormControl>
-                              <SelectContent>
-                                <SelectItem value="default">Default</SelectItem>
-                                <SelectItem value="compact">Compact</SelectItem>
-                                <SelectItem value="comfortable">Comfortable</SelectItem>
-                              </SelectContent>
-                            </Select>
-                            <FormMessage />
-                          </FormItem>
-                        )}
-                      />
-                    </div>
-                  </div>
-                </div>
-              </TabsContent>
-            </Tabs>
+              <Button
+                type="submit"
+                className="w-full"
+                disabled={updateProfileMutation.isPending}
+              >
+                {updateProfileMutation.isPending && (
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                )}
+                Save Changes
+              </Button>
+            </form>
           </Form>
         </CardContent>
       </Card>
