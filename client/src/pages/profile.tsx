@@ -88,13 +88,13 @@ type UpdateProfileForm = z.infer<typeof updateProfileSchema>;
 type AddCompanyForm = z.infer<typeof addCompanySchema>;
 
 export default function ProfilePage() {
-  const { user, isLoading } = useUser();
+  const { user, isLoading: userLoading } = useUser();
   const { toast } = useToast();
   const queryClient = useQueryClient();
   const [isAddingCompany, setIsAddingCompany] = useState(false);
 
   // Fetch companies using the same endpoint as admin page
-  const { data: companies = [] } = useQuery<Company[]>({
+  const { data: companies = [], isLoading: companiesLoading } = useQuery<Company[]>({
     queryKey: ['/api/companies'],
   });
 
@@ -102,13 +102,13 @@ export default function ProfilePage() {
   const form = useForm<UpdateProfileForm>({
     resolver: zodResolver(updateProfileSchema),
     defaultValues: {
-      position: user?.position || "",
-      dateOfBirth: user?.dateOfBirth ? new Date(user.dateOfBirth).toISOString().split('T')[0] : undefined,
-      preferredEmail: user?.preferredEmail || user?.email || "",
-      organization: user?.organization || undefined,
-      theme: (user?.theme as ThemeModeType) || 'system',
-      emailNotifications: user?.emailNotifications ?? true,
-      dashboardLayout: user?.dashboardLayout || { type: 'default' },
+      position: "",
+      dateOfBirth: undefined,
+      preferredEmail: "",
+      organization: undefined,
+      theme: 'system',
+      emailNotifications: true,
+      dashboardLayout: { type: 'default' },
     },
   });
 
@@ -125,7 +125,16 @@ export default function ProfilePage() {
         dashboardLayout: user.dashboardLayout || { type: 'default' },
       });
     }
-  }, [user, form]);
+  }, [user]);
+
+  // Show loading state while data is being fetched
+  if (userLoading || companiesLoading) {
+    return (
+      <div className="flex items-center justify-center min-h-screen">
+        <Loader2 className="h-8 w-4 animate-spin" />
+      </div>
+    );
+  }
 
   const updateProfileMutation = useMutation({
     mutationFn: async (data: UpdateProfileForm) => {

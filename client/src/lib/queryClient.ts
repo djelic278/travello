@@ -18,18 +18,19 @@ export const queryClient = new QueryClient({
 
         return res.json();
       },
-      // Refetch data if it's older than 30 seconds
-      staleTime: 30 * 1000,
+      // Reduce stale time to ensure fresh data on first load
+      staleTime: 5000, // 5 seconds
       // Enable automatic background refetching
-      refetchInterval: 60 * 1000, // Refetch every minute
-      // Enable refetch on window focus with a cooldown
+      refetchInterval: 30000, // Refetch every 30 seconds
+      // Enable immediate refetch on window focus
       refetchOnWindowFocus: true,
-      refetchOnWindowFocusDelay: 5000, // Wait 5s before refetching on focus
       // Retry failed requests 3 times
       retry: 3,
       retryDelay: (attemptIndex) => Math.min(1000 * 2 ** attemptIndex, 30000),
       // Show stale data while fetching
       keepPreviousData: true,
+      // Ensure data is fetched on mount
+      refetchOnMount: "always",
     },
     mutations: {
       retry: false,
