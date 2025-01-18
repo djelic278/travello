@@ -358,9 +358,9 @@ export function registerRoutes(app: Express): Server {
 
       const { companyId, ...otherData } = result.data;
 
-      // Only allow company changes for super admins
-      if (companyId !== undefined && req.user?.role !== 'super_admin') {
-        return res.status(403).send("Only super admins can change company assignments");
+      // Allow both super admins and company admins to change company assignments
+      if (companyId !== undefined && req.user?.role !== 'super_admin' && req.user?.role !== 'company_admin') {
+        return res.status(403).send("Only admins can change company assignments");
       }
 
       // Update user profile with validation
@@ -368,7 +368,7 @@ export function registerRoutes(app: Express): Server {
         .update(users)
         .set({
           ...otherData,
-          ...(req.user?.role === 'super_admin' ? { companyId } : {}),
+          ...(req.user?.role === 'super_admin' || req.user?.role === 'company_admin' ? { companyId } : {}),
           updatedAt: new Date(),
         })
         .where(eq(users.id, req.user!.id))
