@@ -12,12 +12,6 @@ const formatErrorMessage = (error: any): string => {
   return 'An unexpected error occurred';
 };
 
-// Get the base URL for API calls
-const getBaseUrl = () => {
-  // Always use the current origin in both development and production
-  return window.location.origin;
-};
-
 // Create a new query client with enhanced error handling and retry logic
 export const queryClient = new QueryClient({
   defaultOptions: {
@@ -27,10 +21,7 @@ export const queryClient = new QueryClient({
           const controller = new AbortController();
           const timeoutId = setTimeout(() => controller.abort(), 30000); // 30s timeout
 
-          // Construct the full URL
-          const url = `${getBaseUrl()}${queryKey[0]}`;
-
-          const res = await fetch(url, {
+          const res = await fetch(queryKey[0] as string, {
             credentials: "include",
             signal: controller.signal,
             headers: {

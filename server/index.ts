@@ -29,11 +29,12 @@ app.use(express.urlencoded({ extended: false }));
 
 // CORS configuration for Replit
 app.use((req, res, next) => {
+  // Get the origin from the request headers
   const origin = req.headers.origin;
 
-  // Allow Replit domains and localhost for development
+  // Allow the origin if it matches our criteria
   if (origin && (
-    origin.endsWith('.replit.dev') || 
+    origin.includes('.replit.dev') || 
     origin === 'http://localhost:5000' ||
     origin === 'http://localhost:3000'
   )) {
@@ -76,22 +77,18 @@ app.use((req, res, next) => {
 
   res.on("finish", () => {
     const duration = Date.now() - start;
-    const status = res.statusCode;
-    let logLine = `${req.method} ${path} ${status} in ${duration}ms`;
+    if (path.startsWith("/api")) {
+      let logLine = `${req.method} ${path} ${res.statusCode} in ${duration}ms`;
+      if (capturedJsonResponse) {
+        logLine += ` :: ${JSON.stringify(capturedJsonResponse)}`;
+      }
 
-    if (status >= 400) {
-      logLine = `ERROR: ${logLine}`;
+      if (logLine.length > 80) {
+        logLine = logLine.slice(0, 79) + "…";
+      }
+
+      log(logLine);
     }
-
-    if (capturedJsonResponse) {
-      logLine += ` :: ${JSON.stringify(capturedJsonResponse)}`;
-    }
-
-    if (logLine.length > 80) {
-      logLine = logLine.slice(0, 79) + "…";
-    }
-
-    log(logLine);
   });
 
   next();
@@ -104,8 +101,6 @@ app.get('/health', (req, res) => {
 
 // Initialize server
 (async () => {
-  let server;
-
   try {
     // Test database connection with timeout
     log("Testing database connection...");
@@ -123,7 +118,7 @@ app.get('/health', (req, res) => {
 
     // Register routes
     log("Registering routes...");
-    server = registerRoutes(app);
+    const server = registerRoutes(app);
     log("Routes registered successfully");
 
     // Set up Vite or static serving based on environment
@@ -135,48 +130,11 @@ app.get('/health', (req, res) => {
       log("Static files serving initialized for production");
     }
 
-    // Enhanced global error handler
-    app.use((err: any, _req: Request, res: Response, _next: NextFunction) => {
-      console.error('Error:', err);
-      const status = err.status || err.statusCode || 500;
-      const message = process.env.NODE_ENV === 'production'
-        ? "Internal Server Error"
-        : (err.message || "Internal Server Error");
-
-      log(`Error occurred: ${status} - ${err.message || err}`);
-
-      res.status(status).json({
-        message,
-        ...(process.env.NODE_ENV !== 'production' && { stack: err.stack })
-      });
-    });
-
     // Start server
-    const PORT = Number(process.env.PORT) || 5000;
+    const PORT = 5000;
     server.listen(PORT, "0.0.0.0", () => {
       log(`Server running on port ${PORT} in ${app.get("env")} mode`);
     });
-
-    // Graceful shutdown handlers
-    const gracefulShutdown = async () => {
-      log("Received shutdown signal. Starting graceful shutdown...");
-
-      // Close database connections if possible
-      try {
-        if (db.$client && typeof db.$client.end === 'function') {
-          await db.$client.end();
-          log("Database connections closed");
-        }
-      } catch (error) {
-        console.error("Error closing database connections:", error);
-      }
-
-      // Exit process
-      process.exit(0);
-    };
-
-    process.on('SIGTERM', gracefulShutdown);
-    process.on('SIGINT', gracefulShutdown);
 
   } catch (error) {
     console.error('Failed to start server:', error);
