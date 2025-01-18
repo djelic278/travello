@@ -7,11 +7,10 @@ import PreTravelForm from "./pages/form/pre-travel";
 import PostTravelForm from "./pages/form/post-travel";
 import ProfilePage from "./pages/profile";
 import AdminPage from "./pages/admin";
-import UsersAdminPage from "./pages/admin/users";
 import NotFound from "@/pages/not-found";
 import AuthPage from "@/pages/auth-page";
 import { useUser } from "@/hooks/use-user";
-import { Loader2, User, Home, Plus, Settings, Users } from "lucide-react";
+import { Loader2, User, Home, Plus, Settings } from "lucide-react";
 import { NotificationsButton } from "@/components/notifications";
 import { Button } from "@/components/ui/button";
 import { Link, useLocation } from "wouter";
@@ -49,20 +48,12 @@ function Layout({ children }: { children: React.ReactNode }) {
                 </Link>
               </Button>
               {user?.role === 'super_admin' && (
-                <>
-                  <Button variant={location === "/admin" ? "default" : "ghost"} size="sm" asChild>
-                    <Link href="/admin" className="flex items-center">
-                      <Settings className="mr-2 h-4 w-4" />
-                      Admin Dashboard
-                    </Link>
-                  </Button>
-                  <Button variant={location === "/admin/users" ? "default" : "ghost"} size="sm" asChild>
-                    <Link href="/admin/users" className="flex items-center">
-                      <Users className="mr-2 h-4 w-4" />
-                      User Management
-                    </Link>
-                  </Button>
-                </>
+                <Button variant={location === "/admin" ? "default" : "ghost"} size="sm" asChild>
+                  <Link href="/admin" className="flex items-center">
+                    <Settings className="mr-2 h-4 w-4" />
+                    Administration
+                  </Link>
+                </Button>
               )}
             </nav>
           </div>
@@ -111,10 +102,7 @@ function Router() {
         <Route path="/forms/:id/post-travel" component={PostTravelForm} />
         <Route path="/profile" component={ProfilePage} />
         {user.role === 'super_admin' && (
-          <>
-            <Route path="/admin" component={AdminPage} />
-            <Route path="/admin/users" component={UsersAdminPage} />
-          </>
+          <Route path="/admin" component={AdminPage} />
         )}
         <Route component={NotFound} />
       </Switch>

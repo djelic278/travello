@@ -3,6 +3,12 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useToast } from "@/hooks/use-toast";
 import { Button } from "@/components/ui/button";
 import {
+  Tabs,
+  TabsContent,
+  TabsList,
+  TabsTrigger,
+} from "@/components/ui/tabs";
+import {
   Form,
   FormControl,
   FormField,
@@ -76,6 +82,8 @@ type User = {
   lastName?: string;
   organization?: string;
   createdAt: string;
+  role: 'super_admin' | 'company_admin' | 'user';
+  companyId?: number;
 };
 
 type Company = {
@@ -88,6 +96,7 @@ export default function AdminPage() {
   const { toast } = useToast();
   const queryClient = useQueryClient();
   const [isInviting, setIsInviting] = useState(false);
+  const [selectedRole, setSelectedRole] = useState<string | null>(null);
   const [editingUser, setEditingUser] = useState<User | null>(null);
   const [statusFilter, setStatusFilter] = useState<'all' | Invitation['status']>("all");
   const [lastEmailResult, setLastEmailResult] = useState<any>(null);
@@ -112,6 +121,9 @@ export default function AdminPage() {
   const filteredInvitations = invitations.filter(invitation =>
     statusFilter === "all" ? true : invitation.status === statusFilter
   );
+
+  const filteredUsers = users.filter(user => !selectedRole || user.role === selectedRole);
+
 
   const inviteCompanyAdminMutation = useMutation({
     mutationFn: async (email: string) => {
@@ -292,7 +304,6 @@ export default function AdminPage() {
     queryKey: ['/api/companies']
   });
 
-
   const updateUserMutation = useMutation({
     mutationFn: async (data: { userId: number; organization: string }) => {
       const response = await fetch(`/api/users/${data.userId}`, {
@@ -326,6 +337,65 @@ export default function AdminPage() {
     },
   });
 
+  const updateRoleMutation = useMutation({
+    mutationFn: async (data: { userId: number; role: User['role'] }) => {
+      const response = await fetch(`/api/users/${data.userId}/role`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ role: data.role }),
+        credentials: 'include',
+      });
+
+      if (!response.ok) {
+        const errorText = await response.text();
+        throw new Error(errorText || 'Failed to update user role');
+      }
+
+      return response.json();
+    },
+    onSuccess: () => {
+      toast({ title: "Success", description: "User role updated successfully" });
+      queryClient.invalidateQueries({ queryKey: ['/api/users'] });
+    },
+    onError: (error: Error) => {
+      toast({ title: "Error", description: error.message, variant: "destructive" });
+    },
+  });
+
+  const updateCompanyMutation = useMutation({
+    mutationFn: async (data: { userId: number; companyId: number | null }) => {
+      const response = await fetch(`/api/users/${data.userId}/company`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ companyId: data.companyId }),
+        credentials: 'include',
+      });
+
+      if (!response.ok) {
+        const errorText = await response.text();
+        throw new Error(errorText || 'Failed to update user company');
+      }
+
+      return response.json();
+    },
+    onSuccess: () => {
+      toast({ title: "Success", description: "User company updated successfully" });
+      queryClient.invalidateQueries({ queryKey: ['/api/users'] });
+    },
+    onError: (error: Error) => {
+      toast({ title: "Error", description: error.message, variant: "destructive" });
+    },
+  });
+
+
+  const handleRoleChange = (userId: number, newRole: User['role']) => {
+    updateRoleMutation.mutate({ userId, role: newRole });
+  };
+
+  const handleCompanyChange = (userId: number, newCompanyId: string) => {
+    updateCompanyMutation.mutate({ userId, companyId: newCompanyId ? parseInt(newCompanyId) : null });
+  };
+
   return (
     <div className="container mx-auto py-6">
       <div className="mb-6">
@@ -337,92 +407,136 @@ export default function AdminPage() {
         </Button>
       </div>
 
-      <div className="space-y-6">
-        {/* Users Management Section */}
-        <Card>
-          <CardHeader>
-            <div className="flex justify-between items-center">
-              <div>
-                <CardTitle>Registered Users</CardTitle>
-                <CardDescription>
-                  View and manage all registered users in the system
-                </CardDescription>
-              </div>
-              <Button onClick={handleExportUsers}>
-                <Download className="mr-2 h-4 w-4" />
-                Export Users
-              </Button>
-            </div>
-          </CardHeader>
-          <CardContent>
-            <div className="border rounded-md">
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>Username</TableHead>
-                    <TableHead>Email</TableHead>
-                    <TableHead>Name</TableHead>
-                    <TableHead>Organization</TableHead>
-                    <TableHead>Joined</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {isLoadingUsers ? (
-                    <TableRow>
-                      <TableCell colSpan={5} className="text-center py-4">
-                        <Loader2 className="h-6 w-6 animate-spin mx-auto" />
-                      </TableCell>
-                    </TableRow>
-                  ) : users.length === 0 ? (
-                    <TableRow>
-                      <TableCell colSpan={5} className="text-center text-muted-foreground">
-                        No users found
-                      </TableCell>
-                    </TableRow>
-                  ) : (
-                    users.map((user) => (
-                      <TableRow key={user.id}>
-                        <TableCell>{user.username}</TableCell>
-                        <TableCell>{user.email}</TableCell>
-                        <TableCell>
-                          {user.firstName && user.lastName
-                            ? `${user.firstName} ${user.lastName}`
-                            : "-"}
-                        </TableCell>
-                        <TableCell>
-                          <div className="flex items-center gap-2">
-                            <span>{user.organization || "-"}</span>
-                            <Button
-                              variant="ghost"
-                              size="sm"
-                              onClick={() => setEditingUser(user)}
-                              className="h-8 w-8 p-0"
-                            >
-                              <Pencil className="h-4 w-4" />
-                              <span className="sr-only">Edit organization</span>
-                            </Button>
-                          </div>
-                        </TableCell>
-                        <TableCell>{new Date(user.createdAt).toLocaleDateString()}</TableCell>
-                      </TableRow>
-                    ))
-                  )}
-                </TableBody>
-              </Table>
-            </div>
-          </CardContent>
-        </Card>
+      <Card>
+        <CardHeader>
+          <CardTitle>Administration</CardTitle>
+          <CardDescription>
+            Manage users, invitations, and system settings
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          <Tabs defaultValue="users" className="space-y-4">
+            <TabsList>
+              <TabsTrigger value="users">Users</TabsTrigger>
+              <TabsTrigger value="invitations">Invitations</TabsTrigger>
+            </TabsList>
 
-        {/* Invitations Management Section */}
-        <Card>
-          <CardHeader>
-            <CardTitle>Company Admin Invitations</CardTitle>
-            <CardDescription>
-              Track and manage all company administrator invitations
-            </CardDescription>
-          </CardHeader>
-          <CardContent>
-            <div className="space-y-6">
+            <TabsContent value="users" className="space-y-4">
+              <div className="mb-4">
+                <Select
+                  value={selectedRole || ""}
+                  onValueChange={(value) => setSelectedRole(value || null)}
+                >
+                  <SelectTrigger className="w-[200px]">
+                    <SelectValue placeholder="Filter by role" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="">All Roles</SelectItem>
+                    <SelectItem value="super_admin">Super Admin</SelectItem>
+                    <SelectItem value="company_admin">Company Admin</SelectItem>
+                    <SelectItem value="user">User</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+
+              <div className="rounded-md border">
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      <TableHead>Username</TableHead>
+                      <TableHead>Email</TableHead>
+                      <TableHead>Current Role</TableHead>
+                      <TableHead>Change Role</TableHead>
+                      <TableHead>Current Company</TableHead>
+                      <TableHead>Change Company</TableHead>
+                      <TableHead>Created At</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {isLoadingUsers ? (
+                      <TableRow>
+                        <TableCell colSpan={7} className="text-center py-4">
+                          <Loader2 className="h-6 w-6 animate-spin mx-auto" />
+                        </TableCell>
+                      </TableRow>
+                    ) : filteredUsers.length === 0 ? (
+                      <TableRow>
+                        <TableCell colSpan={7} className="text-center text-muted-foreground">
+                          No users found
+                        </TableCell>
+                      </TableRow>
+                    ) : (
+                      filteredUsers.map((user) => (
+                        <TableRow key={user.id}>
+                          <TableCell>{user.username}</TableCell>
+                          <TableCell>{user.email}</TableCell>
+                          <TableCell>
+                            <Badge
+                              variant={
+                                user.role === 'super_admin'
+                                  ? "destructive"
+                                  : user.role === 'company_admin'
+                                  ? "default"
+                                  : "secondary"
+                              }
+                            >
+                              {user.role === 'super_admin'
+                                ? "Super Admin"
+                                : user.role === 'company_admin'
+                                ? "Company Admin"
+                                : "User"}
+                            </Badge>
+                          </TableCell>
+                          <TableCell>
+                            <Select
+                              value={user.role}
+                              onValueChange={(newRole) => handleRoleChange(user.id, newRole)}
+                              disabled={updateRoleMutation.isPending}
+                            >
+                              <SelectTrigger className="w-[180px]">
+                                <SelectValue />
+                              </SelectTrigger>
+                              <SelectContent>
+                                <SelectItem value="super_admin">Super Admin</SelectItem>
+                                <SelectItem value="company_admin">Company Admin</SelectItem>
+                                <SelectItem value="user">User</SelectItem>
+                              </SelectContent>
+                            </Select>
+                          </TableCell>
+                          <TableCell>
+                            {user.companyId ? companies.find(c => c.id === user.companyId)?.name : "Not Assigned"}
+                          </TableCell>
+                          <TableCell>
+                            <Select
+                              value={user.companyId?.toString() || ""}
+                              onValueChange={(newCompanyId) => handleCompanyChange(user.id, newCompanyId)}
+                              disabled={updateCompanyMutation.isPending}
+                            >
+                              <SelectTrigger className="w-[180px]">
+                                <SelectValue placeholder="Select company" />
+                              </SelectTrigger>
+                              <SelectContent>
+                                <SelectItem value="">No Company</SelectItem>
+                                {companies.map((company) => (
+                                  <SelectItem key={company.id} value={company.id.toString()}>
+                                    {company.name}
+                                  </SelectItem>
+                                ))}
+                              </SelectContent>
+                            </Select>
+                          </TableCell>
+                          <TableCell>
+                            {new Date(user.createdAt).toLocaleDateString()}
+                          </TableCell>
+                        </TableRow>
+                      ))
+                    )}
+                  </TableBody>
+                </Table>
+              </div>
+            </TabsContent>
+
+            <TabsContent value="invitations" className="space-y-4">
               {lastEmailResult && (
                 <Alert variant={lastEmailResult.error ? "destructive" : "default"} className="mb-4">
                   {lastEmailResult.error ? (
@@ -637,10 +751,10 @@ export default function AdminPage() {
                   </Table>
                 </div>
               </div>
-            </div>
-          </CardContent>
-        </Card>
-      </div>
+            </TabsContent>
+          </Tabs>
+        </CardContent>
+      </Card>
       {/* Update the edit organization dialog */}
       <Dialog open={!!editingUser} onOpenChange={(open) => !open && setEditingUser(null)}>
         <DialogContent>
