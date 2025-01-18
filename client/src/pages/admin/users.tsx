@@ -21,6 +21,8 @@ import { Button } from "@/components/ui/button";
 import { ArrowLeft, Loader2 } from "lucide-react";
 import { Link } from "wouter";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { motion } from "framer-motion";
+import { fadeIn } from "@/lib/animations";
 
 type User = {
   id: number;
@@ -41,11 +43,11 @@ export default function UsersAdminPage() {
   const queryClient = useQueryClient();
   const [selectedRole, setSelectedRole] = useState<string | null>(null);
 
-  const { data: users = [], isLoading } = useQuery<User[]>({
+  const { data: users = [], isLoading: usersLoading } = useQuery<User[]>({
     queryKey: ['/api/admin/users'],
   });
 
-  const { data: companies = [] } = useQuery<Company[]>({
+  const { data: companies = [], isLoading: companiesLoading } = useQuery<Company[]>({
     queryKey: ['/api/companies'],
   });
 
@@ -80,11 +82,49 @@ export default function UsersAdminPage() {
     },
   });
 
+  const updateCompanyMutation = useMutation({
+    mutationFn: async ({ userId, companyId }: { userId: number; companyId?: number }) => {
+      const response = await fetch(`/api/users/${userId}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ companyId }),
+        credentials: 'include',
+      });
+
+      if (!response.ok) {
+        throw new Error(await response.text());
+      }
+
+      return response.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['/api/admin/users'] });
+      toast({
+        title: "Company Updated",
+        description: "User's company has been updated successfully.",
+      });
+    },
+    onError: (error: Error) => {
+      toast({
+        title: "Error",
+        description: error.message,
+        variant: "destructive",
+      });
+    },
+  });
+
   const handleRoleChange = (userId: number, newRole: string) => {
     updateRoleMutation.mutate({ userId, role: newRole });
   };
 
-  if (isLoading) {
+  const handleCompanyChange = (userId: number, newCompanyId: string) => {
+    updateCompanyMutation.mutate({
+      userId,
+      companyId: newCompanyId === "" ? undefined : parseInt(newCompanyId),
+    });
+  };
+
+  if (usersLoading || companiesLoading) {
     return (
       <div className="flex items-center justify-center min-h-screen">
         <Loader2 className="h-8 w-8 animate-spin" />
@@ -92,18 +132,18 @@ export default function UsersAdminPage() {
     );
   }
 
-  const getCompanyName = (companyId?: number) => {
-    if (!companyId) return "Not Assigned";
-    const company = companies.find(c => c.id === companyId);
-    return company ? company.name : "Unknown";
-  };
-
   const filteredUsers = selectedRole
     ? users.filter(user => user.role === selectedRole)
     : users;
 
   return (
-    <div className="container mx-auto py-6">
+    <motion.div 
+      className="container mx-auto py-6"
+      initial="initial"
+      animate="animate"
+      exit="exit"
+      variants={fadeIn}
+    >
       <div className="mb-6">
         <Button variant="outline" asChild>
           <Link href="/admin" className="flex items-center">
@@ -143,7 +183,8 @@ export default function UsersAdminPage() {
                   <TableHead>Email</TableHead>
                   <TableHead>Current Role</TableHead>
                   <TableHead>Change Role</TableHead>
-                  <TableHead>Company</TableHead>
+                  <TableHead>Current Company</TableHead>
+                  <TableHead>Change Company</TableHead>
                   <TableHead>Created At</TableHead>
                 </TableRow>
               </TableHeader>
@@ -185,7 +226,28 @@ export default function UsersAdminPage() {
                         </SelectContent>
                       </Select>
                     </TableCell>
-                    <TableCell>{getCompanyName(user.companyId)}</TableCell>
+                    <TableCell>
+                      {user.companyId ? companies.find(c => c.id === user.companyId)?.name : "Not Assigned"}
+                    </TableCell>
+                    <TableCell>
+                      <Select
+                        value={user.companyId?.toString() || ""}
+                        onValueChange={(newCompanyId) => handleCompanyChange(user.id, newCompanyId)}
+                        disabled={updateCompanyMutation.isPending}
+                      >
+                        <SelectTrigger className="w-[180px]">
+                          <SelectValue placeholder="Select company" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="">No Company</SelectItem>
+                          {companies.map((company) => (
+                            <SelectItem key={company.id} value={company.id.toString()}>
+                              {company.name}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </TableCell>
                     <TableCell>
                       {new Date(user.createdAt).toLocaleDateString()}
                     </TableCell>
@@ -196,6 +258,6 @@ export default function UsersAdminPage() {
           </div>
         </CardContent>
       </Card>
-    </div>
+    </motion.div>
   );
 }
