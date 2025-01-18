@@ -9,6 +9,17 @@ import { travelForms, expenses, settings, notifications, companies, invitations,
 import { randomBytes } from "crypto";
 import { sendInvitationEmail } from './email';
 import * as xlsx from 'xlsx';
+import { Request } from 'express';
+import { User } from './types';
+
+declare global {
+  namespace Express {
+    interface Request {
+      user?: User;
+      isAuthenticated(): boolean;
+    }
+  }
+}
 
 // Middleware to check if user is authenticated
 const isAuthenticated = (req: Request, res: Response, next: NextFunction) => {
@@ -424,7 +435,7 @@ export function registerRoutes(app: Express): Server {
       if (!emailResult.success) {
         // Update invitation status to failed
         await db.update(invitations)
-          .set({ status: 'failed' })
+          .set({ status: 'failed' as const })
           .where(eq(invitations.id, invitation.id));
 
         return res.status(200).json({
@@ -558,13 +569,13 @@ export function registerRoutes(app: Express): Server {
     }
 
     const userId = parseInt(req.params.id);
-    const { organization } = req.body;
+    const { companyId } = req.body;
 
     // Update user
     const [updatedUser] = await db
       .update(users)
       .set({
-        organization,
+        companyId,
         updatedAt: new Date()
       })
       .where(eq(users.id, userId))
