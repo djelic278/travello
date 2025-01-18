@@ -27,7 +27,13 @@ type User = {
   username: string;
   email: string;
   role: 'super_admin' | 'company_admin' | 'user';
+  companyId?: number;
   createdAt: string;
+};
+
+type Company = {
+  id: number;
+  name: string;
 };
 
 export default function UsersAdminPage() {
@@ -37,6 +43,10 @@ export default function UsersAdminPage() {
 
   const { data: users = [], isLoading } = useQuery<User[]>({
     queryKey: ['/api/admin/users'],
+  });
+
+  const { data: companies = [] } = useQuery<Company[]>({
+    queryKey: ['/api/companies'],
   });
 
   const updateRoleMutation = useMutation({
@@ -81,6 +91,12 @@ export default function UsersAdminPage() {
       </div>
     );
   }
+
+  const getCompanyName = (companyId?: number) => {
+    if (!companyId) return "Not Assigned";
+    const company = companies.find(c => c.id === companyId);
+    return company ? company.name : "Unknown";
+  };
 
   const filteredUsers = selectedRole
     ? users.filter(user => user.role === selectedRole)
@@ -127,6 +143,7 @@ export default function UsersAdminPage() {
                   <TableHead>Email</TableHead>
                   <TableHead>Current Role</TableHead>
                   <TableHead>Change Role</TableHead>
+                  <TableHead>Company</TableHead>
                   <TableHead>Created At</TableHead>
                 </TableRow>
               </TableHeader>
@@ -168,6 +185,7 @@ export default function UsersAdminPage() {
                         </SelectContent>
                       </Select>
                     </TableCell>
+                    <TableCell>{getCompanyName(user.companyId)}</TableCell>
                     <TableCell>
                       {new Date(user.createdAt).toLocaleDateString()}
                     </TableCell>
