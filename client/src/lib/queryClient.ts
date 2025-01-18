@@ -24,6 +24,10 @@ export const queryClient = new QueryClient({
           const res = await fetch(queryKey[0] as string, {
             credentials: "include",
             signal: controller.signal,
+            headers: {
+              'Accept': 'application/json',
+              'Content-Type': 'application/json',
+            }
           });
 
           clearTimeout(timeoutId);
