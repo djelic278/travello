@@ -121,7 +121,7 @@ app.use((req, res, next) => {
     });
 
     // Start server
-    const PORT = process.env.PORT || 5000;
+    const PORT = Number(process.env.PORT) || 5000;
     server.listen(PORT, "0.0.0.0", () => {
       log(`Server running on port ${PORT} in ${app.get("env")} mode`);
     });
@@ -130,10 +130,12 @@ app.use((req, res, next) => {
     const gracefulShutdown = async () => {
       log("Received shutdown signal. Starting graceful shutdown...");
 
-      // Close database connections
+      // Close database connections - using connection pool close if available
       try {
-        await db.end();
-        log("Database connections closed");
+        if (typeof db.$pool?.end === 'function') {
+          await db.$pool.end();
+          log("Database connections closed");
+        }
       } catch (error) {
         console.error("Error closing database connections:", error);
       }

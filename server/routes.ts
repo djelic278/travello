@@ -9,7 +9,6 @@ import { travelForms, expenses, settings, notifications, companies, invitations,
 import { randomBytes } from "crypto";
 import { sendInvitationEmail } from './email';
 import * as xlsx from 'xlsx';
-import { Request } from 'express';
 import { User } from './types';
 
 declare global {
