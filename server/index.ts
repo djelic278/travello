@@ -23,28 +23,13 @@ for (const envVar of requiredEnvVars) {
 
 const app = express();
 
-// Basic middleware setup with security headers and CORS for development
+// Basic middleware setup with security headers for production
 app.use(express.json());
 app.use(express.urlencoded({ extended: false }));
-
-// Add CORS headers for development
 app.use((req, res, next) => {
-  // Allow requests from any origin in development
-  res.setHeader('Access-Control-Allow-Origin', '*');
-  res.setHeader('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS');
-  res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization');
-  res.setHeader('Access-Control-Allow-Credentials', 'true');
-
-  // Handle preflight requests
-  if (req.method === 'OPTIONS') {
-    return res.sendStatus(200);
-  }
-
-  // Security headers
   res.setHeader('X-Content-Type-Options', 'nosniff');
   res.setHeader('X-Frame-Options', 'DENY');
   res.setHeader('X-XSS-Protection', '1; mode=block');
-
   next();
 });
 
@@ -54,7 +39,7 @@ const sessionMiddleware = setupAuth(app);
 // Make session middleware available to the app
 app.set('session', sessionMiddleware);
 
-// Request logging middleware with enhanced error tracking
+// Request logging middleware
 app.use((req, res, next) => {
   const start = Date.now();
   const path = req.path;
@@ -68,22 +53,18 @@ app.use((req, res, next) => {
 
   res.on("finish", () => {
     const duration = Date.now() - start;
-    const status = res.statusCode;
-    let logLine = `${req.method} ${path} ${status} in ${duration}ms`;
+    if (path.startsWith("/api")) {
+      let logLine = `${req.method} ${path} ${res.statusCode} in ${duration}ms`;
+      if (capturedJsonResponse) {
+        logLine += ` :: ${JSON.stringify(capturedJsonResponse)}`;
+      }
 
-    if (status >= 400) {
-      logLine = `ERROR: ${logLine}`;
+      if (logLine.length > 80) {
+        logLine = logLine.slice(0, 79) + "…";
+      }
+
+      log(logLine);
     }
-
-    if (capturedJsonResponse) {
-      logLine += ` :: ${JSON.stringify(capturedJsonResponse)}`;
-    }
-
-    if (logLine.length > 80) {
-      logLine = logLine.slice(0, 79) + "…";
-    }
-
-    log(logLine);
   });
 
   next();
@@ -145,7 +126,7 @@ app.get('/health', (req, res) => {
     });
 
     // Start server
-    const PORT = Number(process.env.PORT) || 5000;
+    const PORT = process.env.PORT || 5000;
     server.listen(PORT, "0.0.0.0", () => {
       log(`Server running on port ${PORT} in ${app.get("env")} mode`);
     });
@@ -154,12 +135,10 @@ app.get('/health', (req, res) => {
     const gracefulShutdown = async () => {
       log("Received shutdown signal. Starting graceful shutdown...");
 
-      // Close database connections if possible
+      // Close database connections
       try {
-        if (db.$client && typeof db.$client.end === 'function') {
-          await db.$client.end();
-          log("Database connections closed");
-        }
+        await db.end();
+        log("Database connections closed");
       } catch (error) {
         console.error("Error closing database connections:", error);
       }
