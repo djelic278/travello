@@ -20,6 +20,8 @@ import { Link } from "wouter";
 import { useUser } from "@/hooks/use-user";
 import { useToast } from "@/hooks/use-toast";
 import { Loader2 } from "lucide-react";
+import { motion, AnimatePresence } from "framer-motion";
+import { fadeIn, slideIn, buttonTapAnimation, staggeredList, listItem } from "@/lib/animations";
 
 export default function Dashboard() {
   const { user } = useUser();
@@ -28,7 +30,7 @@ export default function Dashboard() {
 
   const { data: forms, isLoading, refetch } = useQuery<any[]>({
     queryKey: ["/api/forms"],
-    refetchInterval: 60000, // Refetch every minute
+    refetchInterval: 60000,
   });
 
   // Mutation for approving/rejecting forms
@@ -98,33 +100,51 @@ export default function Dashboard() {
 
   if (isLoading) {
     return (
-      <div className="flex items-center justify-center min-h-screen">
+      <motion.div 
+        className="flex items-center justify-center min-h-screen"
+        initial="initial"
+        animate="animate"
+        exit="exit"
+        variants={fadeIn}
+      >
         <Loader2 className="h-8 w-8 animate-spin text-border" />
-      </div>
+      </motion.div>
     );
   }
 
   return (
-    <div className="container mx-auto py-6">
+    <motion.div 
+      className="container mx-auto py-6"
+      initial="initial"
+      animate="animate"
+      exit="exit"
+      variants={fadeIn}
+    >
       <Card>
         <CardHeader>
-          <CardTitle>Travel Allowance Requests</CardTitle>
-          <CardDescription>
-            View and manage your travel allowance requests
-          </CardDescription>
+          <motion.div variants={slideIn}>
+            <CardTitle>Travel Allowance Requests</CardTitle>
+            <CardDescription>
+              View and manage your travel allowance requests
+            </CardDescription>
+          </motion.div>
         </CardHeader>
         <CardContent>
           <div className="mb-4 flex justify-between items-center">
-            <Button asChild>
-              <Link href="/new-request">
-                <Plus className="mr-2 h-4 w-4" />
-                New Request
-              </Link>
-            </Button>
-            <Button variant="outline" onClick={handleExport}>
-              <Download className="mr-2 h-4 w-4" />
-              Export to Excel
-            </Button>
+            <motion.div whileTap={buttonTapAnimation}>
+              <Button asChild>
+                <Link href="/new-request">
+                  <Plus className="mr-2 h-4 w-4" />
+                  New Request
+                </Link>
+              </Button>
+            </motion.div>
+            <motion.div whileTap={buttonTapAnimation}>
+              <Button variant="outline" onClick={handleExport}>
+                <Download className="mr-2 h-4 w-4" />
+                Export to Excel
+              </Button>
+            </motion.div>
           </div>
 
           <Table>
@@ -138,68 +158,85 @@ export default function Dashboard() {
                 {isAdmin && <TableHead>Actions</TableHead>}
               </TableRow>
             </TableHeader>
-            <TableBody>
-              {forms?.map((form) => (
-                <TableRow key={form.id}>
-                  <TableCell>{form.destination}</TableCell>
-                  <TableCell>
-                    {new Date(form.startDate).toLocaleDateString()}
-                  </TableCell>
-                  <TableCell>{form.duration}</TableCell>
-                  <TableCell>{form.status}</TableCell>
-                  <TableCell>{form.approvalStatus}</TableCell>
-                  {isAdmin && (
+            <motion.tbody
+              variants={staggeredList}
+              initial="initial"
+              animate="animate"
+              exit="exit"
+            >
+              <AnimatePresence>
+                {forms?.map((form) => (
+                  <motion.tr
+                    key={form.id}
+                    variants={listItem}
+                    layout
+                  >
+                    <TableCell>{form.destination}</TableCell>
                     <TableCell>
-                      {form.approvalStatus === 'pending' && (
-                        <div className="flex space-x-2">
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            className="text-green-600"
-                            onClick={() => handleApproval(form.id, true)}
-                          >
-                            <Check className="h-4 w-4" />
+                      {new Date(form.startDate).toLocaleDateString()}
+                    </TableCell>
+                    <TableCell>{form.duration}</TableCell>
+                    <TableCell>{form.status}</TableCell>
+                    <TableCell>{form.approvalStatus}</TableCell>
+                    {isAdmin && (
+                      <TableCell>
+                        {form.approvalStatus === 'pending' && (
+                          <div className="flex space-x-2">
+                            <motion.div whileTap={buttonTapAnimation}>
+                              <Button
+                                variant="outline"
+                                size="sm"
+                                className="text-green-600"
+                                onClick={() => handleApproval(form.id, true)}
+                              >
+                                <Check className="h-4 w-4" />
+                              </Button>
+                            </motion.div>
+                            <motion.div whileTap={buttonTapAnimation}>
+                              <Button
+                                variant="outline"
+                                size="sm"
+                                className="text-red-600"
+                                onClick={() => handleApproval(form.id, false)}
+                              >
+                                <X className="h-4 w-4" />
+                              </Button>
+                            </motion.div>
+                          </div>
+                        )}
+                      </TableCell>
+                    )}
+                    <TableCell className="text-right">
+                      {form.approvalStatus === 'approved' && form.status === 'pre_travel_submitted' && (
+                        <motion.div whileTap={buttonTapAnimation}>
+                          <Button asChild variant="ghost" size="sm">
+                            <Link href={`/forms/${form.id}/post-travel`}>
+                              <FileText className="mr-2 h-4 w-4" />
+                              Submit Post-Travel Form
+                            </Link>
                           </Button>
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            className="text-red-600"
-                            onClick={() => handleApproval(form.id, false)}
-                          >
-                            <X className="h-4 w-4" />
-                          </Button>
-                        </div>
+                        </motion.div>
+                      )}
+                      {form.approvalStatus === 'rejected' && (
+                        <span className="text-sm text-red-500">
+                          Request rejected
+                        </span>
                       )}
                     </TableCell>
-                  )}
-                  <TableCell className="text-right">
-                    {form.approvalStatus === 'approved' && form.status === 'pre_travel_submitted' && (
-                      <Button asChild variant="ghost" size="sm">
-                        <Link href={`/forms/${form.id}/post-travel`}>
-                          <FileText className="mr-2 h-4 w-4" />
-                          Submit Post-Travel Form
-                        </Link>
-                      </Button>
-                    )}
-                    {form.approvalStatus === 'rejected' && (
-                      <span className="text-sm text-red-500">
-                        Request rejected
-                      </span>
-                    )}
-                  </TableCell>
-                </TableRow>
-              ))}
+                  </motion.tr>
+                ))}
+              </AnimatePresence>
               {!forms?.length && (
-                <TableRow>
+                <motion.tr variants={fadeIn}>
                   <TableCell colSpan={6} className="text-center">
                     No travel requests found
                   </TableCell>
-                </TableRow>
+                </motion.tr>
               )}
-            </TableBody>
+            </motion.tbody>
           </Table>
         </CardContent>
       </Card>
-    </div>
+    </motion.div>
   );
 }
