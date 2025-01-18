@@ -27,43 +27,56 @@ const app = express();
 app.use(express.json());
 app.use(express.urlencoded({ extended: false }));
 
-// CORS configuration for Replit
-app.use((req, res, next) => {
-  // Get the origin from the request headers
-  const origin = req.headers.origin;
-
-  // Allow the origin if it matches our criteria
-  if (origin && (
-    origin.includes('.replit.dev') || 
-    origin === 'http://localhost:5000' ||
-    origin === 'http://localhost:3000'
-  )) {
-    res.setHeader('Access-Control-Allow-Origin', origin);
+// Development-specific middleware
+if (app.get('env') === 'development') {
+  app.use((req, res, next) => {
+    // Allow all origins in development
+    res.setHeader('Access-Control-Allow-Origin', req.headers.origin || '*');
     res.setHeader('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS');
-    res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization');
+    res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization, X-Requested-With');
     res.setHeader('Access-Control-Allow-Credentials', 'true');
-  }
 
-  // Handle preflight requests
-  if (req.method === 'OPTIONS') {
-    return res.sendStatus(200);
-  }
+    // Handle preflight requests
+    if (req.method === 'OPTIONS') {
+      return res.sendStatus(200);
+    }
+    next();
+  });
+} else {
+  // Production CORS - more restrictive
+  app.use((req, res, next) => {
+    const origin = req.headers.origin;
+    if (origin && (
+      origin.includes('.replit.dev') ||
+      origin.includes('.repl.co') ||
+      origin === 'http://localhost:5000'
+    )) {
+      res.setHeader('Access-Control-Allow-Origin', origin);
+      res.setHeader('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS');
+      res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization, X-Requested-With');
+      res.setHeader('Access-Control-Allow-Credentials', 'true');
+    }
 
-  // Security headers
+    if (req.method === 'OPTIONS') {
+      return res.sendStatus(200);
+    }
+    next();
+  });
+}
+
+// Security headers
+app.use((req, res, next) => {
   res.setHeader('X-Content-Type-Options', 'nosniff');
   res.setHeader('X-Frame-Options', 'DENY');
   res.setHeader('X-XSS-Protection', '1; mode=block');
-
   next();
 });
 
 // Setup authentication and get session middleware
 const sessionMiddleware = setupAuth(app);
-
-// Make session middleware available to the app
 app.set('session', sessionMiddleware);
 
-// Health check endpoint - moved here for better accessibility
+// Health check endpoint
 app.get('/health', (req, res) => {
   res.json({ status: 'ok', environment: app.get('env') });
 });
@@ -102,7 +115,7 @@ app.use((req, res, next) => {
 // Initialize server
 (async () => {
   try {
-    // Test database connection with timeout
+    // Test database connection
     log("Testing database connection...");
     const dbTimeout = setTimeout(() => {
       throw new Error("Database connection timeout after 10 seconds");
@@ -116,12 +129,12 @@ app.use((req, res, next) => {
     }
     log("Database connection successful");
 
-    // Register routes before setting up Vite
+    // Register routes and create server
     log("Registering routes...");
     const server = registerRoutes(app);
     log("Routes registered successfully");
 
-    // Set up Vite or static serving based on environment
+    // Set up Vite or static serving
     if (app.get("env") === "development") {
       log("Initializing Vite development server...");
       await setupVite(app, server);
@@ -135,7 +148,10 @@ app.use((req, res, next) => {
     const PORT = 5000;
     server.listen(PORT, "0.0.0.0", () => {
       log(`Server running on port ${PORT} in ${app.get("env")} mode`);
-      log(`Server URL: ${process.env.REPL_SLUG ? `https://${process.env.REPL_SLUG}.${process.env.REPL_OWNER}.repl.co` : `http://localhost:${PORT}`}`);
+      const serverUrl = process.env.REPL_SLUG 
+        ? `https://${process.env.REPL_SLUG}.${process.env.REPL_OWNER}.repl.co`
+        : `http://localhost:${PORT}`;
+      log(`Server URL: ${serverUrl}`);
     });
 
   } catch (error) {
