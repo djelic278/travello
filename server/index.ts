@@ -28,57 +28,44 @@ app.use(express.json());
 app.use(express.urlencoded({ extended: false }));
 
 // Development-specific middleware
-if (app.get('env') === 'development') {
-  app.use((req, res, next) => {
-    // Allow all origins in development
-    res.setHeader('Access-Control-Allow-Origin', req.headers.origin || '*');
-    res.setHeader('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS');
-    res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization, X-Requested-With');
-    res.setHeader('Access-Control-Allow-Credentials', 'true');
-
-    // Handle preflight requests
-    if (req.method === 'OPTIONS') {
-      return res.sendStatus(200);
-    }
-    next();
-  });
-} else {
-  // Production CORS - more restrictive
-  app.use((req, res, next) => {
-    const origin = req.headers.origin;
-    if (origin && (
-      origin.includes('.replit.dev') ||
-      origin.includes('.repl.co') ||
-      origin === 'http://localhost:5000'
-    )) {
-      res.setHeader('Access-Control-Allow-Origin', origin);
-      res.setHeader('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS');
-      res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization, X-Requested-With');
-      res.setHeader('Access-Control-Allow-Credentials', 'true');
-    }
-
-    if (req.method === 'OPTIONS') {
-      return res.sendStatus(200);
-    }
-    next();
-  });
-}
-
-// Security headers
 app.use((req, res, next) => {
+  // Allow all origins for Replit environment
+  const origin = req.headers.origin || '';
+  if (origin.includes('.replit.dev') || 
+      origin.includes('.repl.co') || 
+      origin === 'http://localhost:5000') {
+    res.setHeader('Access-Control-Allow-Origin', origin);
+  } else {
+    res.setHeader('Access-Control-Allow-Origin', '*');
+  }
+  res.setHeader('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS');
+  res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization, X-Requested-With');
+  res.setHeader('Access-Control-Allow-Credentials', 'true');
+
+  // Handle preflight requests
+  if (req.method === 'OPTIONS') {
+    return res.sendStatus(200);
+  }
+
+  // Security headers
   res.setHeader('X-Content-Type-Options', 'nosniff');
   res.setHeader('X-Frame-Options', 'DENY');
   res.setHeader('X-XSS-Protection', '1; mode=block');
   next();
 });
 
-// Setup authentication and get session middleware
+
+// Setup authentication
 const sessionMiddleware = setupAuth(app);
 app.set('session', sessionMiddleware);
 
 // Health check endpoint
 app.get('/health', (req, res) => {
-  res.json({ status: 'ok', environment: app.get('env') });
+  res.json({ 
+    status: 'ok', 
+    environment: app.get('env'),
+    time: new Date().toISOString()
+  });
 });
 
 // Request logging middleware
