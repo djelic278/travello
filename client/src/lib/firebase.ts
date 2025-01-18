@@ -24,9 +24,10 @@ const firebaseConfig = {
   appId: import.meta.env.VITE_FIREBASE_APP_ID,
 };
 
-console.log('Initializing Firebase with config:', {
-  ...firebaseConfig,
-  apiKey: '[REDACTED]' // Don't log the API key
+console.log('Firebase initialization starting...', {
+  authDomain: firebaseConfig.authDomain,
+  projectId: firebaseConfig.projectId,
+  currentDomain: window.location.hostname
 });
 
 // Initialize Firebase
@@ -37,7 +38,18 @@ console.log('Firebase initialized successfully');
 export const auth = getAuth(app);
 export const googleProvider = new GoogleAuthProvider();
 
-// Configure Google provider
+// Configure Google provider with additional parameters for better UX
 googleProvider.setCustomParameters({
-  prompt: 'select_account'
+  prompt: 'select_account',
+  // Using hosted domain if we want to restrict to specific domains
+  // hosted_domain: 'yourdomain.com',
+});
+
+// Add error event listener to auth
+auth.onAuthStateChanged((user) => {
+  if (user) {
+    console.log('User is signed in:', user.email);
+  } else {
+    console.log('No user is signed in.');
+  }
 });

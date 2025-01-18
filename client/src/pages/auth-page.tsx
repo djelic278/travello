@@ -57,6 +57,14 @@ export default function AuthPage() {
       setIsLoading(true);
       console.log('Starting Google login process...');
 
+      // Log Firebase configuration state
+      const envVars = {
+        authDomain: import.meta.env.VITE_FIREBASE_AUTH_DOMAIN,
+        projectId: import.meta.env.VITE_FIREBASE_PROJECT_ID,
+        currentUrl: window.location.origin
+      };
+      console.log('Firebase config check:', envVars);
+
       const result = await signInWithPopup(auth, googleProvider);
       console.log('Google sign-in successful:', { 
         email: result.user.email,
@@ -80,11 +88,13 @@ export default function AuthPage() {
       // More user-friendly error messages
       let errorMessage = "There was a problem logging in. Please try again.";
       if (error.code === 'auth/configuration-not-found') {
-        errorMessage = "The application is not properly configured for Google login. Please contact support.";
+        errorMessage = `Firebase configuration error. Please ensure your domain ${window.location.origin} is added to Firebase Console under Authentication > Settings > Authorized Domains`;
       } else if (error.code === 'auth/popup-blocked') {
         errorMessage = "The login popup was blocked. Please allow popups for this site and try again.";
       } else if (error.code === 'auth/popup-closed-by-user') {
         errorMessage = "The login popup was closed. Please try again.";
+      } else if (error.code === 'auth/invalid-api-key') {
+        errorMessage = "Invalid Firebase configuration. Please contact support.";
       }
 
       toast({
