@@ -67,7 +67,7 @@ const updateProfileSchema = z.object({
   position: z.string().min(1, "Position is required"),
   dateOfBirth: z.string().optional(),
   preferredEmail: z.string().email("Invalid email address"),
-  companyId: z.number().optional(),
+  organization: z.string().optional(), // Changed to string
   theme: z.enum(['light', 'dark', 'system'] as const).optional(),
   emailNotifications: z.boolean().optional(),
   dashboardLayout: z.object({ type: z.string() }).optional(),
@@ -92,7 +92,7 @@ export default function ProfilePage() {
   const { toast } = useToast();
   const [isAddingCompany, setIsAddingCompany] = useState(false);
 
-  // Fetch companies
+  // Fetch companies using the same endpoint as admin page
   const { data: companies = [] } = useQuery<Company[]>({
     queryKey: ['/api/companies'],
   });
@@ -103,7 +103,7 @@ export default function ProfilePage() {
       position: user?.position || "",
       dateOfBirth: user?.dateOfBirth ? new Date(user.dateOfBirth).toISOString().split('T')[0] : undefined,
       preferredEmail: user?.preferredEmail || user?.email || "",
-      companyId: user?.companyId || undefined,
+      organization: user?.organization || undefined, // Changed to organization
       theme: (user?.theme as ThemeModeType) || 'system',
       emailNotifications: user?.emailNotifications ?? true,
       dashboardLayout: user?.dashboardLayout || { type: 'default' },
@@ -164,7 +164,7 @@ export default function ProfilePage() {
       return response.json();
     },
     onSuccess: (data) => {
-      form.setValue('companyId', data.id);
+      form.setValue('organization', data.name); // Updated to set organization name
       setIsAddingCompany(false);
       companyForm.reset();
       toast({
@@ -296,15 +296,13 @@ export default function ProfilePage() {
                     <div className="space-y-2">
                       <FormField
                         control={form.control}
-                        name="companyId"
+                        name="organization"
                         render={({ field }) => (
                           <FormItem>
                             <FormLabel>Company</FormLabel>
                             <Select
-                              value={field.value?.toString()}
-                              onValueChange={(value) =>
-                                field.onChange(value ? parseInt(value) : undefined)
-                              }
+                              value={field.value}
+                              onValueChange={field.onChange}
                             >
                               <FormControl>
                                 <SelectTrigger>
@@ -315,7 +313,7 @@ export default function ProfilePage() {
                                 {companies.map((company) => (
                                   <SelectItem
                                     key={company.id}
-                                    value={company.id.toString()}
+                                    value={company.name}
                                   >
                                     {company.name}
                                   </SelectItem>
