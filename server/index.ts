@@ -23,23 +23,16 @@ for (const envVar of requiredEnvVars) {
 
 const app = express();
 
-// Basic middleware setup
+// Basic middleware setup with security headers and CORS for development
 app.use(express.json());
 app.use(express.urlencoded({ extended: false }));
 
-// Development-specific middleware
+// Add CORS headers for development
 app.use((req, res, next) => {
-  // Allow all origins for Replit environment
-  const origin = req.headers.origin || '';
-  if (origin.includes('.replit.dev') || 
-      origin.includes('.repl.co') || 
-      origin === 'http://localhost:5000') {
-    res.setHeader('Access-Control-Allow-Origin', origin);
-  } else {
-    res.setHeader('Access-Control-Allow-Origin', '*');
-  }
+  // Allow requests from any origin in development
+  res.setHeader('Access-Control-Allow-Origin', '*');
   res.setHeader('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS');
-  res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization, X-Requested-With');
+  res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization');
   res.setHeader('Access-Control-Allow-Credentials', 'true');
 
   // Handle preflight requests
@@ -51,23 +44,17 @@ app.use((req, res, next) => {
   res.setHeader('X-Content-Type-Options', 'nosniff');
   res.setHeader('X-Frame-Options', 'DENY');
   res.setHeader('X-XSS-Protection', '1; mode=block');
+
   next();
 });
 
-// Setup authentication
+// Setup authentication and get session middleware
 const sessionMiddleware = setupAuth(app);
+
+// Make session middleware available to the app
 app.set('session', sessionMiddleware);
 
-// Health check endpoint
-app.get('/health', (req, res) => {
-  res.json({ 
-    status: 'ok', 
-    environment: app.get('env'),
-    time: new Date().toISOString()
-  });
-});
-
-// Request logging middleware
+// Request logging middleware with enhanced error tracking
 app.use((req, res, next) => {
   const start = Date.now();
   const path = req.path;
@@ -81,27 +68,38 @@ app.use((req, res, next) => {
 
   res.on("finish", () => {
     const duration = Date.now() - start;
-    if (path.startsWith("/api")) {
-      let logLine = `${req.method} ${path} ${res.statusCode} in ${duration}ms`;
-      if (capturedJsonResponse) {
-        logLine += ` :: ${JSON.stringify(capturedJsonResponse)}`;
-      }
+    const status = res.statusCode;
+    let logLine = `${req.method} ${path} ${status} in ${duration}ms`;
 
-      if (logLine.length > 80) {
-        logLine = logLine.slice(0, 79) + "…";
-      }
-
-      log(logLine);
+    if (status >= 400) {
+      logLine = `ERROR: ${logLine}`;
     }
+
+    if (capturedJsonResponse) {
+      logLine += ` :: ${JSON.stringify(capturedJsonResponse)}`;
+    }
+
+    if (logLine.length > 80) {
+      logLine = logLine.slice(0, 79) + "…";
+    }
+
+    log(logLine);
   });
 
   next();
 });
 
+// Health check endpoint
+app.get('/health', (req, res) => {
+  res.json({ status: 'ok', environment: app.get('env') });
+});
+
 // Initialize server
 (async () => {
+  let server;
+
   try {
-    // Test database connection
+    // Test database connection with timeout
     log("Testing database connection...");
     const dbTimeout = setTimeout(() => {
       throw new Error("Database connection timeout after 10 seconds");
@@ -115,14 +113,13 @@ app.use((req, res, next) => {
     }
     log("Database connection successful");
 
-    // Register routes and create server
+    // Register routes
     log("Registering routes...");
-    const server = registerRoutes(app);
+    server = registerRoutes(app);
     log("Routes registered successfully");
 
-    // Set up Vite or static serving
+    // Set up Vite or static serving based on environment
     if (app.get("env") === "development") {
-      log("Initializing Vite development server...");
       await setupVite(app, server);
       log("Vite development server initialized");
     } else {
@@ -130,16 +127,49 @@ app.use((req, res, next) => {
       log("Static files serving initialized for production");
     }
 
-    // ALWAYS serve the app on port 5000
-    // this serves both the API and the client
-    const PORT = 5000;
+    // Enhanced global error handler
+    app.use((err: any, _req: Request, res: Response, _next: NextFunction) => {
+      console.error('Error:', err);
+      const status = err.status || err.statusCode || 500;
+      const message = process.env.NODE_ENV === 'production'
+        ? "Internal Server Error"
+        : (err.message || "Internal Server Error");
+
+      log(`Error occurred: ${status} - ${err.message || err}`);
+
+      // Send minimal error details in production
+      res.status(status).json({
+        message,
+        ...(process.env.NODE_ENV !== 'production' && { stack: err.stack })
+      });
+    });
+
+    // Start server
+    const PORT = Number(process.env.PORT) || 5000;
     server.listen(PORT, "0.0.0.0", () => {
       log(`Server running on port ${PORT} in ${app.get("env")} mode`);
-      const serverUrl = process.env.REPL_SLUG 
-        ? `https://${process.env.REPL_SLUG}.${process.env.REPL_OWNER}.repl.co`
-        : `http://localhost:${PORT}`;
-      log(`Server URL: ${serverUrl}`);
     });
+
+    // Graceful shutdown handlers
+    const gracefulShutdown = async () => {
+      log("Received shutdown signal. Starting graceful shutdown...");
+
+      // Close database connections if possible
+      try {
+        if (db.$client && typeof db.$client.end === 'function') {
+          await db.$client.end();
+          log("Database connections closed");
+        }
+      } catch (error) {
+        console.error("Error closing database connections:", error);
+      }
+
+      // Exit process
+      process.exit(0);
+    };
+
+    process.on('SIGTERM', gracefulShutdown);
+    process.on('SIGINT', gracefulShutdown);
 
   } catch (error) {
     console.error('Failed to start server:', error);

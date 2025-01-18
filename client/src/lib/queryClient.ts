@@ -27,7 +27,6 @@ export const queryClient = new QueryClient({
             headers: {
               'Accept': 'application/json',
               'Content-Type': 'application/json',
-              'X-Requested-With': 'XMLHttpRequest', // Add this header for CORS
             }
           });
 
@@ -61,6 +60,13 @@ export const queryClient = new QueryClient({
       refetchInterval: false,
       refetchOnWindowFocus: false,
       staleTime: Infinity,
+      onError: (error) => {
+        toast({
+          title: "Error",
+          description: formatErrorMessage(error),
+          variant: "destructive",
+        });
+      },
     },
     mutations: {
       retry: (failureCount, error) => {

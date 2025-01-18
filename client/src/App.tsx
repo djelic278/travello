@@ -16,9 +16,6 @@ import { Button } from "@/components/ui/button";
 import { Link, useLocation } from "wouter";
 import ErrorBoundary from "@/components/ErrorBoundary";
 
-// Configure base for wouter to handle Replit's environment
-const base = import.meta.env.DEV ? '/' : import.meta.env.BASE_URL;
-
 function Layout({ children }: { children: React.ReactNode }) {
   const [location] = useLocation();
   const { user, logout } = useUser();
@@ -65,7 +62,7 @@ function Layout({ children }: { children: React.ReactNode }) {
           </div>
         </div>
       </header>
-      <main className="container mx-auto py-6">
+      <main>
         <ErrorBoundary>
           {children}
         </ErrorBoundary>
@@ -91,7 +88,7 @@ function Router() {
 
   return (
     <Layout>
-      <Switch base={base}>
+      <Switch>
         <Route path="/" component={Dashboard} />
         <Route path="/new-request" component={PreTravelForm} />
         <Route path="/forms/:id/post-travel" component={PostTravelForm} />
