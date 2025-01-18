@@ -23,51 +23,15 @@ for (const envVar of requiredEnvVars) {
 
 const app = express();
 
-// Basic middleware setup with security headers for production
+// Basic middleware setup
 app.use(express.json());
 app.use(express.urlencoded({ extended: false }));
-app.use((req, res, next) => {
-  res.setHeader('X-Content-Type-Options', 'nosniff');
-  res.setHeader('X-Frame-Options', 'DENY');
-  res.setHeader('X-XSS-Protection', '1; mode=block');
-  next();
-});
 
 // Setup authentication and get session middleware
 const sessionMiddleware = setupAuth(app);
 
 // Make session middleware available to the app
 app.set('session', sessionMiddleware);
-
-app.use((req, res, next) => {
-  const start = Date.now();
-  const path = req.path;
-  let capturedJsonResponse: Record<string, any> | undefined = undefined;
-
-  const originalResJson = res.json;
-  res.json = function (bodyJson, ...args) {
-    capturedJsonResponse = bodyJson;
-    return originalResJson.apply(res, [bodyJson, ...args]);
-  };
-
-  res.on("finish", () => {
-    const duration = Date.now() - start;
-    if (path.startsWith("/api")) {
-      let logLine = `${req.method} ${path} ${res.statusCode} in ${duration}ms`;
-      if (capturedJsonResponse) {
-        logLine += ` :: ${JSON.stringify(capturedJsonResponse)}`;
-      }
-
-      if (logLine.length > 80) {
-        logLine = logLine.slice(0, 79) + "…";
-      }
-
-      log(logLine);
-    }
-  });
-
-  next();
-});
 
 // Health check endpoint
 app.get('/health', (req, res) => {
@@ -111,13 +75,10 @@ app.get('/health', (req, res) => {
     app.use((err: any, _req: Request, res: Response, _next: NextFunction) => {
       console.error('Error:', err);
       const status = err.status || err.statusCode || 500;
-      const message = process.env.NODE_ENV === 'production'
-        ? "Internal Server Error"
-        : (err.message || "Internal Server Error");
+      const message = err.message || "Internal Server Error";
 
       log(`Error occurred: ${status} - ${err.message || err}`);
 
-      // Send minimal error details in production
       res.status(status).json({
         message,
         ...(process.env.NODE_ENV !== 'production' && { stack: err.stack })
@@ -133,16 +94,12 @@ app.get('/health', (req, res) => {
     // Graceful shutdown handlers
     const gracefulShutdown = async () => {
       log("Received shutdown signal. Starting graceful shutdown...");
-
-      // Close database connections
       try {
         await db.end();
         log("Database connections closed");
       } catch (error) {
         console.error("Error closing database connections:", error);
       }
-
-      // Exit process
       process.exit(0);
     };
 
