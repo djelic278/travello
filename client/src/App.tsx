@@ -15,6 +15,7 @@ import { NotificationsButton } from "@/components/notifications";
 import { Button } from "@/components/ui/button";
 import { Link, useLocation } from "wouter";
 import ErrorBoundary from "@/components/ErrorBoundary";
+import { motion } from "framer-motion";
 
 function Layout({ children }: { children: React.ReactNode }) {
   const [location] = useLocation();
@@ -25,7 +26,14 @@ function Layout({ children }: { children: React.ReactNode }) {
       <header className="border-b">
         <div className="container mx-auto px-4 h-16 flex items-center justify-between">
           <div className="flex items-center space-x-6">
-            <h1 className="text-lg font-semibold">Travel Allowance System</h1>
+            <motion.h1 
+              className="text-2xl font-black tracking-tight bg-gradient-to-r from-primary to-primary/70 bg-clip-text text-transparent"
+              initial={{ opacity: 0, y: -20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.5 }}
+            >
+              Travelo
+            </motion.h1>
             <nav className="hidden md:flex items-center space-x-4">
               <Button variant={location === "/" ? "default" : "ghost"} size="sm" asChild>
                 <Link href="/" className="flex items-center">
