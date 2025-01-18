@@ -2,7 +2,7 @@ import { useState } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useUser } from "@/hooks/use-user";
-import { useMutation, useQuery } from "@tanstack/react-query";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useToast } from "@/hooks/use-toast";
 import { Button } from "@/components/ui/button";
 import {
@@ -67,7 +67,7 @@ const updateProfileSchema = z.object({
   position: z.string().min(1, "Position is required"),
   dateOfBirth: z.string().optional(),
   preferredEmail: z.string().email("Invalid email address"),
-  organization: z.string().optional(), // Changed to string
+  organization: z.string().optional(),
   theme: z.enum(['light', 'dark', 'system'] as const).optional(),
   emailNotifications: z.boolean().optional(),
   dashboardLayout: z.object({ type: z.string() }).optional(),
@@ -90,6 +90,7 @@ type AddCompanyForm = z.infer<typeof addCompanySchema>;
 export default function ProfilePage() {
   const { user } = useUser();
   const { toast } = useToast();
+  const queryClient = useQueryClient();
   const [isAddingCompany, setIsAddingCompany] = useState(false);
 
   // Fetch companies using the same endpoint as admin page
@@ -103,7 +104,7 @@ export default function ProfilePage() {
       position: user?.position || "",
       dateOfBirth: user?.dateOfBirth ? new Date(user.dateOfBirth).toISOString().split('T')[0] : undefined,
       preferredEmail: user?.preferredEmail || user?.email || "",
-      organization: user?.organization || undefined, // Changed to organization
+      organization: user?.organization || undefined,
       theme: (user?.theme as ThemeModeType) || 'system',
       emailNotifications: user?.emailNotifications ?? true,
       dashboardLayout: user?.dashboardLayout || { type: 'default' },
@@ -134,6 +135,7 @@ export default function ProfilePage() {
       return response.json();
     },
     onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['user'] });
       toast({
         title: "Profile Updated",
         description: "Your profile has been updated successfully.",
@@ -164,7 +166,7 @@ export default function ProfilePage() {
       return response.json();
     },
     onSuccess: (data) => {
-      form.setValue('organization', data.name); // Updated to set organization name
+      form.setValue('organization', data.name);
       setIsAddingCompany(false);
       companyForm.reset();
       toast({
