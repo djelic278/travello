@@ -232,11 +232,23 @@ export function setupAuth(app: Express) {
     });
   });
 
-  app.get("/api/user", (req, res) => {
+  app.get("/api/user", async (req, res) => {
     if (!req.isAuthenticated()) {
       return res.status(401).send("Not logged in");
     }
-    res.json(req.user);
+
+    // Fetch full user data including all profile fields
+    const [userData] = await db
+      .select()
+      .from(users)
+      .where(eq(users.id, req.user!.id))
+      .limit(1);
+
+    if (!userData) {
+      return res.status(404).send("User not found");
+    }
+
+    res.json(userData);
   });
 
   // Create/update initial superadmin account

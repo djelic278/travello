@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { useUser } from "@/hooks/use-user";
@@ -88,7 +88,7 @@ type UpdateProfileForm = z.infer<typeof updateProfileSchema>;
 type AddCompanyForm = z.infer<typeof addCompanySchema>;
 
 export default function ProfilePage() {
-  const { user } = useUser();
+  const { user, isLoading } = useUser();
   const { toast } = useToast();
   const queryClient = useQueryClient();
   const [isAddingCompany, setIsAddingCompany] = useState(false);
@@ -98,6 +98,7 @@ export default function ProfilePage() {
     queryKey: ['/api/companies'],
   });
 
+  // Initialize form with user data when it's available
   const form = useForm<UpdateProfileForm>({
     resolver: zodResolver(updateProfileSchema),
     defaultValues: {
@@ -111,13 +112,20 @@ export default function ProfilePage() {
     },
   });
 
-  const companyForm = useForm<AddCompanyForm>({
-    resolver: zodResolver(addCompanySchema),
-    defaultValues: {
-      name: "",
-      address: "",
-    },
-  });
+  // Update form values when user data changes
+  useEffect(() => {
+    if (user) {
+      form.reset({
+        position: user.position || "",
+        dateOfBirth: user.dateOfBirth ? new Date(user.dateOfBirth).toISOString().split('T')[0] : undefined,
+        preferredEmail: user.preferredEmail || user.email || "",
+        organization: user.organization || undefined,
+        theme: (user.theme as ThemeModeType) || 'system',
+        emailNotifications: user.emailNotifications ?? true,
+        dashboardLayout: user.dashboardLayout || { type: 'default' },
+      });
+    }
+  }, [user, form]);
 
   const updateProfileMutation = useMutation({
     mutationFn: async (data: UpdateProfileForm) => {
@@ -180,6 +188,14 @@ export default function ProfilePage() {
         description: error.message,
         variant: "destructive",
       });
+    },
+  });
+
+  const companyForm = useForm<AddCompanyForm>({
+    resolver: zodResolver(addCompanySchema),
+    defaultValues: {
+      name: "",
+      address: "",
     },
   });
 
