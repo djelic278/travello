@@ -54,7 +54,6 @@ app.use((req, res, next) => {
   next();
 });
 
-
 // Setup authentication
 const sessionMiddleware = setupAuth(app);
 app.set('session', sessionMiddleware);
@@ -131,7 +130,8 @@ app.use((req, res, next) => {
       log("Static files serving initialized for production");
     }
 
-    // Start server
+    // ALWAYS serve the app on port 5000
+    // this serves both the API and the client
     const PORT = 5000;
     server.listen(PORT, "0.0.0.0", () => {
       log(`Server running on port ${PORT} in ${app.get("env")} mode`);
