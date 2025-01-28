@@ -655,7 +655,7 @@ export function registerRoutes(app: Express): Server {
     }
   }));
 
-  // Add voice processing route
+  // Update the voice processing route with better date handling
   app.post('/api/voice-process', async (req, res) => {
     try {
       const { transcript } = req.body;
@@ -672,28 +672,29 @@ export function registerRoutes(app: Express): Server {
             role: "system",
             content: `You are a helpful assistant that extracts travel form information from voice input.
             Extract any relevant fields from this list if mentioned:
-            - submissionLocation
-            - submissionDate
-            - firstName
-            - lastName
-            - destination
-            - tripPurpose
-            - transportType
-            - transportDetails
-            - startDate
-            - duration
-            - projectCode
-            - requestedPrepayment
             - startMileage (number)
             - endMileage (number)
-            - departureTime (date)
-            - returnTime (date)
+            - departureTime (full datetime in ISO format YYYY-MM-DDTHH:mm:ss.sssZ)
+            - returnTime (full datetime in ISO format YYYY-MM-DDTHH:mm:ss.sssZ)
             - purpose (for expenses)
             - amount (number for expenses)
 
-            Format the response as JSON with string values for all fields. Convert dates to YYYY-MM-DD format.
-            Only include fields that are explicitly mentioned in the input.
-            For mileage values, extract only the numeric portion and convert to number type.`
+            Format the response as JSON. For dates and times:
+            - If only a date is mentioned, use 09:00:00 as the default time for departure and 17:00:00 for return
+            - If only a time is mentioned, use today's date
+            - Convert all dates and times to ISO format with timezone
+
+            For mileage values:
+            - Extract only numeric portions
+            - Convert to numbers
+
+            Example response:
+            {
+              "departureTime": "2025-01-30T09:00:00.000Z",
+              "returnTime": "2025-01-30T17:00:00.000Z",
+              "startMileage": 1000,
+              "endMileage": 1500
+            }`
           },
           {
             role: "user",
@@ -711,6 +712,14 @@ export function registerRoutes(app: Express): Server {
       }
       if (result.endMileage) {
         result.endMileage = parseFloat(String(result.endMileage).replace(/[^0-9.]/g, ''));
+      }
+
+      // Ensure dates are in proper ISO format
+      if (result.departureTime) {
+        result.departureTime = new Date(result.departureTime).toISOString();
+      }
+      if (result.returnTime) {
+        result.returnTime = new Date(result.returnTime).toISOString();
       }
 
       res.json(result);

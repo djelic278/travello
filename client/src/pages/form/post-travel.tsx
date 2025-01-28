@@ -46,6 +46,7 @@ import { VoiceInput } from "@/components/voice-input";
 import { Camera } from "lucide-react";
 
 
+
 export default function PostTravelForm() {
   const [showSignatureDialog, setShowSignatureDialog] = useState(false);
   const params = useParams<{ id: string }>();
@@ -109,22 +110,41 @@ export default function PostTravelForm() {
         }
       }
 
-      // Rest of date handling remains unchanged
-      if (data.date) {
-        const date = new Date(data.date);
-        if (!isNaN(date.getTime())) {
-          formHook.setValue('departureTime', date);
-          formHook.setValue('returnTime', new Date(date.getTime() + 24 * 60 * 60 * 1000));
+      // Handle departure and return times
+      if (data.departureTime) {
+        const departureDate = new Date(data.departureTime);
+        if (!isNaN(departureDate.getTime())) {
+          formHook.setValue('departureTime', departureDate);
           toast({
-            title: "Travel Dates Updated",
-            description: "Departure and return times have been set",
+            title: "Departure Time Updated",
+            description: `Set to ${departureDate.toLocaleString()}`,
           });
         }
       }
 
+      if (data.returnTime) {
+        const returnDate = new Date(data.returnTime);
+        if (!isNaN(returnDate.getTime())) {
+          formHook.setValue('returnTime', returnDate);
+          toast({
+            title: "Return Time Updated",
+            description: `Set to ${returnDate.toLocaleString()}`,
+          });
+        }
+      } else if (data.departureTime) {
+        // If only departure time is set, set return time to 8 hours later
+        const departureDate = new Date(data.departureTime);
+        const returnDate = new Date(departureDate.getTime() + 8 * 60 * 60 * 1000);
+        formHook.setValue('returnTime', returnDate);
+        toast({
+          title: "Return Time Updated",
+          description: `Set to ${returnDate.toLocaleString()} (8 hours after departure)`,
+        });
+      }
+
       // Add expense if provided
       if (data.purpose) {
-        append({ name: data.purpose, amount: 0 });
+        append({ name: data.purpose, amount: data.amount || 0 });
         toast({
           title: "Expense Added",
           description: `New expense "${data.purpose}" has been added`,
