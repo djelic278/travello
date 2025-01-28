@@ -43,6 +43,7 @@ import {
 } from "@/components/ui/hover-card";
 import { Check, ChevronsUpDown, HelpCircle } from "lucide-react";
 import { cn } from "@/lib/utils";
+import { VoiceInput } from "@/components/voice-input";
 
 function FormLabelWithTooltip({ label, description }: { label: string; description: string }) {
   return (
@@ -83,6 +84,52 @@ export default function PreTravelForm() {
       requestedPrepayment: 0,
     },
   });
+
+  const handleVoiceData = (data: Record<string, any>) => {
+    // Update form fields based on voice data
+    if (data.firstName) {
+      form.setValue('firstName', data.firstName);
+    }
+    if (data.lastName) {
+      form.setValue('lastName', data.lastName);
+    }
+    if (data.destination) {
+      form.setValue('destination', data.destination);
+    }
+    if (data.tripPurpose) {
+      form.setValue('tripPurpose', data.tripPurpose);
+    }
+    if (data.transportType) {
+      form.setValue('transportType', data.transportType);
+    }
+    if (data.transportDetails) {
+      form.setValue('transportDetails', data.transportDetails);
+    }
+    if (data.projectCode) {
+      form.setValue('projectCode', data.projectCode);
+    }
+    if (data.duration !== undefined) {
+      form.setValue('duration', parseInt(data.duration));
+    }
+    if (data.requestedPrepayment !== undefined) {
+      form.setValue('requestedPrepayment', parseFloat(data.requestedPrepayment));
+    }
+    if (data.startDate) {
+      const date = new Date(data.startDate);
+      if (!isNaN(date.getTime())) {
+        form.setValue('startDate', date);
+      }
+    }
+    if (data.submissionLocation) {
+      form.setValue('submissionLocation', data.submissionLocation);
+      setInputValue(data.submissionLocation);
+    }
+
+    toast({
+      title: "Voice Input Processed",
+      description: "Form fields have been updated based on your voice input.",
+    });
+  };
 
   const mutation = useMutation({
     mutationFn: async (data: PreTravelForm) => {
@@ -126,6 +173,16 @@ export default function PreTravelForm() {
           </CardDescription>
         </CardHeader>
         <CardContent>
+          {/* Add VoiceInput component at the top */}
+          <div className="mb-6">
+            <VoiceInput
+              onDataReceived={handleVoiceData}
+              className="mb-4"
+            />
+            <p className="text-sm text-muted-foreground">
+              Try saying: "My destination is Berlin, Germany for a business meeting on March 15th 2025, duration is 5 days, traveling by train"
+            </p>
+          </div>
           <Form {...form}>
             <form
               onSubmit={form.handleSubmit((data) => mutation.mutate(data))}
