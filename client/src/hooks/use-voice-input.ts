@@ -3,11 +3,7 @@ import SpeechRecognition, { useSpeechRecognition } from 'react-speech-recognitio
 import OpenAI from 'openai';
 import { useToast } from '@/hooks/use-toast';
 
-// Initialize OpenAI client with error handling
-const openai = new OpenAI({
-  apiKey: process.env.OPENAI_API_KEY || import.meta.env.VITE_OPENAI_API_KEY,
-  dangerouslyAllowBrowser: true // Required for client-side usage
-});
+// Remove direct OpenAI usage from client
 
 export interface FormFields {
   // Pre-travel form fields
@@ -85,44 +81,19 @@ export function useVoiceInput() {
     setIsProcessing(true);
 
     try {
-      const response = await openai.chat.completions.create({
-        model: "gpt-3.5-turbo",
-        messages: [
-          {
-            role: "system",
-            content: `You are a helpful assistant that extracts travel form information from voice input.
-            Extract any relevant fields from this list if mentioned:
-            - submissionLocation
-            - submissionDate
-            - firstName
-            - lastName
-            - destination
-            - tripPurpose
-            - transportType
-            - transportDetails
-            - startDate
-            - duration
-            - projectCode
-            - requestedPrepayment
-            - startMileage (number)
-            - endMileage (number)
-            - departureTime (date)
-            - returnTime (date)
-            - purpose (for expenses)
-            - amount (number for expenses)
-
-            Format the response as JSON with string values for all fields. Convert dates to YYYY-MM-DD format.
-            Only include fields that are explicitly mentioned in the input.`
-          },
-          {
-            role: "user",
-            content: transcript
-          }
-        ],
-        response_format: { type: "json_object" }
+      const response = await fetch('/api/voice-process', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ transcript }),
       });
 
-      const result = JSON.parse(response.choices[0].message.content || "{}");
+      if (!response.ok) {
+        throw new Error('Failed to process voice input');
+      }
+
+      const result = await response.json();
       setFormData(result);
 
       toast({

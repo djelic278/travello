@@ -676,3 +676,52 @@ const asyncHandler = (fn: (req: Request, res: Response, next: NextFunction) => P
   (req: Request, res: Response, next: NextFunction) => {
     return Promise.resolve(fn(req, res, next)).catch(next);
   };
+// Add voice processing route
+app.post('/api/voice-process', async (req, res) => {
+  try {
+    const { transcript } = req.body;
+    
+    const response = await openai.chat.completions.create({
+      model: "gpt-3.5-turbo",
+      messages: [
+        {
+          role: "system",
+          content: `You are a helpful assistant that extracts travel form information from voice input.
+          Extract any relevant fields from this list if mentioned:
+          - submissionLocation
+          - submissionDate
+          - firstName
+          - lastName
+          - destination
+          - tripPurpose
+          - transportType
+          - transportDetails
+          - startDate
+          - duration
+          - projectCode
+          - requestedPrepayment
+          - startMileage (number)
+          - endMileage (number)
+          - departureTime (date)
+          - returnTime (date)
+          - purpose (for expenses)
+          - amount (number for expenses)
+
+          Format the response as JSON with string values for all fields. Convert dates to YYYY-MM-DD format.
+          Only include fields that are explicitly mentioned in the input.`
+        },
+        {
+          role: "user",
+          content: transcript
+        }
+      ],
+      response_format: { type: "json_object" }
+    });
+
+    const result = JSON.parse(response.choices[0].message.content || "{}");
+    res.json(result);
+  } catch (error) {
+    console.error('Error processing voice input:', error);
+    res.status(500).json({ error: 'Failed to process voice input' });
+  }
+});
