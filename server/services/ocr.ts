@@ -38,7 +38,13 @@ export async function processReceipt(imageBuffer: Buffer): Promise<Partial<Trave
       response_format: { type: "json_object" },
     });
 
-    const result = JSON.parse(response.choices[0].message.content);
+    // Safely parse JSON response
+    const content = response.choices[0].message.content;
+    if (!content) {
+      throw new Error('No content in OpenAI response');
+    }
+
+    const result = JSON.parse(content);
 
     return {
       amount: result.amount,

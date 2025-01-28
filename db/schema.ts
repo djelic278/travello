@@ -97,8 +97,13 @@ export const expenses = pgTable("expenses", {
   formId: integer("form_id").references(() => travelForms.id).notNull(),
   name: text("name").notNull(),
   amount: decimal("amount", { precision: 10, scale: 2 }).notNull(),
+  date: timestamp("date"),
   createdAt: timestamp("created_at").defaultNow().notNull(),
 });
+
+// Create expense type
+export type TravelExpense = typeof expenses.$inferSelect;
+export type InsertExpense = typeof expenses.$inferInsert;
 
 export const notifications = pgTable("notifications", {
   id: serial("id").primaryKey(),
