@@ -78,31 +78,67 @@ export default function PostTravelForm() {
   const handleVoiceData = (data: Record<string, any>) => {
     const fields = formHook.getValues();
 
-    // Update form fields based on voice data
-    if (data.startMileage !== undefined) {
-      formHook.setValue('startMileage', parseFloat(data.startMileage));
-    }
-    if (data.endMileage !== undefined) {
-      formHook.setValue('endMileage', parseFloat(data.endMileage));
-    }
-    if (data.date) {
-      const date = new Date(data.date);
-      if (!isNaN(date.getTime())) {
-        // If we have both departure and return times, update them
-        formHook.setValue('departureTime', date);
-        formHook.setValue('returnTime', new Date(date.getTime() + 24 * 60 * 60 * 1000)); // Next day by default
+    try {
+      // Update start mileage if provided
+      if (data.startMileage !== undefined) {
+        const startMileageValue = typeof data.startMileage === 'string' 
+          ? parseFloat(data.startMileage.replace(/[^0-9.]/g, ''))
+          : parseFloat(data.startMileage);
+
+        if (!isNaN(startMileageValue)) {
+          formHook.setValue('startMileage', startMileageValue);
+          toast({
+            title: "Start Mileage Updated",
+            description: `Set to ${startMileageValue} kilometers`,
+          });
+        }
       }
-    }
 
-    // Add expense if provided
-    if (data.purpose) {
-      append({ name: data.purpose, amount: 0 });
-    }
+      // Update end mileage if provided
+      if (data.endMileage !== undefined) {
+        const endMileageValue = typeof data.endMileage === 'string'
+          ? parseFloat(data.endMileage.replace(/[^0-9.]/g, ''))
+          : parseFloat(data.endMileage);
 
-    toast({
-      title: "Voice Input Processed",
-      description: "Form fields have been updated based on your voice input.",
-    });
+        if (!isNaN(endMileageValue)) {
+          formHook.setValue('endMileage', endMileageValue);
+          toast({
+            title: "End Mileage Updated",
+            description: `Set to ${endMileageValue} kilometers`,
+          });
+        }
+      }
+
+      // Rest of date handling remains unchanged
+      if (data.date) {
+        const date = new Date(data.date);
+        if (!isNaN(date.getTime())) {
+          formHook.setValue('departureTime', date);
+          formHook.setValue('returnTime', new Date(date.getTime() + 24 * 60 * 60 * 1000));
+          toast({
+            title: "Travel Dates Updated",
+            description: "Departure and return times have been set",
+          });
+        }
+      }
+
+      // Add expense if provided
+      if (data.purpose) {
+        append({ name: data.purpose, amount: 0 });
+        toast({
+          title: "Expense Added",
+          description: `New expense "${data.purpose}" has been added`,
+        });
+      }
+
+    } catch (error) {
+      console.error('Error processing voice input:', error);
+      toast({
+        title: "Voice Input Error",
+        description: "There was an error processing your voice input. Please try again.",
+        variant: "destructive",
+      });
+    }
   };
 
   const { fields, append, remove } = useFieldArray({
