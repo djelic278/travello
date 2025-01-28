@@ -672,28 +672,47 @@ export function registerRoutes(app: Express): Server {
             role: "system",
             content: `You are a helpful assistant that extracts travel form information from voice input.
             Extract any relevant fields from this list if mentioned:
+            - submissionLocation (string, the current location)
+            - firstName (string)
+            - lastName (string)
+            - destination (string, the travel destination)
+            - tripPurpose (string)
+            - transportType (string, e.g. "car", "train", "plane")
+            - transportDetails (string, additional transport information)
+            - startDate (full datetime in ISO format)
+            - duration (number, in days)
+            - projectCode (string)
+            - requestedPrepayment (number, amount in EUR)
             - startMileage (number)
             - endMileage (number)
-            - departureTime (full datetime in ISO format YYYY-MM-DDTHH:mm:ss.sssZ)
-            - returnTime (full datetime in ISO format YYYY-MM-DDTHH:mm:ss.sssZ)
-            - purpose (for expenses)
-            - amount (number for expenses)
+            - departureTime (full datetime in ISO format)
+            - returnTime (full datetime in ISO format)
+            - purpose (string, for expenses)
+            - amount (number, for expenses)
 
             Format the response as JSON. For dates and times:
-            - If only a date is mentioned, use 09:00:00 as the default time for departure and 17:00:00 for return
+            - If only a date is mentioned, use 09:00:00 as the default time
             - If only a time is mentioned, use today's date
             - Convert all dates and times to ISO format with timezone
+            - For duration, extract the number of days
 
-            For mileage values:
+            For monetary values:
             - Extract only numeric portions
             - Convert to numbers
+            - Assume EUR currency if not specified
 
             Example response:
             {
-              "departureTime": "2025-01-30T09:00:00.000Z",
-              "returnTime": "2025-01-30T17:00:00.000Z",
-              "startMileage": 1000,
-              "endMileage": 1500
+              "submissionLocation": "Berlin",
+              "firstName": "John",
+              "lastName": "Smith",
+              "destination": "Paris",
+              "tripPurpose": "Client meeting",
+              "transportType": "train",
+              "startDate": "2024-02-01T09:00:00.000Z",
+              "duration": 3,
+              "projectCode": "PRJ2024",
+              "requestedPrepayment": 500
             }`
           },
           {
@@ -706,15 +725,27 @@ export function registerRoutes(app: Express): Server {
 
       const result = JSON.parse(response.choices[0].message.content || "{}");
 
-      // Convert mileage strings to numbers if present
+      // Convert numeric fields
+      if (result.requestedPrepayment) {
+        result.requestedPrepayment = parseFloat(String(result.requestedPrepayment).replace(/[^0-9.]/g, ''));
+      }
+      if (result.duration) {
+        result.duration = parseInt(String(result.duration).replace(/[^0-9]/g, ''));
+      }
       if (result.startMileage) {
         result.startMileage = parseFloat(String(result.startMileage).replace(/[^0-9.]/g, ''));
       }
       if (result.endMileage) {
         result.endMileage = parseFloat(String(result.endMileage).replace(/[^0-9.]/g, ''));
       }
+      if (result.amount) {
+        result.amount = parseFloat(String(result.amount).replace(/[^0-9.]/g, ''));
+      }
 
       // Ensure dates are in proper ISO format
+      if (result.startDate) {
+        result.startDate = new Date(result.startDate).toISOString();
+      }
       if (result.departureTime) {
         result.departureTime = new Date(result.departureTime).toISOString();
       }

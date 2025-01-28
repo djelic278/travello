@@ -86,49 +86,104 @@ export default function PreTravelForm() {
   });
 
   const handleVoiceData = (data: Record<string, any>) => {
-    // Update form fields based on voice data
-    if (data.firstName) {
-      form.setValue('firstName', data.firstName);
-    }
-    if (data.lastName) {
-      form.setValue('lastName', data.lastName);
-    }
-    if (data.destination) {
-      form.setValue('destination', data.destination);
-    }
-    if (data.tripPurpose) {
-      form.setValue('tripPurpose', data.tripPurpose);
-    }
-    if (data.transportType) {
-      form.setValue('transportType', data.transportType);
-    }
-    if (data.transportDetails) {
-      form.setValue('transportDetails', data.transportDetails);
-    }
-    if (data.projectCode) {
-      form.setValue('projectCode', data.projectCode);
-    }
-    if (data.duration !== undefined) {
-      form.setValue('duration', parseInt(data.duration));
-    }
-    if (data.requestedPrepayment !== undefined) {
-      form.setValue('requestedPrepayment', parseFloat(data.requestedPrepayment));
-    }
-    if (data.startDate) {
-      const date = new Date(data.startDate);
-      if (!isNaN(date.getTime())) {
-        form.setValue('startDate', date);
+    try {
+      // Update form fields based on voice data
+      if (data.firstName) {
+        form.setValue('firstName', data.firstName);
+        toast({
+          title: "First Name Updated",
+          description: `Set to ${data.firstName}`,
+        });
       }
-    }
-    if (data.submissionLocation) {
-      form.setValue('submissionLocation', data.submissionLocation);
-      setInputValue(data.submissionLocation);
-    }
+      if (data.lastName) {
+        form.setValue('lastName', data.lastName);
+        toast({
+          title: "Last Name Updated",
+          description: `Set to ${data.lastName}`,
+        });
+      }
+      if (data.destination) {
+        form.setValue('destination', data.destination);
+        toast({
+          title: "Destination Updated",
+          description: `Set to ${data.destination}`,
+        });
+      }
+      if (data.tripPurpose) {
+        form.setValue('tripPurpose', data.tripPurpose);
+        toast({
+          title: "Trip Purpose Updated",
+          description: `Set to ${data.tripPurpose}`,
+        });
+      }
+      if (data.transportType) {
+        form.setValue('transportType', data.transportType);
+        toast({
+          title: "Transport Type Updated",
+          description: `Set to ${data.transportType}`,
+        });
+      }
+      if (data.transportDetails) {
+        form.setValue('transportDetails', data.transportDetails);
+        toast({
+          title: "Transport Details Updated",
+          description: `Set to ${data.transportDetails}`,
+        });
+      }
+      if (data.projectCode) {
+        form.setValue('projectCode', data.projectCode);
+        toast({
+          title: "Project Code Updated",
+          description: `Set to ${data.projectCode}`,
+        });
+      }
+      if (data.duration !== undefined) {
+        const durationValue = parseInt(String(data.duration));
+        if (!isNaN(durationValue)) {
+          form.setValue('duration', durationValue);
+          toast({
+            title: "Duration Updated",
+            description: `Set to ${durationValue} days`,
+          });
+        }
+      }
+      if (data.requestedPrepayment !== undefined) {
+        const prepaymentValue = parseFloat(String(data.requestedPrepayment));
+        if (!isNaN(prepaymentValue)) {
+          form.setValue('requestedPrepayment', prepaymentValue);
+          toast({
+            title: "Requested Prepayment Updated",
+            description: `Set to €${prepaymentValue.toFixed(2)}`,
+          });
+        }
+      }
+      if (data.startDate) {
+        const date = new Date(data.startDate);
+        if (!isNaN(date.getTime())) {
+          form.setValue('startDate', date);
+          toast({
+            title: "Start Date Updated",
+            description: `Set to ${date.toLocaleDateString()}`,
+          });
+        }
+      }
+      if (data.submissionLocation) {
+        form.setValue('submissionLocation', data.submissionLocation);
+        setInputValue(data.submissionLocation);
+        toast({
+          title: "Submission Location Updated",
+          description: `Set to ${data.submissionLocation}`,
+        });
+      }
 
-    toast({
-      title: "Voice Input Processed",
-      description: "Form fields have been updated based on your voice input.",
-    });
+    } catch (error) {
+      console.error('Error processing voice input:', error);
+      toast({
+        title: "Voice Input Error",
+        description: "There was an error processing your voice input. Please try again.",
+        variant: "destructive",
+      });
+    }
   };
 
   const mutation = useMutation({
@@ -180,7 +235,7 @@ export default function PreTravelForm() {
               className="mb-4"
             />
             <p className="text-sm text-muted-foreground">
-              Try saying: "My destination is Berlin, Germany for a business meeting on March 15th 2025, duration is 5 days, traveling by train"
+              Try saying: "I'm John Smith traveling to Berlin, Germany for a business meeting. Project code XYZ-123. I need transportation by train, departing on March 15th 2025 for 5 days. Request prepayment of 500 euros."
             </p>
           </div>
           <Form {...form}>
