@@ -5,7 +5,7 @@ import { useToast } from '@/hooks/use-toast';
 
 // Initialize OpenAI client with error handling
 const openai = new OpenAI({
-  apiKey: import.meta.env.VITE_OPENAI_API_KEY,
+  apiKey: process.env.OPENAI_API_KEY || import.meta.env.VITE_OPENAI_API_KEY,
   dangerouslyAllowBrowser: true // Required for client-side usage
 });
 
