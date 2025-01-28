@@ -43,6 +43,8 @@ import {
 import { Loader2, Plus, X } from "lucide-react";
 import { FileText } from 'lucide-react';
 import { VoiceInput } from "@/components/voice-input";
+import { Camera } from "lucide-react";
+
 
 export default function PostTravelForm() {
   const [showSignatureDialog, setShowSignatureDialog] = useState(false);
@@ -424,15 +426,70 @@ export default function PostTravelForm() {
               <div className="space-y-4">
                 <div className="flex justify-between items-center">
                   <FormLabel>Expenses</FormLabel>
-                  <Button
-                    type="button"
-                    variant="outline"
-                    size="sm"
-                    onClick={() => append({ name: "", amount: 0 })}
-                  >
-                    <Plus className="h-4 w-4 mr-2" />
-                    Add Expense
-                  </Button>
+                  <div className="flex gap-2">
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      onClick={() => {
+                        // Create a file input element
+                        const input = document.createElement('input');
+                        input.type = 'file';
+                        input.accept = 'image/*';
+                        input.multiple = false;
+
+                        input.onchange = async (e) => {
+                          const file = (e.target as HTMLInputElement).files?.[0];
+                          if (!file) return;
+
+                          const formData = new FormData();
+                          formData.append('receipt', file);
+
+                          try {
+                            const response = await fetch('/api/ocr/receipt', {
+                              method: 'POST',
+                              body: formData,
+                              credentials: 'include',
+                            });
+
+                            if (!response.ok) throw new Error('Failed to process receipt');
+
+                            const result = await response.json();
+
+                            append({
+                              name: result.name || 'Receipt expense',
+                              amount: result.amount || 0,
+                            });
+
+                            toast({
+                              title: "Receipt Processed",
+                              description: "The expense has been added from the receipt.",
+                            });
+                          } catch (error) {
+                            toast({
+                              title: "Error",
+                              description: error.message,
+                              variant: "destructive",
+                            });
+                          }
+                        };
+
+                        input.click();
+                      }}
+                    >
+                      <Camera className="h-4 w-4 mr-2" />
+                      Scan Receipt
+                    </Button>
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      onClick={() => append({ name: "", amount: 0 })}
+                    >
+                      <Plus className="h-4 w-4 mr-2" />
+                      Add Expense
+                    </Button>
+                  </div>
                 </div>
 
                 <Table>

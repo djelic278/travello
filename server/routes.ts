@@ -10,6 +10,8 @@ import { randomBytes } from "crypto";
 import { sendInvitationEmail } from './email';
 import * as xlsx from 'xlsx';
 import { User } from './types';
+import multer from "multer";
+import { processReceipt } from "./services/ocr";
 
 declare global {
   namespace Express {
@@ -68,6 +70,12 @@ async function createNotification(
 
   return notification;
 }
+
+const upload = multer({
+  limits: {
+    fileSize: 5 * 1024 * 1024, // 5MB limit
+  }
+});
 
 export function registerRoutes(app: Express): Server {
   // Get all users (super admin only)
@@ -638,14 +646,29 @@ export function registerRoutes(app: Express): Server {
     res.json(updatedUser);
   }));
 
+  // Add new OCR endpoint
+  app.post("/api/ocr/receipt", isAuthenticated, upload.single('receipt'), asyncHandler(async (req: Request, res: Response) => {
+    if (!req.file) {
+      return res.status(400).json({ message: "No file uploaded" });
+    }
+
+    try {
+      const result = await processReceipt(req.file.buffer);
+      res.json(result);
+    } catch (error) {
+      console.error('Error in OCR processing:', error);
+      res.status(500).json({ message: error.message || 'Failed to process receipt' });
+    }
+  }));
+
   // Initialize settings
   initializeSettings().catch(console.error);
 
-  const server = createServer(app);
-  const { sendNotification } = setupWebSocket(server, app);
+  const httpServer = createServer(app);
+  const { sendNotification } = setupWebSocket(httpServer, app);
   app.set('sendNotification', sendNotification);
 
-  return server;
+  return httpServer;
 }
 
 // Wrap async route handlers
