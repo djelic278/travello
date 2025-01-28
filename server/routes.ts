@@ -12,15 +12,10 @@ import * as xlsx from 'xlsx';
 import { User } from './types';
 import multer from "multer";
 import { processReceipt } from "./services/ocr";
+import OpenAI from "openai";
 
-declare global {
-  namespace Express {
-    interface Request {
-      user?: User;
-      isAuthenticated(): boolean;
-    }
-  }
-}
+// Initialize OpenAI
+const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
 
 // Middleware to check if user is authenticated
 const isAuthenticated = (req: Request, res: Response, next: NextFunction) => {
@@ -618,7 +613,6 @@ export function registerRoutes(app: Express): Server {
     });
   }));
 
-
   // Update user organization (super admin only)
   app.put("/api/users/:id", isAuthenticated, asyncHandler(async (req: Request, res: Response) => {
     // Check if user is super admin
@@ -661,20 +655,18 @@ export function registerRoutes(app: Express): Server {
     }
   }));
 
-  // Initialize settings
-  initializeSettings().catch(console.error);
-
-  const httpServer = createServer(app);
-  const { sendNotification } = setupWebSocket(httpServer, app);
-  app.set('sendNotification', sendNotification);
-
   // Add voice processing route
   app.post('/api/voice-process', async (req, res) => {
     try {
       const { transcript } = req.body;
 
+      if (!transcript) {
+        return res.status(400).json({ error: 'No transcript provided' });
+      }
+
+      // the newest OpenAI model is "gpt-4o" which was released May 13, 2024. do not change this unless explicitly requested by the user
       const response = await openai.chat.completions.create({
-        model: "gpt-3.5-turbo",
+        model: "gpt-4o",
         messages: [
           {
             role: "system",
@@ -700,7 +692,8 @@ export function registerRoutes(app: Express): Server {
             - amount (number for expenses)
 
             Format the response as JSON with string values for all fields. Convert dates to YYYY-MM-DD format.
-            Only include fields that are explicitly mentioned in the input.`
+            Only include fields that are explicitly mentioned in the input.
+            For mileage values, extract only the numeric portion and convert to number type.`
           },
           {
             role: "user",
@@ -711,12 +704,28 @@ export function registerRoutes(app: Express): Server {
       });
 
       const result = JSON.parse(response.choices[0].message.content || "{}");
+
+      // Convert mileage strings to numbers if present
+      if (result.startMileage) {
+        result.startMileage = parseFloat(String(result.startMileage).replace(/[^0-9.]/g, ''));
+      }
+      if (result.endMileage) {
+        result.endMileage = parseFloat(String(result.endMileage).replace(/[^0-9.]/g, ''));
+      }
+
       res.json(result);
-    } catch (error) {
+    } catch (error: any) {
       console.error('Error processing voice input:', error);
-      res.status(500).json({ error: 'Failed to process voice input' });
+      res.status(500).json({ error: error.message || 'Failed to process voice input' });
     }
   });
+
+  // Initialize settings
+  initializeSettings().catch(console.error);
+
+  const httpServer = createServer(app);
+  const { sendNotification } = setupWebSocket(httpServer, app);
+  app.set('sendNotification', sendNotification);
 
   return httpServer;
 }
