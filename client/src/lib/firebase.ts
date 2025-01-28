@@ -18,7 +18,7 @@ for (const envVar of requiredEnvVars) {
 
 const firebaseConfig = {
   apiKey: import.meta.env.VITE_FIREBASE_API_KEY,
-  authDomain: import.meta.env.VITE_FIREBASE_AUTH_DOMAIN,
+  authDomain: `${import.meta.env.VITE_FIREBASE_PROJECT_ID}.firebaseapp.com`,
   projectId: import.meta.env.VITE_FIREBASE_PROJECT_ID,
   storageBucket: `${import.meta.env.VITE_FIREBASE_PROJECT_ID}.appspot.com`,
   appId: import.meta.env.VITE_FIREBASE_APP_ID,
@@ -40,9 +40,7 @@ export const googleProvider = new GoogleAuthProvider();
 
 // Configure Google provider with additional parameters for better UX
 googleProvider.setCustomParameters({
-  prompt: 'select_account',
-  // Using hosted domain if we want to restrict to specific domains
-  // hosted_domain: 'yourdomain.com',
+  prompt: 'select_account'
 });
 
 // Add error event listener to auth
@@ -52,4 +50,15 @@ auth.onAuthStateChanged((user) => {
   } else {
     console.log('No user is signed in.');
   }
+});
+
+// Add error handling for auth state changes
+auth.onAuthStateChanged((user) => {
+  if (user) {
+    console.log('User is signed in:', user.email);
+  } else {
+    console.log('No user is signed in.');
+  }
+}, (error) => {
+  console.error('Auth state change error:', error);
 });
