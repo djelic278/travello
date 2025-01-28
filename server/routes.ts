@@ -26,8 +26,8 @@ declare global {
   }
 }
 
-// Initialize OpenAI
-const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
+// Initialize OpenAI with the new API key name
+const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY1 });
 
 // Middleware to check if user is authenticated
 const isAuthenticated = (req: Request, res: Response, next: NextFunction) => {
@@ -696,15 +696,15 @@ export function registerRoutes(app: Express): Server {
       // Process numeric fields
       const processedResult = {
         ...parsedResult,
-        requestedPrepayment: parsedResult.requestedPrepayment ? 
+        requestedPrepayment: parsedResult.requestedPrepayment ?
           parseFloat(String(parsedResult.requestedPrepayment).replace(/[^0-9.]/g, '')) : undefined,
-        duration: parsedResult.duration ? 
+        duration: parsedResult.duration ?
           parseInt(String(parsedResult.duration).replace(/[^0-9]/g, '')) : undefined,
-        startMileage: parsedResult.startMileage ? 
+        startMileage: parsedResult.startMileage ?
           parseFloat(String(parsedResult.startMileage).replace(/[^0-9.]/g, '')) : undefined,
-        endMileage: parsedResult.endMileage ? 
+        endMileage: parsedResult.endMileage ?
           parseFloat(String(parsedResult.endMileage).replace(/[^0-9.]/g, '')) : undefined,
-        amount: parsedResult.amount ? 
+        amount: parsedResult.amount ?
           parseFloat(String(parsedResult.amount).replace(/[^0-9.]/g, '')) : undefined,
       };
 
@@ -722,8 +722,8 @@ export function registerRoutes(app: Express): Server {
       res.json(processedResult);
     } catch (error) {
       console.error('Error processing voice input:', error);
-      res.status(500).json({ 
-        error: error instanceof Error ? error.message : 'Failed to process voice input' 
+      res.status(500).json({
+        error: error instanceof Error ? error.message : 'Failed to process voice input'
       });
     }
   });

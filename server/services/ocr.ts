@@ -2,7 +2,7 @@ import { TravelExpense } from "@db/schema";
 import OpenAI from "openai";
 import sharp from "sharp";
 
-const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
+const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY1 });
 
 export async function processReceipt(imageBuffer: Buffer): Promise<Partial<TravelExpense>> {
   try {
