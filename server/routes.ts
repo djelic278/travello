@@ -1,18 +1,30 @@
-import type { Express } from "express";
-import type { Request, Response, NextFunction } from "express";
+import type { Express, Request, Response, NextFunction } from "express";
 import { createServer, type Server } from "http";
 import { db } from "@db";
-import { users, updateUserProfileSchema } from "@db/schema";
+import { users, travelForms, expenses, settings, notifications, companies, invitations } from "@db/schema";
 import { eq, and } from "drizzle-orm";
 import { setupWebSocket } from "./websocket";
-import { travelForms, expenses, settings, notifications, companies, invitations, sendInvitationSchema } from "@db/schema";
-import { randomBytes } from "crypto";
-import { sendInvitationEmail } from './email';
-import * as xlsx from 'xlsx';
-import { User } from './types';
 import multer from "multer";
 import { processReceipt } from "./services/ocr";
 import OpenAI from "openai";
+import { z } from "zod";
+
+// Define the User interface to match our database schema
+interface User {
+  id: number;
+  username: string;
+  role?: 'user' | 'company_admin' | 'super_admin';
+  companyId?: number;
+}
+
+// Extend Express Request type to include our User type
+declare global {
+  namespace Express {
+    interface Request {
+      user?: User;
+    }
+  }
+}
 
 // Initialize OpenAI
 const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
@@ -25,51 +37,15 @@ const isAuthenticated = (req: Request, res: Response, next: NextFunction) => {
   next();
 };
 
-// Initialize settings if they don't exist
-async function initializeSettings() {
-  const [existingSetting] = await db
-    .select()
-    .from(settings)
-    .where(eq(settings.key, 'dailyAllowance'))
-    .limit(1);
-
-  if (!existingSetting) {
-    await db.insert(settings).values([
-      {
-        key: 'dailyAllowance',
-        value: '35', // Default daily allowance in EUR
-      },
-      {
-        key: 'kilometerRate',
-        value: '0.3', // Default kilometer rate in EUR
-      }
-    ]);
-  }
-}
-
-// Create notification
-async function createNotification(
-  userId: number,
-  title: string,
-  message: string,
-  type: 'form_submitted' | 'form_completed' | 'other',
-  metadata?: any
-) {
-  const [notification] = await db.insert(notifications).values({
-    userId,
-    title,
-    message,
-    type,
-    metadata: metadata ? JSON.stringify(metadata) : null,
-  }).returning();
-
-  return notification;
-}
-
 const upload = multer({
   limits: {
     fileSize: 5 * 1024 * 1024, // 5MB limit
   }
+});
+
+// Voice processing route schema
+const voiceInputSchema = z.object({
+  transcript: z.string(),
 });
 
 export function registerRoutes(app: Express): Server {
@@ -368,10 +344,10 @@ export function registerRoutes(app: Express): Server {
 
   // Get all companies
   app.get("/api/companies", isAuthenticated, asyncHandler(async (req: Request, res: Response) => {
-    const companies = await db.query.companies.findMany({
+    const companiesList = await db.query.companies.findMany({
       orderBy: (companies, { asc }) => [asc(companies.name)]
     });
-    res.json(companies);
+    res.json(companiesList);
   }));
 
   // Add new company
@@ -655,14 +631,15 @@ export function registerRoutes(app: Express): Server {
     }
   }));
 
-  // Update the voice processing route with better date handling
-  app.post('/api/voice-process', async (req, res) => {
+  // Voice processing route with improved error handling
+  app.post('/api/voice-process', async (req: Request, res: Response) => {
     try {
-      const { transcript } = req.body;
-
-      if (!transcript) {
-        return res.status(400).json({ error: 'No transcript provided' });
+      const result = voiceInputSchema.safeParse(req.body);
+      if (!result.success) {
+        return res.status(400).json({ error: 'Invalid input: transcript is required' });
       }
+
+      const { transcript } = result.data;
 
       // the newest OpenAI model is "gpt-4o" which was released May 13, 2024. do not change this unless explicitly requested by the user
       const response = await openai.chat.completions.create({
@@ -699,21 +676,7 @@ export function registerRoutes(app: Express): Server {
             For monetary values:
             - Extract only numeric portions
             - Convert to numbers
-            - Assume EUR currency if not specified
-
-            Example response:
-            {
-              "submissionLocation": "Berlin",
-              "firstName": "John",
-              "lastName": "Smith",
-              "destination": "Paris",
-              "tripPurpose": "Client meeting",
-              "transportType": "train",
-              "startDate": "2024-02-01T09:00:00.000Z",
-              "duration": 3,
-              "projectCode": "PRJ2024",
-              "requestedPrepayment": 500
-            }`
+            - Assume EUR currency if not specified`
           },
           {
             role: "user",
@@ -723,40 +686,45 @@ export function registerRoutes(app: Express): Server {
         response_format: { type: "json_object" }
       });
 
-      const result = JSON.parse(response.choices[0].message.content || "{}");
-
-      // Convert numeric fields
-      if (result.requestedPrepayment) {
-        result.requestedPrepayment = parseFloat(String(result.requestedPrepayment).replace(/[^0-9.]/g, ''));
-      }
-      if (result.duration) {
-        result.duration = parseInt(String(result.duration).replace(/[^0-9]/g, ''));
-      }
-      if (result.startMileage) {
-        result.startMileage = parseFloat(String(result.startMileage).replace(/[^0-9.]/g, ''));
-      }
-      if (result.endMileage) {
-        result.endMileage = parseFloat(String(result.endMileage).replace(/[^0-9.]/g, ''));
-      }
-      if (result.amount) {
-        result.amount = parseFloat(String(result.amount).replace(/[^0-9.]/g, ''));
+      const content = response.choices[0].message.content;
+      if (!content) {
+        throw new Error('No content in OpenAI response');
       }
 
-      // Ensure dates are in proper ISO format
-      if (result.startDate) {
-        result.startDate = new Date(result.startDate).toISOString();
+      const parsedResult = JSON.parse(content);
+
+      // Process numeric fields
+      const processedResult = {
+        ...parsedResult,
+        requestedPrepayment: parsedResult.requestedPrepayment ? 
+          parseFloat(String(parsedResult.requestedPrepayment).replace(/[^0-9.]/g, '')) : undefined,
+        duration: parsedResult.duration ? 
+          parseInt(String(parsedResult.duration).replace(/[^0-9]/g, '')) : undefined,
+        startMileage: parsedResult.startMileage ? 
+          parseFloat(String(parsedResult.startMileage).replace(/[^0-9.]/g, '')) : undefined,
+        endMileage: parsedResult.endMileage ? 
+          parseFloat(String(parsedResult.endMileage).replace(/[^0-9.]/g, '')) : undefined,
+        amount: parsedResult.amount ? 
+          parseFloat(String(parsedResult.amount).replace(/[^0-9.]/g, '')) : undefined,
+      };
+
+      // Process dates
+      if (parsedResult.startDate) {
+        processedResult.startDate = new Date(parsedResult.startDate).toISOString();
       }
-      if (result.departureTime) {
-        result.departureTime = new Date(result.departureTime).toISOString();
+      if (parsedResult.departureTime) {
+        processedResult.departureTime = new Date(parsedResult.departureTime).toISOString();
       }
-      if (result.returnTime) {
-        result.returnTime = new Date(result.returnTime).toISOString();
+      if (parsedResult.returnTime) {
+        processedResult.returnTime = new Date(parsedResult.returnTime).toISOString();
       }
 
-      res.json(result);
-    } catch (error: any) {
+      res.json(processedResult);
+    } catch (error) {
       console.error('Error processing voice input:', error);
-      res.status(500).json({ error: error.message || 'Failed to process voice input' });
+      res.status(500).json({ 
+        error: error instanceof Error ? error.message : 'Failed to process voice input' 
+      });
     }
   });
 
@@ -775,3 +743,49 @@ const asyncHandler = (fn: (req: Request, res: Response, next: NextFunction) => P
   (req: Request, res: Response, next: NextFunction) => {
     return Promise.resolve(fn(req, res, next)).catch(next);
   };
+
+async function initializeSettings() {
+  const [existingSetting] = await db
+    .select()
+    .from(settings)
+    .where(eq(settings.key, 'dailyAllowance'))
+    .limit(1);
+
+  if (!existingSetting) {
+    await db.insert(settings).values([
+      {
+        key: 'dailyAllowance',
+        value: '35', // Default daily allowance in EUR
+      },
+      {
+        key: 'kilometerRate',
+        value: '0.3', // Default kilometer rate in EUR
+      }
+    ]);
+  }
+}
+
+// Create notification
+async function createNotification(
+  userId: number,
+  title: string,
+  message: string,
+  type: 'form_submitted' | 'form_completed' | 'other',
+  metadata?: any
+) {
+  const [notification] = await db.insert(notifications).values({
+    userId,
+    title,
+    message,
+    type,
+    metadata: metadata ? JSON.stringify(metadata) : null,
+  }).returning();
+
+  return notification;
+}
+
+
+import * as xlsx from 'xlsx';
+import { randomBytes } from "crypto";
+import { sendInvitationEmail } from './email';
+import { updateUserProfileSchema, sendInvitationSchema } from "@db/schema";
