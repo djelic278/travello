@@ -3,10 +3,10 @@ import SpeechRecognition, { useSpeechRecognition } from 'react-speech-recognitio
 import OpenAI from 'openai';
 import { useToast } from '@/hooks/use-toast';
 
-// Initialize OpenAI client
+// Initialize OpenAI client with error handling
 const openai = new OpenAI({
   apiKey: import.meta.env.VITE_OPENAI_API_KEY,
-  dangerouslyAllowBrowser: true
+  dangerouslyAllowBrowser: true // Required for client-side usage
 });
 
 export interface FormFields {
@@ -57,12 +57,31 @@ export function useVoiceInput() {
       return;
     }
 
+    if (!import.meta.env.VITE_OPENAI_API_KEY) {
+      toast({
+        title: "Error",
+        description: "OpenAI API key is not configured. Please check your environment settings.",
+        variant: "destructive"
+      });
+      return;
+    }
+
     resetTranscript();
     await SpeechRecognition.startListening({ continuous: true });
   }, [browserSupportsSpeechRecognition, resetTranscript, toast]);
 
   const stopListening = useCallback(async () => {
     SpeechRecognition.stopListening();
+
+    if (!transcript) {
+      toast({
+        title: "Error",
+        description: "No voice input detected. Please try again.",
+        variant: "destructive"
+      });
+      return;
+    }
+
     setIsProcessing(true);
 
     try {
