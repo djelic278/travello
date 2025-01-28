@@ -4,7 +4,6 @@ import { getAuth, GoogleAuthProvider } from "firebase/auth";
 // Validate required Firebase configuration
 const requiredEnvVars = [
   'VITE_FIREBASE_API_KEY',
-  'VITE_FIREBASE_AUTH_DOMAIN',
   'VITE_FIREBASE_PROJECT_ID',
   'VITE_FIREBASE_APP_ID'
 ];
@@ -38,27 +37,25 @@ console.log('Firebase initialized successfully');
 export const auth = getAuth(app);
 export const googleProvider = new GoogleAuthProvider();
 
-// Configure Google provider with additional parameters for better UX
+// Configure Google provider for better UX
 googleProvider.setCustomParameters({
   prompt: 'select_account'
 });
 
-// Add error event listener to auth
-auth.onAuthStateChanged((user) => {
-  if (user) {
-    console.log('User is signed in:', user.email);
-  } else {
-    console.log('No user is signed in.');
+// Add auth state change listener with error handling
+auth.onAuthStateChanged(
+  (user) => {
+    if (user) {
+      console.log('User signed in successfully:', {
+        email: user.email,
+        uid: user.uid,
+        displayName: user.displayName
+      });
+    } else {
+      console.log('User is signed out');
+    }
+  },
+  (error) => {
+    console.error('Auth state change error:', error);
   }
-});
-
-// Add error handling for auth state changes
-auth.onAuthStateChanged((user) => {
-  if (user) {
-    console.log('User is signed in:', user.email);
-  } else {
-    console.log('No user is signed in.');
-  }
-}, (error) => {
-  console.error('Auth state change error:', error);
-});
+);
