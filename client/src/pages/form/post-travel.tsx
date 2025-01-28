@@ -42,6 +42,7 @@ import {
 } from "@/components/ui/table";
 import { Loader2, Plus, X } from "lucide-react";
 import { FileText } from 'lucide-react';
+import { VoiceInput } from "@/components/voice-input";
 
 export default function PostTravelForm() {
   const [showSignatureDialog, setShowSignatureDialog] = useState(false);
@@ -70,6 +71,37 @@ export default function PostTravelForm() {
       files: [],
     },
   });
+
+  // Handle voice input data
+  const handleVoiceData = (data: Record<string, any>) => {
+    const fields = formHook.getValues();
+
+    // Update form fields based on voice data
+    if (data.startMileage !== undefined) {
+      formHook.setValue('startMileage', parseFloat(data.startMileage));
+    }
+    if (data.endMileage !== undefined) {
+      formHook.setValue('endMileage', parseFloat(data.endMileage));
+    }
+    if (data.date) {
+      const date = new Date(data.date);
+      if (!isNaN(date.getTime())) {
+        // If we have both departure and return times, update them
+        formHook.setValue('departureTime', date);
+        formHook.setValue('returnTime', new Date(date.getTime() + 24 * 60 * 60 * 1000)); // Next day by default
+      }
+    }
+
+    // Add expense if provided
+    if (data.purpose) {
+      append({ name: data.purpose, amount: 0 });
+    }
+
+    toast({
+      title: "Voice Input Processed",
+      description: "Form fields have been updated based on your voice input.",
+    });
+  };
 
   const { fields, append, remove } = useFieldArray({
     control: formHook.control,
@@ -178,6 +210,17 @@ export default function PostTravelForm() {
           </CardDescription>
         </CardHeader>
         <CardContent>
+          {/* Add VoiceInput component at the top */}
+          <div className="mb-6">
+            <VoiceInput
+              onDataReceived={handleVoiceData}
+              className="mb-4"
+            />
+            <p className="text-sm text-muted-foreground">
+              Try saying: "Start mileage is 1000 kilometers, end mileage is 1500 kilometers, traveled on January 30th 2025"
+            </p>
+          </div>
+
           {/* Pre-travel form details */}
           <div className="mb-6 p-4 bg-muted rounded-lg">
             <div className="grid grid-cols-3 gap-4">
@@ -342,7 +385,7 @@ export default function PostTravelForm() {
                       </label>
 
                       {/* Display selected files */}
-                      {value?.length > 0 && (
+                      {Array.isArray(value) && value.length > 0 && (
                         <div className="space-y-2">
                           {value.map((file: File, index: number) => (
                             <div
@@ -358,7 +401,7 @@ export default function PostTravelForm() {
                                 variant="ghost"
                                 size="sm"
                                 onClick={() => {
-                                  const newFiles = [...value];
+                                  const newFiles = Array.isArray(value) ? [...value] : [];
                                   newFiles.splice(index, 1);
                                   onChange(newFiles);
                                 }}

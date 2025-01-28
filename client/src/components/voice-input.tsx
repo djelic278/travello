@@ -1,3 +1,4 @@
+import React from "react";
 import { Mic, MicOff, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
@@ -5,7 +6,7 @@ import { useVoiceInput } from "@/hooks/use-voice-input";
 import { cn } from "@/lib/utils";
 
 interface VoiceInputProps {
-  onDataReceived: (data: Record<string, string>) => void;
+  onDataReceived: (data: Record<string, any>) => void;
   className?: string;
 }
 

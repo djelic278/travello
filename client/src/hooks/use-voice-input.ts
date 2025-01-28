@@ -10,11 +10,28 @@ const openai = new OpenAI({
 });
 
 export interface FormFields {
-  location?: string;
+  // Pre-travel form fields
+  submissionLocation?: string;
+  submissionDate?: string;
+  firstName?: string;
+  lastName?: string;
+  destination?: string;
+  tripPurpose?: string;
+  transportType?: string;
+  transportDetails?: string;
+  startDate?: string;
+  duration?: string;
+  projectCode?: string;
+  requestedPrepayment?: string;
+
+  // Post-travel form fields
   startMileage?: string;
   endMileage?: string;
+  departureTime?: string;
+  returnTime?: string;
   purpose?: string;
   date?: string;
+  amount?: string;
   [key: string]: string | undefined;
 }
 
@@ -22,7 +39,7 @@ export function useVoiceInput() {
   const [isProcessing, setIsProcessing] = useState(false);
   const [formData, setFormData] = useState<FormFields>({});
   const { toast } = useToast();
-  
+
   const {
     transcript,
     listening,
@@ -39,7 +56,7 @@ export function useVoiceInput() {
       });
       return;
     }
-    
+
     resetTranscript();
     await SpeechRecognition.startListening({ continuous: true });
   }, [browserSupportsSpeechRecognition, resetTranscript, toast]);
@@ -54,28 +71,41 @@ export function useVoiceInput() {
         messages: [
           {
             role: "system",
-            content: `You are a helpful assistant that extracts travel form information from voice input. 
-            Extract the following fields if mentioned: location, start mileage, end mileage, travel purpose, and date.
-            Format the response as JSON with the following structure:
-            {
-              "location": "extracted location",
-              "startMileage": "number as string",
-              "endMileage": "number as string",
-              "purpose": "extracted purpose",
-              "date": "extracted date in YYYY-MM-DD format"
-            }
+            content: `You are a helpful assistant that extracts travel form information from voice input.
+            Extract any relevant fields from this list if mentioned:
+            - submissionLocation
+            - submissionDate
+            - firstName
+            - lastName
+            - destination
+            - tripPurpose
+            - transportType
+            - transportDetails
+            - startDate
+            - duration
+            - projectCode
+            - requestedPrepayment
+            - startMileage (number)
+            - endMileage (number)
+            - departureTime (date)
+            - returnTime (date)
+            - purpose (for expenses)
+            - amount (number for expenses)
+
+            Format the response as JSON with string values for all fields. Convert dates to YYYY-MM-DD format.
             Only include fields that are explicitly mentioned in the input.`
           },
           {
             role: "user",
             content: transcript
           }
-        ]
+        ],
+        response_format: { type: "json_object" }
       });
 
       const result = JSON.parse(response.choices[0].message.content || "{}");
       setFormData(result);
-      
+
       toast({
         title: "Success",
         description: "Voice input processed successfully!",
