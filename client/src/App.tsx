@@ -9,6 +9,7 @@ import ProfilePage from "./pages/profile";
 import AdminPage from "./pages/admin";
 import NotFound from "@/pages/not-found";
 import AuthPage from "@/pages/auth-page";
+import ExampleForm from "@/pages/example-form"; // Add example form import
 import { useUser } from "@/hooks/use-user";
 import { Loader2, User, Home, Plus, Settings } from "lucide-react";
 import { NotificationsButton } from "@/components/notifications";
@@ -45,6 +46,13 @@ function Layout({ children }: { children: React.ReactNode }) {
                 <Link href="/new-request" className="flex items-center">
                   <Plus className="mr-2 h-4 w-4" />
                   New Request
+                </Link>
+              </Button>
+              {/* Add example form link */}
+              <Button variant={location === "/example" ? "default" : "ghost"} size="sm" asChild>
+                <Link href="/example" className="flex items-center">
+                  <Plus className="mr-2 h-4 w-4" />
+                  Example Form
                 </Link>
               </Button>
               {user?.role === 'super_admin' && (
@@ -101,6 +109,7 @@ function Router() {
         <Route path="/new-request" component={PreTravelForm} />
         <Route path="/forms/:id/post-travel" component={PostTravelForm} />
         <Route path="/profile" component={ProfilePage} />
+        <Route path="/example" component={ExampleForm} /> {/* Add example form route */}
         {user.role === 'super_admin' && (
           <Route path="/admin" component={AdminPage} />
         )}
