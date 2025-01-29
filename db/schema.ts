@@ -45,9 +45,8 @@ export const users = pgTable("users", {
   position: text("position"),
   dateOfBirth: date("date_of_birth"),
   role: text("role", { enum: [UserRole.USER, UserRole.COMPANY_ADMIN, UserRole.SUPER_ADMIN] })
-    .default(UserRole.USER)
-    .notNull(),
-  isAdmin: boolean("is_admin").default(false).notNull(),
+    .notNull()
+    .default(UserRole.USER),
   companyId: integer("company_id").references(() => companies.id),
   theme: text("theme", { enum: [ThemeMode.LIGHT, ThemeMode.DARK, ThemeMode.SYSTEM] })
     .default(ThemeMode.SYSTEM)
