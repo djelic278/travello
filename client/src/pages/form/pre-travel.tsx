@@ -44,7 +44,6 @@ import {
 import { Check, ChevronsUpDown, HelpCircle, Loader2 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { VoiceInput } from "@/components/voice-input";
-import React from "react";
 
 type UserData = {
   id: number;
@@ -80,48 +79,35 @@ export default function PreTravelForm() {
   const [open, setOpen] = useState(false);
   const [inputValue, setInputValue] = useState("");
 
-  // Initialize form first
-  const form = useForm<PreTravelForm>({
-    resolver: zodResolver(preTraveFormSchema),
-    defaultValues: {
-      submissionLocation: "",
-      submissionDate: new Date(),
-      company: "",
-      firstName: "",
-      lastName: "",
-      isReturnTrip: true,
-      duration: 1,
-      requestedPrepayment: 0,
-    },
-  });
-
   // Fetch user data including company information
   const { data: user, isLoading: userLoading } = useQuery<UserData>({
-    queryKey: ['/api/users/me'],
+    queryKey: ['/api/users/me']
   });
 
   // Fetch company data based on user's companyId
   const { data: company, isLoading: companyLoading } = useQuery<CompanyData>({
     queryKey: ['/api/companies', user?.companyId],
-    enabled: !!user?.companyId,
+    enabled: !!user?.companyId
   });
 
   // Fetch previous submission locations
   const { data: previousLocations } = useQuery<string[]>({
-    queryKey: ["/api/submission-locations"],
+    queryKey: ["/api/submission-locations"]
   });
 
-  // Update form when user and company data are available
-  React.useEffect(() => {
-    if (user && company) {
-      form.reset({
-        ...form.getValues(),
-        firstName: user.firstName,
-        lastName: user.lastName,
-        company: company.name,
-      });
+  const form = useForm<PreTravelForm>({
+    resolver: zodResolver(preTraveFormSchema),
+    defaultValues: {
+      submissionLocation: "",
+      submissionDate: new Date(),
+      company: company?.name || "",
+      firstName: user?.firstName || "",
+      lastName: user?.lastName || "",
+      isReturnTrip: true,
+      duration: 1,
+      requestedPrepayment: 0,
     }
-  }, [user, company]);
+  });
 
   // Show loading state while data is being fetched
   if (userLoading || companyLoading) {
