@@ -62,9 +62,9 @@ export default function UsersAdminPage() {
       });
 
       if (!response.ok) {
-        const error = await response.json();
-        console.error('Role update failed:', error);
-        throw new Error(error.message || 'Failed to update user role');
+        const errorData = await response.json();
+        console.error('Role update failed:', errorData);
+        throw new Error(errorData.message || 'Failed to update user role');
       }
 
       const data = await response.json();
@@ -90,6 +90,7 @@ export default function UsersAdminPage() {
 
   const updateCompanyMutation = useMutation({
     mutationFn: async ({ userId, companyId }: { userId: number; companyId?: number }) => {
+      console.log('Updating company:', { userId, companyId });
       const response = await fetch(`/api/users/${userId}`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
@@ -98,10 +99,14 @@ export default function UsersAdminPage() {
       });
 
       if (!response.ok) {
-        throw new Error(await response.text());
+        const errorData = await response.json();
+        console.error('Company update failed:', errorData);
+        throw new Error(errorData.message || 'Failed to update user company');
       }
 
-      return response.json();
+      const data = await response.json();
+      console.log('Company update successful:', data);
+      return data;
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['/api/admin/users'] });
@@ -111,6 +116,7 @@ export default function UsersAdminPage() {
       });
     },
     onError: (error: Error) => {
+      console.error('Company update mutation error:', error);
       toast({
         title: "Error",
         description: error.message,
@@ -119,24 +125,38 @@ export default function UsersAdminPage() {
     },
   });
 
-  const handleRoleChange = (userId: number, newRole: string) => {
+  const handleRoleChange = async (userId: number, newRole: string) => {
     if (updateRoleMutation.isPending) {
       console.log('Update already in progress, skipping');
       return;
     }
 
     console.log('Handling role change:', { userId, newRole });
-    updateRoleMutation.mutate({ 
-      userId, 
-      role: newRole as 'super_admin' | 'company_admin' | 'user' 
-    });
+    try {
+      await updateRoleMutation.mutateAsync({ 
+        userId, 
+        role: newRole as 'super_admin' | 'company_admin' | 'user' 
+      });
+    } catch (error) {
+      console.error('Role change failed:', error);
+    }
   };
 
-  const handleCompanyChange = (userId: number, newCompanyId: string) => {
-    updateCompanyMutation.mutate({
-      userId,
-      companyId: newCompanyId === "" ? undefined : parseInt(newCompanyId),
-    });
+  const handleCompanyChange = async (userId: number, newCompanyId: string) => {
+    if (updateCompanyMutation.isPending) {
+      console.log('Update already in progress, skipping');
+      return;
+    }
+
+    console.log('Handling company change:', { userId, newCompanyId });
+    try {
+      await updateCompanyMutation.mutateAsync({
+        userId,
+        companyId: newCompanyId === "" ? undefined : parseInt(newCompanyId),
+      });
+    } catch (error) {
+      console.error('Company change failed:', error);
+    }
   };
 
   if (usersLoading || companiesLoading) {

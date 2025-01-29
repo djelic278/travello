@@ -331,16 +331,15 @@ export function registerRoutes(app: Express): Server {
 
   // Update user role (super admin only)
   app.put("/api/admin/users/:id/role", isAuthenticated, asyncHandler(async (req: Request, res: Response) => {
-    console.log('Role update request:', { userId: req.params.id, newRole: req.body.role, requestingUser: req.user?.role });
-
-    // Check if user is super admin
-    if (req.user?.role !== 'super_admin') {
+    if (!req.user || req.user.role !== 'super_admin') {
       console.log('Permission denied: User is not super admin');
       return res.status(403).json({ message: "Only super admins can update user roles" });
     }
 
     const userId = parseInt(req.params.id);
     const { role } = req.body;
+
+    console.log('Role update request:', { userId, newRole: role, requestingUser: req.user });
 
     // Validate role
     if (!['super_admin', 'company_admin', 'user'].includes(role)) {
@@ -355,17 +354,6 @@ export function registerRoutes(app: Express): Server {
     }
 
     try {
-      // First check if user exists
-      const existingUser = await db.query.users.findFirst({
-        where: eq(users.id, userId)
-      });
-
-      if (!existingUser) {
-        console.log('User not found:', userId);
-        return res.status(404).json({ message: "User not found" });
-      }
-
-      // Update user role
       const [updatedUser] = await db
         .update(users)
         .set({
@@ -375,12 +363,56 @@ export function registerRoutes(app: Express): Server {
         .where(eq(users.id, userId))
         .returning();
 
-      console.log('Role updated successfully:', { userId, newRole: role });
+      if (!updatedUser) {
+        console.log('User not found:', userId);
+        return res.status(404).json({ message: "User not found" });
+      }
+
+      console.log('Role updated successfully:', updatedUser);
       res.json(updatedUser);
     } catch (error) {
       console.error('Error updating user role:', error);
       res.status(500).json({ 
         message: "Failed to update user role",
+        error: error instanceof Error ? error.message : 'Unknown error'
+      });
+    }
+  }));
+
+  // Update user's company (super admin only)
+  app.put("/api/users/:id", isAuthenticated, asyncHandler(async (req: Request, res: Response) => {
+    if (!req.user || req.user.role !== 'super_admin') {
+      console.log('Permission denied: User is not super admin');
+      return res.status(403).json({ message: "Only super admins can update user organizations" });
+    }
+
+    const userId = parseInt(req.params.id);
+    const { companyId } = req.body;
+
+    console.log('Company update request:', { userId, companyId, requestingUser: req.user });
+
+    try {
+      // Update user
+      const [updatedUser] = await db
+        .update(users)
+        .set({
+          companyId: companyId || null,
+          updatedAt: new Date()
+        })
+        .where(eq(users.id, userId))
+        .returning();
+
+      if (!updatedUser) {
+        console.log('User not found:', userId);
+        return res.status(404).json({ message: "User not found" });
+      }
+
+      console.log('Company updated successfully:', updatedUser);
+      res.json(updatedUser);
+    } catch (error) {
+      console.error('Error updating user company:', error);
+      res.status(500).json({ 
+        message: "Failed to update user company",
         error: error instanceof Error ? error.message : 'Unknown error'
       });
     }
@@ -656,32 +688,6 @@ export function registerRoutes(app: Express): Server {
     });
   }));
 
-  // Update user organization (super admin only)
-  app.put("/api/users/:id", isAuthenticated, asyncHandler(async (req: Request, res: Response) => {
-    // Check if user is super admin
-    if (req.user?.role !== 'super_admin') {
-      return res.status(403).send("Only super admins can update user organizations");
-    }
-
-    const userId = parseInt(req.params.id);
-    const { companyId } = req.body;
-
-    // Update user
-    const [updatedUser] = await db
-      .update(users)
-      .set({
-        companyId,
-        updatedAt: new Date()
-      })
-      .where(eq(users.id, userId))
-      .returning();
-
-    if (!updatedUser) {
-      return res.status(404).send("User not found");
-    }
-
-    res.json(updatedUser);
-  }));
 
   // Add new OCR endpoint
   app.post("/api/ocr/receipt", isAuthenticated, upload.single('receipt'), asyncHandler(async (req: Request, res: Response) => {
