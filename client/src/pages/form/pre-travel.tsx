@@ -41,7 +41,7 @@ import {
   HoverCardContent,
   HoverCardTrigger,
 } from "@/components/ui/hover-card";
-import { Check, ChevronsUpDown, HelpCircle } from "lucide-react";
+import { Check, ChevronsUpDown, HelpCircle, Loader2 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { VoiceInput } from "@/components/voice-input";
 import React from "react";
@@ -81,12 +81,12 @@ export default function PreTravelForm() {
   const [inputValue, setInputValue] = useState("");
 
   // Fetch user data including company information
-  const { data: user } = useQuery<UserData>({
+  const { data: user, isLoading: userLoading } = useQuery<UserData>({
     queryKey: ['/api/users/me'],
   });
 
   // Fetch company data based on user's companyId
-  const { data: company } = useQuery<CompanyData>({
+  const { data: company, isLoading: companyLoading } = useQuery<CompanyData>({
     queryKey: ['/api/companies', user?.companyId],
     enabled: !!user?.companyId,
   });
@@ -96,6 +96,7 @@ export default function PreTravelForm() {
     queryKey: ["/api/submission-locations"],
   });
 
+  // Initialize form with default values
   const form = useForm<PreTravelForm>({
     resolver: zodResolver(preTraveFormSchema),
     defaultValues: {
@@ -110,15 +111,24 @@ export default function PreTravelForm() {
     },
   });
 
+  // Show loading state while data is being fetched
+  if (userLoading || companyLoading) {
+    return (
+      <div className="flex items-center justify-center min-h-screen">
+        <Loader2 className="h-8 w-8 animate-spin text-border" />
+      </div>
+    );
+  }
+
   // Update form when user and company data are available
   React.useEffect(() => {
-    if (user) {
-      form.setValue('firstName', user.firstName);
-      form.setValue('lastName', user.lastName);
-    }
-    if (company) {
-      console.log('Setting company name:', company.name);
-      form.setValue('company', company.name);
+    if (user && company) {
+      form.reset({
+        ...form.getValues(),
+        firstName: user.firstName,
+        lastName: user.lastName,
+        company: company.name,
+      });
     }
   }, [user, company, form]);
 
