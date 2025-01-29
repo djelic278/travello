@@ -5,6 +5,7 @@ import { postTravelFormSchema, type PostTravelForm, type TravelFormResponse, cal
 import { useMutation, useQuery } from "@tanstack/react-query";
 import { useLocation, useParams } from "wouter";
 import { useToast } from "@/hooks/use-toast";
+import { useFormLoading } from "@/hooks/use-form-loading";
 import {
   AlertDialog,
   AlertDialogContent,
@@ -52,6 +53,7 @@ export default function PostTravelForm() {
   const params = useParams<{ id: string }>();
   const [, navigate] = useLocation();
   const { toast } = useToast();
+  const { startLoading, stopLoading } = useFormLoading();
 
   // Fetch settings and form data
   const { data: settings } = useQuery<Record<string, string>>({
@@ -168,30 +170,37 @@ export default function PostTravelForm() {
 
   const mutation = useMutation({
     mutationFn: async (data: PostTravelForm) => {
-      const formData = new FormData();
+      try {
+        startLoading("post-travel-form");
+        const formData = new FormData();
 
-      // Add form fields
-      formData.append('departureTime', data.departureTime.toISOString());
-      formData.append('returnTime', data.returnTime.toISOString());
-      formData.append('startMileage', data.startMileage.toString());
-      formData.append('endMileage', data.endMileage.toString());
-      formData.append('expenses', JSON.stringify(data.expenses));
+        // Add form fields
+        formData.append('departureTime', data.departureTime.toISOString());
+        formData.append('returnTime', data.returnTime.toISOString());
+        formData.append('startMileage', data.startMileage.toString());
+        formData.append('endMileage', data.endMileage.toString());
+        formData.append('expenses', JSON.stringify(data.expenses));
 
-      // Add files
-      if (data.files) {
-        for (const file of data.files) {
-          formData.append('files', file);
+        // Add files
+        if (data.files) {
+          for (const file of data.files) {
+            formData.append('files', file);
+          }
         }
+
+        const res = await fetch(`/api/forms/${params.id}/post-travel`, {
+          method: "PUT",
+          body: formData,
+          credentials: "include",
+        });
+
+        if (!res.ok) throw new Error(await res.text());
+        return res.json();
+      } catch (error) {
+        throw error;
+      } finally {
+        stopLoading();
       }
-
-      const res = await fetch(`/api/forms/${params.id}/post-travel`, {
-        method: "PUT",
-        body: formData,
-        credentials: "include",
-      });
-
-      if (!res.ok) throw new Error(await res.text());
-      return res.json();
     },
     onSuccess: () => {
       toast({
