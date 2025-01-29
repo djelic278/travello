@@ -171,14 +171,23 @@ export function registerRoutes(app: Express): Server {
       return res.status(404).json({ message: "Form not found" });
     }
 
-    // Update the travel form
+    // Ensure valid date objects before updating
+    const parsedDepartureTime = new Date(departureTime);
+    const parsedReturnTime = new Date(returnTime);
+
+    // Validate dates
+    if (isNaN(parsedDepartureTime.getTime()) || isNaN(parsedReturnTime.getTime())) {
+      return res.status(400).json({ message: "Invalid date format for departure or return time" });
+    }
+
+    // Update the travel form with validated dates
     const [updatedForm] = await db
       .update(travelForms)
       .set({
-        departureTime: new Date(departureTime),
-        returnTime: new Date(returnTime),
-        startMileage,
-        endMileage,
+        departureTime: parsedDepartureTime,
+        returnTime: parsedReturnTime,
+        startMileage: parseFloat(startMileage),
+        endMileage: parseFloat(endMileage),
         status: 'completed',
         approvalStatus: 'approved', // Automatically approved
       })
@@ -191,7 +200,7 @@ export function registerRoutes(app: Express): Server {
         expenseItems.map((expense: any) => ({
           formId: updatedForm.id,
           name: expense.name,
-          amount: expense.amount,
+          amount: parseFloat(expense.amount),
         }))
       );
     }
