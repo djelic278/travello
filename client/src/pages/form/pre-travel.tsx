@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { preTraveFormSchema, type PreTravelForm, fieldDescriptions } from "@/lib/forms";
@@ -67,6 +67,17 @@ export default function PreTravelForm() {
   const [open, setOpen] = useState(false);
   const [inputValue, setInputValue] = useState("");
 
+  // Fetch user data including company information
+  const { data: userData } = useQuery({
+    queryKey: ['/api/users/me'],
+  });
+
+  // Fetch company data
+  const { data: companyData } = useQuery({
+    queryKey: ['/api/companies', userData?.companyId],
+    enabled: !!userData?.companyId,
+  });
+
   // Fetch previous submission locations
   const { data: previousLocations } = useQuery<string[]>({
     queryKey: ["/api/submission-locations"],
@@ -77,6 +88,7 @@ export default function PreTravelForm() {
     defaultValues: {
       submissionLocation: "",
       submissionDate: new Date(),
+      company: companyData?.name || "",
       firstName: "",
       lastName: "",
       isReturnTrip: true,
@@ -84,6 +96,12 @@ export default function PreTravelForm() {
       requestedPrepayment: 0,
     },
   });
+
+  useEffect(() => {
+    if (companyData?.name) {
+      form.setValue('company', companyData.name);
+    }
+  }, [companyData, form]);
 
   const handleVoiceData = (data: Record<string, any>) => {
     try {
@@ -250,8 +268,8 @@ export default function PreTravelForm() {
                   name="submissionLocation"
                   render={({ field }) => (
                     <FormItem className="flex flex-col">
-                      <FormLabelWithTooltip 
-                        label="Form Submission Location" 
+                      <FormLabelWithTooltip
+                        label="Form Submission Location"
                         description={fieldDescriptions.submissionLocation}
                       />
                       <Popover open={open} onOpenChange={setOpen}>
@@ -274,7 +292,7 @@ export default function PreTravelForm() {
                         </PopoverTrigger>
                         <PopoverContent className="w-full p-0">
                           <Command>
-                            <CommandInput 
+                            <CommandInput
                               placeholder="Search or enter new location..."
                               value={inputValue}
                               onValueChange={(value) => {
@@ -321,7 +339,7 @@ export default function PreTravelForm() {
                   name="submissionDate"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabelWithTooltip 
+                      <FormLabelWithTooltip
                         label="Form Submission Date"
                         description={fieldDescriptions.submissionDate}
                       />
@@ -338,6 +356,26 @@ export default function PreTravelForm() {
                 />
               </div>
 
+              {/* Company field - new addition */}
+              <div className="mb-6">
+                <FormField
+                  control={form.control}
+                  name="company"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabelWithTooltip
+                        label="Company"
+                        description={fieldDescriptions.company}
+                      />
+                      <FormControl>
+                        <Input {...field} disabled className="bg-muted" />
+                      </FormControl>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+              </div>
+
               {/* Name row */}
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 <FormField
@@ -345,7 +383,7 @@ export default function PreTravelForm() {
                   name="firstName"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabelWithTooltip 
+                      <FormLabelWithTooltip
                         label="First Name"
                         description={fieldDescriptions.firstName}
                       />
@@ -362,7 +400,7 @@ export default function PreTravelForm() {
                   name="lastName"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabelWithTooltip 
+                      <FormLabelWithTooltip
                         label="Last Name"
                         description={fieldDescriptions.lastName}
                       />
@@ -382,7 +420,7 @@ export default function PreTravelForm() {
                   name="destination"
                   render={({ field }) => (
                     <FormItem className="flex-1">
-                      <FormLabelWithTooltip 
+                      <FormLabelWithTooltip
                         label="Destination"
                         description={fieldDescriptions.destination}
                       />
@@ -399,7 +437,7 @@ export default function PreTravelForm() {
                   name="tripPurpose"
                   render={({ field }) => (
                     <FormItem className="flex-[1.2]">
-                      <FormLabelWithTooltip 
+                      <FormLabelWithTooltip
                         label="Trip Purpose"
                         description={fieldDescriptions.tripPurpose}
                       />
@@ -420,7 +458,7 @@ export default function PreTravelForm() {
                     name="transportType"
                     render={({ field }) => (
                       <FormItem>
-                        <FormLabelWithTooltip 
+                        <FormLabelWithTooltip
                           label="Transport Type"
                           description={fieldDescriptions.transportType}
                         />
@@ -439,7 +477,7 @@ export default function PreTravelForm() {
                     name="transportDetails"
                     render={({ field }) => (
                       <FormItem>
-                        <FormLabelWithTooltip 
+                        <FormLabelWithTooltip
                           label="Transport Details"
                           description={fieldDescriptions.transportDetails}
                         />
@@ -492,7 +530,7 @@ export default function PreTravelForm() {
                   name="startDate"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabelWithTooltip 
+                      <FormLabelWithTooltip
                         label="Start Date"
                         description={fieldDescriptions.startDate}
                       />
@@ -515,7 +553,7 @@ export default function PreTravelForm() {
                   name="duration"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabelWithTooltip 
+                      <FormLabelWithTooltip
                         label="Duration (days)"
                         description={fieldDescriptions.duration}
                       />
@@ -541,7 +579,7 @@ export default function PreTravelForm() {
                   name="projectCode"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabelWithTooltip 
+                      <FormLabelWithTooltip
                         label="Project Code"
                         description={fieldDescriptions.projectCode}
                       />
@@ -558,13 +596,13 @@ export default function PreTravelForm() {
                   name="requestedPrepayment"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabelWithTooltip 
+                      <FormLabelWithTooltip
                         label="Requested Prepayment (EUR)"
                         description={fieldDescriptions.requestedPrepayment}
                       />
                       <FormControl>
-                        <Input 
-                          type="number" 
+                        <Input
+                          type="number"
                           step="0.01"
                           {...field}
                           onChange={(e) => field.onChange(parseFloat(e.target.value))}

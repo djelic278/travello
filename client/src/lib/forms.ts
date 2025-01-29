@@ -3,6 +3,7 @@ import { z } from "zod";
 export const preTraveFormSchema = z.object({
   submissionLocation: z.string().min(1, "Submission location is required"),
   submissionDate: z.date(),
+  company: z.string().optional(),
   firstName: z.string().min(1, "First name is required"),
   lastName: z.string().min(1, "Last name is required"),
   destination: z.string().min(1, "Destination is required"),
@@ -22,6 +23,7 @@ export type PreTravelForm = z.infer<typeof preTraveFormSchema>;
 export const fieldDescriptions = {
   submissionLocation: "Current location where you are submitting this travel request form",
   submissionDate: "Current date when this form is being submitted",
+  company: "Your company affiliation",
   firstName: "Your legal first name as it appears in your ID documents",
   lastName: "Your legal last name as it appears in your ID documents",
   destination: "The city or location where you will be traveling to",
