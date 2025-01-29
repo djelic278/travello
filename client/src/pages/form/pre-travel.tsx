@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { preTraveFormSchema, type PreTravelForm, fieldDescriptions } from "@/lib/forms";
@@ -67,6 +67,7 @@ export default function PreTravelForm() {
   const [open, setOpen] = useState(false);
   const [inputValue, setInputValue] = useState("");
 
+  // 1. Initialize form with empty values first
   const form = useForm<PreTravelForm>({
     resolver: zodResolver(preTraveFormSchema),
     defaultValues: {
@@ -81,6 +82,7 @@ export default function PreTravelForm() {
     }
   });
 
+  // 2. Fetch data using queries
   const { data: user, isLoading: userLoading } = useQuery({
     queryKey: ['/api/users/me']
   });
@@ -94,19 +96,25 @@ export default function PreTravelForm() {
     queryKey: ["/api/submission-locations"]
   });
 
+  // 3. Update form values when data is available
+  useEffect(() => {
+    if (user && company) {
+      form.reset({
+        ...form.getValues(),
+        firstName: user.firstName || "",
+        lastName: user.lastName || "",
+        company: company.name || "",
+      });
+    }
+  }, [user, company, form]);
+
+  // 4. Loading state
   if (userLoading || companyLoading) {
     return (
       <div className="flex items-center justify-center min-h-screen">
         <Loader2 className="h-8 w-8 animate-spin text-border" />
       </div>
     );
-  }
-
-  // Set form values if not already set
-  if (user && company && !form.getValues('firstName')) {
-    form.setValue('firstName', user.firstName);
-    form.setValue('lastName', user.lastName);
-    form.setValue('company', company.name);
   }
 
   const handleVoiceData = (data: Record<string, any>) => {
