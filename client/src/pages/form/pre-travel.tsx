@@ -45,18 +45,6 @@ import { Check, ChevronsUpDown, HelpCircle, Loader2 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { VoiceInput } from "@/components/voice-input";
 
-type UserData = {
-  id: number;
-  firstName: string;
-  lastName: string;
-  companyId: number;
-};
-
-type CompanyData = {
-  id: number;
-  name: string;
-};
-
 function FormLabelWithTooltip({ label, description }: { label: string; description: string }) {
   return (
     <div className="flex items-center gap-2">
@@ -79,43 +67,46 @@ export default function PreTravelForm() {
   const [open, setOpen] = useState(false);
   const [inputValue, setInputValue] = useState("");
 
-  // Fetch user data including company information
-  const { data: user, isLoading: userLoading } = useQuery<UserData>({
-    queryKey: ['/api/users/me']
-  });
-
-  // Fetch company data based on user's companyId
-  const { data: company, isLoading: companyLoading } = useQuery<CompanyData>({
-    queryKey: ['/api/companies', user?.companyId],
-    enabled: !!user?.companyId
-  });
-
-  // Fetch previous submission locations
-  const { data: previousLocations } = useQuery<string[]>({
-    queryKey: ["/api/submission-locations"]
-  });
-
   const form = useForm<PreTravelForm>({
     resolver: zodResolver(preTraveFormSchema),
     defaultValues: {
       submissionLocation: "",
       submissionDate: new Date(),
-      company: company?.name || "",
-      firstName: user?.firstName || "",
-      lastName: user?.lastName || "",
+      company: "",
+      firstName: "",
+      lastName: "",
       isReturnTrip: true,
       duration: 1,
       requestedPrepayment: 0,
     }
   });
 
-  // Show loading state while data is being fetched
+  const { data: user, isLoading: userLoading } = useQuery({
+    queryKey: ['/api/users/me']
+  });
+
+  const { data: company, isLoading: companyLoading } = useQuery({
+    queryKey: ['/api/companies', user?.companyId],
+    enabled: !!user?.companyId
+  });
+
+  const { data: previousLocations } = useQuery({
+    queryKey: ["/api/submission-locations"]
+  });
+
   if (userLoading || companyLoading) {
     return (
       <div className="flex items-center justify-center min-h-screen">
         <Loader2 className="h-8 w-8 animate-spin text-border" />
       </div>
     );
+  }
+
+  // Set form values if not already set
+  if (user && company && !form.getValues('firstName')) {
+    form.setValue('firstName', user.firstName);
+    form.setValue('lastName', user.lastName);
+    form.setValue('company', company.name);
   }
 
   const handleVoiceData = (data: Record<string, any>) => {
