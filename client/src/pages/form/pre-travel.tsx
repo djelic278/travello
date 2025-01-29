@@ -68,14 +68,23 @@ export default function PreTravelForm() {
   const [inputValue, setInputValue] = useState("");
 
   // Fetch user data including company information
-  const { data: userData } = useQuery({
+  const { data: userData, onSuccess: userDataOnSuccess } = useQuery({
     queryKey: ['/api/users/me'],
+    onSuccess: (data) => {
+      if (data?.firstName) form.setValue('firstName', data.firstName);
+      if (data?.lastName) form.setValue('lastName', data.lastName);
+    }
   });
 
   // Fetch company data
   const { data: companyData } = useQuery({
     queryKey: ['/api/companies', userData?.companyId],
     enabled: !!userData?.companyId,
+    onSuccess: (data) => {
+      if (data?.name) {
+        form.setValue('company', data.name);
+      }
+    }
   });
 
   // Fetch previous submission locations
@@ -88,7 +97,7 @@ export default function PreTravelForm() {
     defaultValues: {
       submissionLocation: "",
       submissionDate: new Date(),
-      company: companyData?.name || "",
+      company: "",
       firstName: "",
       lastName: "",
       isReturnTrip: true,
@@ -97,11 +106,6 @@ export default function PreTravelForm() {
     },
   });
 
-  useEffect(() => {
-    if (companyData?.name) {
-      form.setValue('company', companyData.name);
-    }
-  }, [companyData, form]);
 
   const handleVoiceData = (data: Record<string, any>) => {
     try {
