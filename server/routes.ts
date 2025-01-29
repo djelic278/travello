@@ -224,6 +224,42 @@ export function registerRoutes(app: Express): Server {
   }));
 
   // Add this route after other travel form routes
+  // Get single travel form by ID
+  app.get("/api/forms/:id", isAuthenticated, asyncHandler(async (req: Request, res: Response) => {
+    const formId = parseInt(req.params.id);
+
+    const form = await db.query.travelForms.findFirst({
+      where: and(
+        eq(travelForms.id, formId),
+        // Ensure user can only access their own forms
+        eq(travelForms.userId, req.user!.id)
+      ),
+      with: {
+        expenses: true,
+      }
+    });
+
+    if (!form) {
+      return res.status(404).json({ message: "Form not found" });
+    }
+
+    res.json({
+      id: form.id,
+      firstName: form.firstName,
+      lastName: form.lastName,
+      destination: form.destination,
+      projectCode: form.projectCode,
+      requestedPrepayment: form.requestedPrepayment,
+      startDate: form.startDate,
+      tripPurpose: form.tripPurpose,
+      transportType: form.transportType,
+      transportDetails: form.transportDetails,
+      status: form.status,
+      expenses: form.expenses,
+    });
+  }));
+
+  // Add this route after other travel form routes
   app.put("/api/forms/:id/approve", isAuthenticated, asyncHandler(async (req: Request, res: Response) => {
     const formId = parseInt(req.params.id);
     const { approved } = req.body;
