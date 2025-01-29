@@ -29,27 +29,36 @@ declare global {
   }
 }
 
-// Initialize OpenAI with the new API key name
-const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY1 });
-
 // Middleware to check if user is authenticated and attach full user object
 const isAuthenticated = async (req: Request, res: Response, next: NextFunction) => {
+  console.log('Authentication check - Session:', req.session);
+  console.log('Authentication check - User:', req.user);
+
   if (!req.isAuthenticated()) {
+    console.log('User not authenticated');
     return res.status(401).json({ message: "Not authenticated" });
   }
 
-  // Fetch full user object from database
-  const user = await db.query.users.findFirst({
-    where: eq(users.id, req.user!.id)
-  });
+  try {
+    // Fetch full user object from database
+    const user = await db.query.users.findFirst({
+      where: eq(users.id, req.user!.id)
+    });
 
-  if (!user) {
-    return res.status(401).json({ message: "User not found" });
+    console.log('Fetched user from database:', user);
+
+    if (!user) {
+      console.log('User not found in database');
+      return res.status(401).json({ message: "User not found" });
+    }
+
+    // Attach full user object to request
+    req.user = user;
+    next();
+  } catch (error) {
+    console.error('Error in authentication middleware:', error);
+    return res.status(500).json({ message: "Authentication error" });
   }
-
-  // Attach full user object to request
-  req.user = user;
-  next();
 };
 
 const upload = multer({
@@ -343,7 +352,10 @@ export function registerRoutes(app: Express): Server {
 
   // Update user role (super admin only)
   app.put("/api/admin/users/:id/role", isAuthenticated, asyncHandler(async (req: Request, res: Response) => {
-    if (!req.user || req.user.role !== 'super_admin') {
+    console.log('Role update request received - User:', req.user);
+    console.log('Role update parameters:', { userId: req.params.id, newRole: req.body.role });
+
+    if (!req.user || req.user.role !== UserRole.SUPER_ADMIN) {
       console.log('Permission denied: User is not super admin');
       return res.status(403).json({ message: "Only super admins can update user roles" });
     }
@@ -351,10 +363,8 @@ export function registerRoutes(app: Express): Server {
     const userId = parseInt(req.params.id);
     const { role } = req.body;
 
-    console.log('Role update request:', { userId, newRole: role, requestingUser: req.user });
-
     // Validate role
-    if (!['super_admin', 'company_admin', 'user'].includes(role)) {
+    if (!Object.values(UserRole).includes(role)) {
       console.log('Invalid role specified:', role);
       return res.status(400).json({ message: "Invalid role specified" });
     }
@@ -369,7 +379,7 @@ export function registerRoutes(app: Express): Server {
       const [updatedUser] = await db
         .update(users)
         .set({
-          role: role as 'super_admin' | 'company_admin' | 'user',
+          role: role as typeof UserRole[keyof typeof UserRole],
           updatedAt: new Date()
         })
         .where(eq(users.id, userId))
@@ -393,7 +403,10 @@ export function registerRoutes(app: Express): Server {
 
   // Update user's company (super admin only)
   app.put("/api/users/:id", isAuthenticated, asyncHandler(async (req: Request, res: Response) => {
-    if (!req.user || req.user.role !== 'super_admin') {
+    console.log('Company update request received - User:', req.user);
+    console.log('Company update parameters:', { userId: req.params.id, companyId: req.body.companyId });
+
+    if (!req.user || req.user.role !== UserRole.SUPER_ADMIN) {
       console.log('Permission denied: User is not super admin');
       return res.status(403).json({ message: "Only super admins can update user organizations" });
     }
@@ -401,10 +414,7 @@ export function registerRoutes(app: Express): Server {
     const userId = parseInt(req.params.id);
     const { companyId } = req.body;
 
-    console.log('Company update request:', { userId, companyId, requestingUser: req.user });
-
     try {
-      // Update user
       const [updatedUser] = await db
         .update(users)
         .set({
@@ -868,7 +878,6 @@ async function createNotification(
 
   return notification;
 }
-
 
 import * as xlsx from 'xlsx';
 import { randomBytes } from "crypto";
