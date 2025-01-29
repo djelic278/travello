@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { preTraveFormSchema, type PreTravelForm, fieldDescriptions } from "@/lib/forms";
@@ -44,6 +44,19 @@ import {
 import { Check, ChevronsUpDown, HelpCircle } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { VoiceInput } from "@/components/voice-input";
+import React from "react";
+
+type UserData = {
+  id: number;
+  firstName: string;
+  lastName: string;
+  companyId: number;
+};
+
+type CompanyData = {
+  id: number;
+  name: string;
+};
 
 function FormLabelWithTooltip({ label, description }: { label: string; description: string }) {
   return (
@@ -68,31 +81,14 @@ export default function PreTravelForm() {
   const [inputValue, setInputValue] = useState("");
 
   // Fetch user data including company information
-  const { data: userData } = useQuery<{
-    id: number;
-    firstName: string;
-    lastName: string;
-    companyId: number;
-  }>({
+  const { data: user } = useQuery<UserData>({
     queryKey: ['/api/users/me'],
-    onSuccess: (data) => {
-      if (data?.firstName) form.setValue('firstName', data.firstName);
-      if (data?.lastName) form.setValue('lastName', data.lastName);
-    }
   });
 
-  // Fetch company data
-  const { data: companyData } = useQuery<{
-    id: number;
-    name: string;
-  }>({
-    queryKey: ['/api/companies', userData?.companyId],
-    enabled: !!userData?.companyId,
-    onSuccess: (data) => {
-      if (data?.name) {
-        form.setValue('company', data.name);
-      }
-    }
+  // Fetch company data based on user's companyId
+  const { data: company } = useQuery<CompanyData>({
+    queryKey: ['/api/companies', user?.companyId],
+    enabled: !!user?.companyId,
   });
 
   // Fetch previous submission locations
@@ -100,27 +96,31 @@ export default function PreTravelForm() {
     queryKey: ["/api/submission-locations"],
   });
 
-  // Initialize form with default values
   const form = useForm<PreTravelForm>({
     resolver: zodResolver(preTraveFormSchema),
     defaultValues: {
       submissionLocation: "",
       submissionDate: new Date(),
-      company: "",
-      firstName: "",
-      lastName: "",
+      company: company?.name || "",
+      firstName: user?.firstName || "",
+      lastName: user?.lastName || "",
       isReturnTrip: true,
       duration: 1,
       requestedPrepayment: 0,
     },
   });
 
-  // Effect to update form when company data changes
-  useEffect(() => {
-    if (companyData?.name) {
-      form.setValue('company', companyData.name);
+  // Update form when user and company data are available
+  React.useEffect(() => {
+    if (user) {
+      form.setValue('firstName', user.firstName);
+      form.setValue('lastName', user.lastName);
     }
-  }, [companyData, form]);
+    if (company) {
+      console.log('Setting company name:', company.name);
+      form.setValue('company', company.name);
+    }
+  }, [user, company, form]);
 
   const handleVoiceData = (data: Record<string, any>) => {
     try {
