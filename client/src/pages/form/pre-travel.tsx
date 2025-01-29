@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { preTraveFormSchema, type PreTravelForm, fieldDescriptions } from "@/lib/forms";
@@ -67,7 +67,6 @@ export default function PreTravelForm() {
   const [open, setOpen] = useState(false);
   const [inputValue, setInputValue] = useState("");
 
-  // 1. Initialize form with empty values first
   const form = useForm<PreTravelForm>({
     resolver: zodResolver(preTraveFormSchema),
     defaultValues: {
@@ -79,43 +78,27 @@ export default function PreTravelForm() {
       isReturnTrip: true,
       duration: 1,
       requestedPrepayment: 0,
-    }
+      startDate: new Date(),
+      destination: "",
+      tripPurpose: "",
+      transportType: "",
+      transportDetails: "",
+      projectCode: "",
+    },
   });
 
-  // 2. Fetch data using queries
-  const { data: user, isLoading: userLoading } = useQuery({
+  const { data: user } = useQuery({
     queryKey: ['/api/users/me']
   });
 
-  const { data: company, isLoading: companyLoading } = useQuery({
+  const { data: company } = useQuery({
     queryKey: ['/api/companies', user?.companyId],
     enabled: !!user?.companyId
   });
 
-  const { data: previousLocations } = useQuery({
+  const { data: previousLocations = [] } = useQuery({
     queryKey: ["/api/submission-locations"]
   });
-
-  // 3. Update form values when data is available
-  useEffect(() => {
-    if (user && company) {
-      form.reset({
-        ...form.getValues(),
-        firstName: user.firstName || "",
-        lastName: user.lastName || "",
-        company: company.name || "",
-      });
-    }
-  }, [user, company, form]);
-
-  // 4. Loading state
-  if (userLoading || companyLoading) {
-    return (
-      <div className="flex items-center justify-center min-h-screen">
-        <Loader2 className="h-8 w-8 animate-spin text-border" />
-      </div>
-    );
-  }
 
   const handleVoiceData = (data: Record<string, any>) => {
     try {
@@ -250,6 +233,13 @@ export default function PreTravelForm() {
     },
   });
 
+  // Set form values when data is available
+  if (user && company && !form.getValues('firstName')) {
+    form.setValue('firstName', user.firstName || '');
+    form.setValue('lastName', user.lastName || '');
+    form.setValue('company', company.name || '');
+  }
+
   return (
     <div className="container mx-auto py-6">
       <Card>
@@ -260,7 +250,7 @@ export default function PreTravelForm() {
           </CardDescription>
         </CardHeader>
         <CardContent>
-          {/* Add VoiceInput component at the top */}
+          {/* Voice input section */}
           <div className="mb-6">
             <VoiceInput
               onDataReceived={handleVoiceData}
@@ -270,6 +260,7 @@ export default function PreTravelForm() {
               Try saying: "I'm John Smith traveling to Berlin, Germany for a business meeting. Project code XYZ-123. I need transportation by train, departing on March 15th 2025 for 5 days. Request prepayment of 500 euros."
             </p>
           </div>
+
           <Form {...form}>
             <form
               onSubmit={form.handleSubmit((data) => mutation.mutate(data))}
@@ -318,7 +309,7 @@ export default function PreTravelForm() {
                               Press enter to use "{inputValue}"
                             </CommandEmpty>
                             <CommandGroup>
-                              {previousLocations?.map((location) => (
+                              {previousLocations?.map((location: string) => (
                                 <CommandItem
                                   key={location}
                                   value={location}
@@ -370,7 +361,7 @@ export default function PreTravelForm() {
                 />
               </div>
 
-              {/* Company field - new addition */}
+              {/* Company field */}
               <div className="mb-6">
                 <FormField
                   control={form.control}
