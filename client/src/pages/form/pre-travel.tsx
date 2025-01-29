@@ -68,7 +68,12 @@ export default function PreTravelForm() {
   const [inputValue, setInputValue] = useState("");
 
   // Fetch user data including company information
-  const { data: userData, onSuccess: userDataOnSuccess } = useQuery({
+  const { data: userData } = useQuery<{
+    id: number;
+    firstName: string;
+    lastName: string;
+    companyId: number;
+  }>({
     queryKey: ['/api/users/me'],
     onSuccess: (data) => {
       if (data?.firstName) form.setValue('firstName', data.firstName);
@@ -77,7 +82,10 @@ export default function PreTravelForm() {
   });
 
   // Fetch company data
-  const { data: companyData } = useQuery({
+  const { data: companyData } = useQuery<{
+    id: number;
+    name: string;
+  }>({
     queryKey: ['/api/companies', userData?.companyId],
     enabled: !!userData?.companyId,
     onSuccess: (data) => {
@@ -92,6 +100,7 @@ export default function PreTravelForm() {
     queryKey: ["/api/submission-locations"],
   });
 
+  // Initialize form with default values
   const form = useForm<PreTravelForm>({
     resolver: zodResolver(preTraveFormSchema),
     defaultValues: {
@@ -106,6 +115,12 @@ export default function PreTravelForm() {
     },
   });
 
+  // Effect to update form when company data changes
+  useEffect(() => {
+    if (companyData?.name) {
+      form.setValue('company', companyData.name);
+    }
+  }, [companyData, form]);
 
   const handleVoiceData = (data: Record<string, any>) => {
     try {
