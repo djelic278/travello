@@ -102,9 +102,9 @@ export default function PreTravelForm() {
     defaultValues: {
       submissionLocation: "",
       submissionDate: new Date(),
-      company: company?.name || "",
-      firstName: user?.firstName || "",
-      lastName: user?.lastName || "",
+      company: "",
+      firstName: "",
+      lastName: "",
       isReturnTrip: true,
       duration: 1,
       requestedPrepayment: 0,
