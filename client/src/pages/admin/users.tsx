@@ -61,7 +61,8 @@ export default function UsersAdminPage() {
       });
 
       if (!response.ok) {
-        throw new Error(await response.text());
+        const error = await response.json();
+        throw new Error(error.message || 'Failed to update user role');
       }
 
       return response.json();
@@ -75,7 +76,7 @@ export default function UsersAdminPage() {
     },
     onError: (error: Error) => {
       toast({
-        title: "Error",
+        title: "Error Updating Role",
         description: error.message,
         variant: "destructive",
       });
@@ -114,7 +115,12 @@ export default function UsersAdminPage() {
   });
 
   const handleRoleChange = (userId: number, newRole: string) => {
-    updateRoleMutation.mutate({ userId, role: newRole });
+    if (updateRoleMutation.isPending) return;
+
+    updateRoleMutation.mutate({ 
+      userId, 
+      role: newRole as 'super_admin' | 'company_admin' | 'user' 
+    });
   };
 
   const handleCompanyChange = (userId: number, newCompanyId: string) => {

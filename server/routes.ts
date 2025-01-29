@@ -9,12 +9,15 @@ import { processReceipt } from "./services/ocr";
 import OpenAI from "openai";
 import { z } from "zod";
 
-// Define the User interface to match our database schema
+// Update User interface to match our schema
 interface User {
   id: number;
   username: string;
-  role?: 'user' | 'company_admin' | 'super_admin';
+  email: string;
+  role: 'super_admin' | 'company_admin' | 'user';
   companyId?: number;
+  createdAt: string;
+  updatedAt: string;
 }
 
 // Extend Express Request type to include our User type
@@ -223,7 +226,6 @@ export function registerRoutes(app: Express): Server {
     res.json(updatedForm);
   }));
 
-  // Add this route after other travel form routes
   // Get single travel form by ID
   app.get("/api/forms/:id", isAuthenticated, asyncHandler(async (req: Request, res: Response) => {
     const formId = parseInt(req.params.id);
@@ -259,7 +261,7 @@ export function registerRoutes(app: Express): Server {
     });
   }));
 
-  // Add this route after other travel form routes
+  // Approve travel form
   app.put("/api/forms/:id/approve", isAuthenticated, asyncHandler(async (req: Request, res: Response) => {
     const formId = parseInt(req.params.id);
     const { approved } = req.body;
@@ -331,7 +333,7 @@ export function registerRoutes(app: Express): Server {
   app.put("/api/admin/users/:id/role", isAuthenticated, asyncHandler(async (req: Request, res: Response) => {
     // Check if user is super admin
     if (req.user?.role !== 'super_admin') {
-      return res.status(403).send("Only super admins can update user roles");
+      return res.status(403).json({ message: "Only super admins can update user roles" });
     }
 
     const userId = parseInt(req.params.id);
@@ -339,29 +341,34 @@ export function registerRoutes(app: Express): Server {
 
     // Validate role
     if (!['super_admin', 'company_admin', 'user'].includes(role)) {
-      return res.status(400).send("Invalid role");
+      return res.status(400).json({ message: "Invalid role specified" });
     }
 
     // Prevent super admin from modifying their own role
-    if (userId === req.user!.id) {
-      return res.status(403).send("Cannot modify your own role");
+    if (userId === req.user.id) {
+      return res.status(403).json({ message: "Cannot modify your own role" });
     }
 
-    // Update user role
-    const [updatedUser] = await db
-      .update(users)
-      .set({
-        role,
-        updatedAt: new Date(),
-      })
-      .where(eq(users.id, userId))
-      .returning();
+    try {
+      // Update user role
+      const [updatedUser] = await db
+        .update(users)
+        .set({
+          role: role as 'super_admin' | 'company_admin' | 'user',
+          updatedAt: new Date()
+        })
+        .where(eq(users.id, userId))
+        .returning();
 
-    if (!updatedUser) {
-      return res.status(404).send("User not found");
+      if (!updatedUser) {
+        return res.status(404).json({ message: "User not found" });
+      }
+
+      res.json(updatedUser);
+    } catch (error) {
+      console.error('Error updating user role:', error);
+      res.status(500).json({ message: "Failed to update user role" });
     }
-
-    res.json(updatedUser);
   }));
 
   // Get notifications for the current user
