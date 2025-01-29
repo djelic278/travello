@@ -5,6 +5,8 @@ import { db } from "@db";
 import { setupAuth } from "./auth";
 import { sql } from "drizzle-orm";
 import "dotenv/config";
+import { createServer } from "http";
+import net from "net";
 
 // Validate required environment variables
 const requiredEnvVars = [
@@ -37,6 +39,31 @@ app.set('session', sessionMiddleware);
 app.get('/health', (req, res) => {
   res.json({ status: 'ok', environment: app.get('env') });
 });
+
+// Function to check if a port is available
+const isPortAvailable = (port: number): Promise<boolean> => {
+  return new Promise((resolve) => {
+    const server = net.createServer()
+      .once('error', () => {
+        resolve(false);
+      })
+      .once('listening', () => {
+        server.close();
+        resolve(true);
+      })
+      .listen(port, '0.0.0.0');
+  });
+};
+
+// Function to find an available port
+const findAvailablePort = async (startPort: number, maxAttempts: number = 10): Promise<number> => {
+  for (let port = startPort; port < startPort + maxAttempts; port++) {
+    if (await isPortAvailable(port)) {
+      return port;
+    }
+  }
+  throw new Error(`No available ports found between ${startPort} and ${startPort + maxAttempts - 1}`);
+};
 
 // Initialize server
 (async () => {
@@ -85,8 +112,9 @@ app.get('/health', (req, res) => {
       });
     });
 
-    // Start server
-    const PORT = 5000;
+    // Try to start server on port 5000 or find an available port
+    const PORT = await findAvailablePort(5000);
+
     server.listen(PORT, "0.0.0.0", () => {
       log(`Server running on port ${PORT} in ${app.get("env")} mode`);
     });
@@ -94,13 +122,10 @@ app.get('/health', (req, res) => {
     // Graceful shutdown handlers
     const gracefulShutdown = async () => {
       log("Received shutdown signal. Starting graceful shutdown...");
-      try {
-        await db.end();
-        log("Database connections closed");
-      } catch (error) {
-        console.error("Error closing database connections:", error);
-      }
-      process.exit(0);
+      server.close(() => {
+        log("HTTP server closed");
+        process.exit(0);
+      });
     };
 
     process.on('SIGTERM', gracefulShutdown);
