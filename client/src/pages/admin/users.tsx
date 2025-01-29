@@ -19,17 +19,18 @@ import {
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { ArrowLeft, Loader2 } from "lucide-react";
-import { Link } from "wouter";
+import { Link, useLocation } from "wouter";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { motion } from "framer-motion";
 import { fadeIn } from "@/lib/animations";
+import { useUser } from "@/hooks/use-user";
 
 type User = {
   id: number;
   username: string;
   email: string;
   role: 'super_admin' | 'company_admin' | 'user';
-  companyId?: number;
+  companyId?: number | null;
   createdAt: string;
 };
 
@@ -42,6 +43,14 @@ export default function UsersAdminPage() {
   const { toast } = useToast();
   const queryClient = useQueryClient();
   const [selectedRole, setSelectedRole] = useState<string | null>(null);
+  const { user: currentUser } = useUser();
+  const [location, setLocation] = useLocation();
+
+  // Redirect if not super admin
+  if (currentUser?.role !== 'super_admin') {
+    setLocation('/');
+    return null;
+  }
 
   const { data: users = [], isLoading: usersLoading } = useQuery<User[]>({
     queryKey: ['/api/admin/users'],
@@ -53,7 +62,6 @@ export default function UsersAdminPage() {
 
   const updateRoleMutation = useMutation({
     mutationFn: async ({ userId, role }: { userId: number; role: string }) => {
-      console.log('Updating role:', { userId, role });
       const response = await fetch(`/api/admin/users/${userId}/role`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
@@ -63,25 +71,21 @@ export default function UsersAdminPage() {
 
       if (!response.ok) {
         const errorData = await response.json();
-        console.error('Role update failed:', errorData);
         throw new Error(errorData.message || 'Failed to update user role');
       }
 
-      const data = await response.json();
-      console.log('Role update successful:', data);
-      return data;
+      return response.json();
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['/api/admin/users'] });
       toast({
-        title: "Role Updated",
-        description: "User role has been updated successfully.",
+        title: "Success",
+        description: "User role has been updated.",
       });
     },
     onError: (error: Error) => {
-      console.error('Role update mutation error:', error);
       toast({
-        title: "Error Updating Role",
+        title: "Error",
         description: error.message,
         variant: "destructive",
       });
@@ -90,7 +94,6 @@ export default function UsersAdminPage() {
 
   const updateCompanyMutation = useMutation({
     mutationFn: async ({ userId, companyId }: { userId: number; companyId?: number }) => {
-      console.log('Updating company:', { userId, companyId });
       const response = await fetch(`/api/users/${userId}`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
@@ -100,23 +103,19 @@ export default function UsersAdminPage() {
 
       if (!response.ok) {
         const errorData = await response.json();
-        console.error('Company update failed:', errorData);
         throw new Error(errorData.message || 'Failed to update user company');
       }
 
-      const data = await response.json();
-      console.log('Company update successful:', data);
-      return data;
+      return response.json();
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['/api/admin/users'] });
       toast({
-        title: "Company Updated",
-        description: "User's company has been updated successfully.",
+        title: "Success",
+        description: "User's company has been updated.",
       });
     },
     onError: (error: Error) => {
-      console.error('Company update mutation error:', error);
       toast({
         title: "Error",
         description: error.message,
@@ -126,36 +125,21 @@ export default function UsersAdminPage() {
   });
 
   const handleRoleChange = async (userId: number, newRole: string) => {
-    if (updateRoleMutation.isPending) {
-      console.log('Update already in progress, skipping');
-      return;
-    }
-
-    console.log('Handling role change:', { userId, newRole });
     try {
-      await updateRoleMutation.mutateAsync({ 
-        userId, 
-        role: newRole as 'super_admin' | 'company_admin' | 'user' 
-      });
+      await updateRoleMutation.mutateAsync({ userId, role: newRole });
     } catch (error) {
-      console.error('Role change failed:', error);
+      // Error is handled by mutation error handler
     }
   };
 
   const handleCompanyChange = async (userId: number, newCompanyId: string) => {
-    if (updateCompanyMutation.isPending) {
-      console.log('Update already in progress, skipping');
-      return;
-    }
-
-    console.log('Handling company change:', { userId, newCompanyId });
     try {
       await updateCompanyMutation.mutateAsync({
         userId,
         companyId: newCompanyId === "" ? undefined : parseInt(newCompanyId),
       });
     } catch (error) {
-      console.error('Company change failed:', error);
+      // Error is handled by mutation error handler
     }
   };
 

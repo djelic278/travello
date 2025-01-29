@@ -1,7 +1,7 @@
 import type { Express, Request, Response, NextFunction } from "express";
 import { createServer, type Server } from "http";
 import { db } from "@db";
-import { users, travelForms, expenses, settings, notifications, companies, invitations } from "@db/schema";
+import { users, travelForms, expenses, settings, notifications, companies, invitations, UserRole } from "@db/schema";
 import { eq, and } from "drizzle-orm";
 import { setupWebSocket } from "./websocket";
 import multer from "multer";
@@ -14,10 +14,10 @@ interface User {
   id: number;
   username: string;
   email: string;
-  role: 'super_admin' | 'company_admin' | 'user';
-  companyId?: number;
-  createdAt: string;
-  updatedAt: string;
+  role: typeof UserRole[keyof typeof UserRole];
+  companyId: number | null;
+  createdAt: Date;
+  updatedAt: Date;
 }
 
 // Extend Express Request type to include our User type
@@ -32,11 +32,23 @@ declare global {
 // Initialize OpenAI with the new API key name
 const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY1 });
 
-// Middleware to check if user is authenticated
-const isAuthenticated = (req: Request, res: Response, next: NextFunction) => {
+// Middleware to check if user is authenticated and attach full user object
+const isAuthenticated = async (req: Request, res: Response, next: NextFunction) => {
   if (!req.isAuthenticated()) {
-    return res.status(401).send("Not logged in");
+    return res.status(401).json({ message: "Not authenticated" });
   }
+
+  // Fetch full user object from database
+  const user = await db.query.users.findFirst({
+    where: eq(users.id, req.user!.id)
+  });
+
+  if (!user) {
+    return res.status(401).json({ message: "User not found" });
+  }
+
+  // Attach full user object to request
+  req.user = user;
   next();
 };
 
@@ -372,7 +384,7 @@ export function registerRoutes(app: Express): Server {
       res.json(updatedUser);
     } catch (error) {
       console.error('Error updating user role:', error);
-      res.status(500).json({ 
+      res.status(500).json({
         message: "Failed to update user role",
         error: error instanceof Error ? error.message : 'Unknown error'
       });
@@ -411,7 +423,7 @@ export function registerRoutes(app: Express): Server {
       res.json(updatedUser);
     } catch (error) {
       console.error('Error updating user company:', error);
-      res.status(500).json({ 
+      res.status(500).json({
         message: "Failed to update user company",
         error: error instanceof Error ? error.message : 'Unknown error'
       });
