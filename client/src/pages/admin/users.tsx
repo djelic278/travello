@@ -53,6 +53,7 @@ export default function UsersAdminPage() {
 
   const updateRoleMutation = useMutation({
     mutationFn: async ({ userId, role }: { userId: number; role: string }) => {
+      console.log('Updating role:', { userId, role });
       const response = await fetch(`/api/admin/users/${userId}/role`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
@@ -62,10 +63,13 @@ export default function UsersAdminPage() {
 
       if (!response.ok) {
         const error = await response.json();
+        console.error('Role update failed:', error);
         throw new Error(error.message || 'Failed to update user role');
       }
 
-      return response.json();
+      const data = await response.json();
+      console.log('Role update successful:', data);
+      return data;
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['/api/admin/users'] });
@@ -75,6 +79,7 @@ export default function UsersAdminPage() {
       });
     },
     onError: (error: Error) => {
+      console.error('Role update mutation error:', error);
       toast({
         title: "Error Updating Role",
         description: error.message,
@@ -115,8 +120,12 @@ export default function UsersAdminPage() {
   });
 
   const handleRoleChange = (userId: number, newRole: string) => {
-    if (updateRoleMutation.isPending) return;
+    if (updateRoleMutation.isPending) {
+      console.log('Update already in progress, skipping');
+      return;
+    }
 
+    console.log('Handling role change:', { userId, newRole });
     updateRoleMutation.mutate({ 
       userId, 
       role: newRole as 'super_admin' | 'company_admin' | 'user' 

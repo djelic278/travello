@@ -331,8 +331,11 @@ export function registerRoutes(app: Express): Server {
 
   // Update user role (super admin only)
   app.put("/api/admin/users/:id/role", isAuthenticated, asyncHandler(async (req: Request, res: Response) => {
+    console.log('Role update request:', { userId: req.params.id, newRole: req.body.role, requestingUser: req.user?.role });
+
     // Check if user is super admin
     if (req.user?.role !== 'super_admin') {
+      console.log('Permission denied: User is not super admin');
       return res.status(403).json({ message: "Only super admins can update user roles" });
     }
 
@@ -341,15 +344,27 @@ export function registerRoutes(app: Express): Server {
 
     // Validate role
     if (!['super_admin', 'company_admin', 'user'].includes(role)) {
+      console.log('Invalid role specified:', role);
       return res.status(400).json({ message: "Invalid role specified" });
     }
 
     // Prevent super admin from modifying their own role
     if (userId === req.user.id) {
+      console.log('Attempted to modify own role');
       return res.status(403).json({ message: "Cannot modify your own role" });
     }
 
     try {
+      // First check if user exists
+      const existingUser = await db.query.users.findFirst({
+        where: eq(users.id, userId)
+      });
+
+      if (!existingUser) {
+        console.log('User not found:', userId);
+        return res.status(404).json({ message: "User not found" });
+      }
+
       // Update user role
       const [updatedUser] = await db
         .update(users)
@@ -360,14 +375,14 @@ export function registerRoutes(app: Express): Server {
         .where(eq(users.id, userId))
         .returning();
 
-      if (!updatedUser) {
-        return res.status(404).json({ message: "User not found" });
-      }
-
+      console.log('Role updated successfully:', { userId, newRole: role });
       res.json(updatedUser);
     } catch (error) {
       console.error('Error updating user role:', error);
-      res.status(500).json({ message: "Failed to update user role" });
+      res.status(500).json({ 
+        message: "Failed to update user role",
+        error: error instanceof Error ? error.message : 'Unknown error'
+      });
     }
   }));
 
