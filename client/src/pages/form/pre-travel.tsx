@@ -80,6 +80,21 @@ export default function PreTravelForm() {
   const [open, setOpen] = useState(false);
   const [inputValue, setInputValue] = useState("");
 
+  // Initialize form first
+  const form = useForm<PreTravelForm>({
+    resolver: zodResolver(preTraveFormSchema),
+    defaultValues: {
+      submissionLocation: "",
+      submissionDate: new Date(),
+      company: "",
+      firstName: "",
+      lastName: "",
+      isReturnTrip: true,
+      duration: 1,
+      requestedPrepayment: 0,
+    },
+  });
+
   // Fetch user data including company information
   const { data: user, isLoading: userLoading } = useQuery<UserData>({
     queryKey: ['/api/users/me'],
@@ -96,30 +111,6 @@ export default function PreTravelForm() {
     queryKey: ["/api/submission-locations"],
   });
 
-  // Initialize form with default values
-  const form = useForm<PreTravelForm>({
-    resolver: zodResolver(preTraveFormSchema),
-    defaultValues: {
-      submissionLocation: "",
-      submissionDate: new Date(),
-      company: "",
-      firstName: "",
-      lastName: "",
-      isReturnTrip: true,
-      duration: 1,
-      requestedPrepayment: 0,
-    },
-  });
-
-  // Show loading state while data is being fetched
-  if (userLoading || companyLoading) {
-    return (
-      <div className="flex items-center justify-center min-h-screen">
-        <Loader2 className="h-8 w-8 animate-spin text-border" />
-      </div>
-    );
-  }
-
   // Update form when user and company data are available
   React.useEffect(() => {
     if (user && company) {
@@ -130,7 +121,16 @@ export default function PreTravelForm() {
         company: company.name,
       });
     }
-  }, [user, company, form]);
+  }, [user, company]);
+
+  // Show loading state while data is being fetched
+  if (userLoading || companyLoading) {
+    return (
+      <div className="flex items-center justify-center min-h-screen">
+        <Loader2 className="h-8 w-8 animate-spin text-border" />
+      </div>
+    );
+  }
 
   const handleVoiceData = (data: Record<string, any>) => {
     try {
