@@ -272,7 +272,15 @@ export const sendInvitationSchema = z.object({
   type: z.enum([InvitationType.COMPANY_ADMIN]),
 });
 
-export const insertCompanyVehicleSchema = createInsertSchema(companyVehicles);
+export const insertCompanyVehicleSchema = createInsertSchema(companyVehicles)
+  .extend({
+    companyId: z.number().default(1),
+    enginePower: z.number().int().min(0, "Engine power must be positive"),
+    fuelConsumption: z.number().min(0, "Fuel consumption must be positive"),
+    currentMileage: z.number().min(0, "Current mileage must be positive"),
+    year: z.number().int().min(1900, "Year must be after 1900"),
+  });
+
 export const selectCompanyVehicleSchema = createSelectSchema(companyVehicles);
 export type InsertCompanyVehicle = typeof companyVehicles.$inferInsert;
 export type SelectCompanyVehicle = typeof companyVehicles.$inferSelect;
