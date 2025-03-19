@@ -67,8 +67,12 @@ export default function PostTravelForm() {
   const formHook = useForm<PostTravelForm>({
     resolver: zodResolver(postTravelFormSchema),
     defaultValues: {
-      departureTime: form?.departureTime ? new Date(form.departureTime) : new Date(),
-      returnTime: form?.returnTime ? new Date(form.returnTime) : new Date(),
+      departureTime: form?.departureTime 
+        ? new Date(form.departureTime).toISOString().slice(0, 16) 
+        : new Date().toISOString().slice(0, 16),
+      returnTime: form?.returnTime 
+        ? new Date(form.returnTime).toISOString().slice(0, 16) 
+        : new Date().toISOString().slice(0, 16),
       startMileage: 0,
       endMileage: 0,
       expenses: [],
@@ -233,10 +237,6 @@ export default function PostTravelForm() {
                           <Input
                             type="datetime-local"
                             {...field}
-                            onChange={(e) =>
-                              field.onChange(new Date(e.target.value))
-                            }
-                            value={field.value instanceof Date ? field.value.toISOString().slice(0, 16) : field.value}
                           />
                         </FormControl>
                         <FormMessage />
@@ -254,10 +254,6 @@ export default function PostTravelForm() {
                           <Input
                             type="datetime-local"
                             {...field}
-                            onChange={(e) =>
-                              field.onChange(new Date(e.target.value))
-                            }
-                            value={field.value instanceof Date ? field.value.toISOString().slice(0, 16) : field.value}
                           />
                         </FormControl>
                         <FormDescription>

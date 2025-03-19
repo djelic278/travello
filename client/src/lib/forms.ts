@@ -35,36 +35,24 @@ export const preTraveFormSchema = z.object({
 });
 
 export const postTravelFormSchema = z.object({
-  departureTime: z.union([z.string(), z.date()]).transform((val) => {
-    if (typeof val === 'string') {
-      const date = new Date(val);
-      if (isNaN(date.getTime())) throw new Error("Invalid departure time");
-      return date;
-    }
-    return val;
+  departureTime: z.string().transform((val) => {
+    const date = new Date(val);
+    if (isNaN(date.getTime())) throw new Error("Invalid departure time");
+    return date;
   }),
-  returnTime: z.union([z.string(), z.date()]).transform((val) => {
-    if (typeof val === 'string') {
-      const date = new Date(val);
-      if (isNaN(date.getTime())) throw new Error("Invalid return time");
-      return date;
-    }
-    return val;
+  returnTime: z.string().transform((val) => {
+    const date = new Date(val);
+    if (isNaN(date.getTime())) throw new Error("Invalid return time");
+    return date;
   }),
   startMileage: z.number().min(0, "Start mileage must be positive"),
   endMileage: z.number().min(0, "End mileage must be positive"),
   expenses: z.array(expenseSchema),
   files: z.array(z.custom<File>((val) => val instanceof File, "Must be a valid file")).max(4, "Maximum 4 files allowed").optional(),
 }).refine((data) => {
-  const departure = data.departureTime instanceof Date ? data.departureTime : new Date(data.departureTime);
-  const return_ = data.returnTime instanceof Date ? data.returnTime : new Date(data.returnTime);
+  const departure = data.departureTime;
+  const return_ = data.returnTime;
 
-  if (isNaN(departure.getTime())) {
-    throw new Error("Invalid departure time format");
-  }
-  if (isNaN(return_.getTime())) {
-    throw new Error("Invalid return time format");
-  }
   if (return_ <= departure) {
     throw new Error("Return time must be after departure time");
   }
