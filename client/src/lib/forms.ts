@@ -35,30 +35,28 @@ export const preTraveFormSchema = z.object({
 });
 
 export const postTravelFormSchema = z.object({
-  departureTime: z.string().transform((val) => {
-    const date = new Date(val);
-    if (isNaN(date.getTime())) throw new Error("Invalid departure time");
-    return date;
-  }),
-  returnTime: z.string().transform((val) => {
-    const date = new Date(val);
-    if (isNaN(date.getTime())) throw new Error("Invalid return time");
-    return date;
-  }),
+  departureTime: z.string().min(1, "Departure time is required"),
+  returnTime: z.string().min(1, "Return time is required"),
   startMileage: z.number().min(0, "Start mileage must be positive"),
   endMileage: z.number().min(0, "End mileage must be positive"),
   expenses: z.array(expenseSchema),
   files: z.array(z.custom<File>((val) => val instanceof File, "Must be a valid file")).max(4, "Maximum 4 files allowed").optional(),
 }).refine((data) => {
-  const departure = data.departureTime;
-  const return_ = data.returnTime;
+  const departure = new Date(data.departureTime);
+  const return_ = new Date(data.returnTime);
 
+  if (isNaN(departure.getTime())) {
+    return false;
+  }
+  if (isNaN(return_.getTime())) {
+    return false;
+  }
   if (return_ <= departure) {
-    throw new Error("Return time must be after departure time");
+    return false;
   }
   return true;
 }, {
-  message: "Return time must be after departure time",
+  message: "Return time must be after departure time and both dates must be valid",
   path: ["returnTime"],
 });
 
@@ -119,9 +117,9 @@ export function calculateDistanceAllowance(kilometers: number, ratePerKm: number
   return Math.max(0, kilometers * ratePerKm);
 }
 
-export function calculateTotalHours(departure: Date | string, return_: Date | string): number {
-  const departureDate = departure instanceof Date ? departure : new Date(departure);
-  const returnDate = return_ instanceof Date ? return_ : new Date(return_);
+export function calculateTotalHours(departure: string | Date, return_: string | Date): number {
+  const departureDate = typeof departure === 'string' ? new Date(departure) : departure;
+  const returnDate = typeof return_ === 'string' ? new Date(return_) : return_;
 
   if (isNaN(departureDate.getTime()) || isNaN(returnDate.getTime())) {
     return 0;

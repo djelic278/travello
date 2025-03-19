@@ -54,7 +54,6 @@ export default function PostTravelForm() {
   const { toast } = useToast();
   const { startLoading, stopLoading } = useFormLoading();
 
-  // Fetch settings and form data
   const { data: settings } = useQuery<Record<string, string>>({
     queryKey: ["/api/settings"],
   });
@@ -67,14 +66,14 @@ export default function PostTravelForm() {
   const formHook = useForm<PostTravelForm>({
     resolver: zodResolver(postTravelFormSchema),
     defaultValues: {
-      departureTime: form?.departureTime
+      departureTime: form?.departureTime 
         ? new Date(form.departureTime).toISOString().slice(0, 16)
         : new Date().toISOString().slice(0, 16),
       returnTime: form?.returnTime
         ? new Date(form.returnTime).toISOString().slice(0, 16)
-        : new Date().toISOString().slice(0, 16),
-      startMileage: 0,
-      endMileage: 0,
+        : new Date(Date.now() + 8 * 60 * 60 * 1000).toISOString().slice(0, 16),
+      startMileage: form?.startMileage || 0,
+      endMileage: form?.endMileage || 0,
       expenses: [],
       files: [],
     },
@@ -85,36 +84,27 @@ export default function PostTravelForm() {
     name: "expenses"
   });
 
-  // Calculate total kilometers
+  // Watch form values for calculations
   const startMileage = formHook.watch('startMileage');
   const endMileage = formHook.watch('endMileage');
-  const totalKilometers = Math.max(0, endMileage - startMileage);
-
-  // Calculate allowances
   const departureTime = formHook.watch('departureTime');
   const returnTime = formHook.watch('returnTime');
 
-  const totalHours = calculateTotalHours(
-    new Date(departureTime),
-    new Date(returnTime)
-  );
-
+  // Calculate values
+  const totalKilometers = Math.max(0, endMileage - startMileage);
+  const totalHours = calculateTotalHours(departureTime, returnTime);
   const timeAllowance = calculateAllowance(
     totalHours,
     settings?.dailyAllowance ? parseFloat(settings.dailyAllowance) : 35
   );
-
   const distanceAllowance = calculateDistanceAllowance(
     totalKilometers,
     settings?.kilometerRate ? parseFloat(settings.kilometerRate) : 0.3
   );
-
   const totalExpenses = formHook.watch('expenses').reduce(
     (sum, expense) => sum + (expense.amount || 0),
     0
   );
-
-  // Ensure prepaidAmount is a number
   const prepaidAmount = form?.requestedPrepayment ? parseFloat(form.requestedPrepayment.toString()) : 0;
   const totalAllowances = timeAllowance + distanceAllowance + totalExpenses;
   const finalReimbursement = totalAllowances - prepaidAmount;
