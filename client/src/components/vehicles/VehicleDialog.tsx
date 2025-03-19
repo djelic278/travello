@@ -39,7 +39,7 @@ export function VehicleDialog({ open, onOpenChange, vehicle, onClose }: VehicleD
       const response = await fetch(`/api/vehicles${vehicle ? `/${vehicle.id}` : ''}`, {
         method: vehicle ? 'PUT' : 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(data),
+        body: JSON.stringify(form.getValues()), // Get the actual form values
       });
       if (!response.ok) {
         throw new Error('Failed to save vehicle');
@@ -53,6 +53,7 @@ export function VehicleDialog({ open, onOpenChange, vehicle, onClose }: VehicleD
         variant: "default",
       });
       onClose();
+      form.reset();
     },
     onError: (error) => {
       toast({
@@ -112,8 +113,8 @@ export function VehicleDialog({ open, onOpenChange, vehicle, onClose }: VehicleD
                 label="Fuel Consumption (L/100km)"
               />
               <Select
-                {...form.register("status")}
-                label="Status"
+                onValueChange={(value) => form.setValue("status", value)}
+                defaultValue={form.getValues("status")}
               >
                 <SelectTrigger>
                   <SelectValue placeholder="Select status" />
@@ -137,7 +138,7 @@ export function VehicleDialog({ open, onOpenChange, vehicle, onClose }: VehicleD
               <Button type="button" variant="outline" onClick={onClose}>
                 Cancel
               </Button>
-              <Button type="submit" loading={mutation.isPending}>
+              <Button type="submit" disabled={mutation.isPending}>
                 {vehicle ? 'Update' : 'Add'} Vehicle
               </Button>
             </div>

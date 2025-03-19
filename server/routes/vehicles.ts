@@ -37,7 +37,10 @@ router.get("/vehicles/:id", async (req, res) => {
 // Create new vehicle
 router.post("/vehicles", async (req, res) => {
   try {
-    const vehicleData = insertCompanyVehicleSchema.parse(req.body);
+    const vehicleData = insertCompanyVehicleSchema.parse({
+      ...req.body,
+      companyId: req.user!.companyId
+    });
     const vehicle = await db.insert(companyVehicles).values(vehicleData).returning();
     res.status(201).json(vehicle[0]);
   } catch (error) {
