@@ -8,6 +8,7 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { InsertCompanyVehicle, insertCompanyVehicleSchema } from "@/lib/schema";
 import { useToast } from "@/hooks/use-toast";
+import { useEffect } from "react";
 
 type VehicleDialogProps = {
   open: boolean;
@@ -21,7 +22,7 @@ export function VehicleDialog({ open, onOpenChange, vehicle, onClose }: VehicleD
   const queryClient = useQueryClient();
   const form = useForm<InsertCompanyVehicle>({
     resolver: zodResolver(insertCompanyVehicleSchema),
-    defaultValues: vehicle || {
+    defaultValues: {
       manufacturer: "",
       model: "",
       year: new Date().getFullYear(),
@@ -34,6 +35,37 @@ export function VehicleDialog({ open, onOpenChange, vehicle, onClose }: VehicleD
       companyId: 1, // Default company ID
     },
   });
+
+  // Update form values when vehicle changes
+  useEffect(() => {
+    if (vehicle) {
+      form.reset({
+        manufacturer: vehicle.manufacturer,
+        model: vehicle.model,
+        year: vehicle.year,
+        licensePlate: vehicle.licensePlate,
+        engineType: vehicle.engineType,
+        enginePower: vehicle.enginePower,
+        fuelConsumption: vehicle.fuelConsumption,
+        status: vehicle.status,
+        currentMileage: vehicle.currentMileage,
+        companyId: vehicle.companyId,
+      });
+    } else {
+      form.reset({
+        manufacturer: "",
+        model: "",
+        year: new Date().getFullYear(),
+        licensePlate: "",
+        engineType: "",
+        enginePower: 0,
+        fuelConsumption: 0,
+        status: "available",
+        currentMileage: 0,
+        companyId: 1,
+      });
+    }
+  }, [vehicle, form]);
 
   const mutation = useMutation({
     mutationFn: async (data: InsertCompanyVehicle) => {
