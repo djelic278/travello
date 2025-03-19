@@ -159,7 +159,8 @@ export const vehicleMileage = pgTable("vehicle_mileage", {
   travelFormId: integer("travel_form_id").references(() => travelForms.id),
   startMileage: decimal("start_mileage", { precision: 10, scale: 1 }).notNull(),
   endMileage: decimal("end_mileage", { precision: 10, scale: 1 }).notNull(),
-  date: timestamp("date").defaultNow().notNull(),
+  startDate: timestamp("start_date").defaultNow().notNull(),
+  endDate: timestamp("end_date").defaultNow().notNull(),
   notes: text("notes"),
   createdAt: timestamp("created_at").defaultNow().notNull(),
 });

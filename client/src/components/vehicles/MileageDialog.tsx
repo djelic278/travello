@@ -68,7 +68,13 @@ export function MileageDialog({ open, onOpenChange, vehicle }: MileageDialogProp
       if (!vehicle) return [];
       const response = await fetch(`/api/vehicles/${vehicle.id}/mileage`);
       if (!response.ok) throw new Error('Failed to fetch mileage records');
-      return response.json();
+      const data = await response.json();
+      // Transform the dates into the correct format
+      return data.map((record: any) => ({
+        ...record,
+        startDate: new Date(record.startDate).toISOString(),
+        endDate: new Date(record.endDate).toISOString(),
+      }));
     },
     enabled: !!vehicle,
   });
