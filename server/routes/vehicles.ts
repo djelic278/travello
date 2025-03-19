@@ -61,23 +61,20 @@ router.post("/vehicles", isAuthenticated, asyncHandler(async (req, res) => {
 }));
 
 // Get single vehicle
-router.get("/vehicles/:id", isAuthenticated, async (req, res) => {
-  try {
-    const vehicle = await db.query.companyVehicles.findFirst({
-      where: eq(companyVehicles.id, parseInt(req.params.id)),
-    });
-    if (!vehicle) {
-      return res.status(404).json({ error: "Vehicle not found" });
-    }
-    res.json(vehicle);
-  } catch (error) {
-    console.error("Error fetching vehicle:", error);
-    res.status(500).json({ error: "Failed to fetch vehicle" });
+router.get("/vehicles/:id", isAuthenticated, asyncHandler(async (req, res) => {
+  const vehicle = await db.query.companyVehicles.findFirst({
+    where: eq(companyVehicles.id, parseInt(req.params.id)),
+  });
+
+  if (!vehicle) {
+    return res.status(404).json({ error: "Vehicle not found" });
   }
-});
+
+  res.json(vehicle);
+}));
 
 // Update vehicle
-router.put("/vehicles/:id", isAuthenticated, async (req, res) => {
+router.put("/vehicles/:id", isAuthenticated, asyncHandler(async (req, res) => {
   try {
     const validatedData = await insertCompanyVehicleSchema.parseAsync({
       ...req.body,
@@ -104,6 +101,20 @@ router.put("/vehicles/:id", isAuthenticated, async (req, res) => {
     console.error("Error updating vehicle:", error);
     res.status(500).json({ error: "Failed to update vehicle" });
   }
-});
+}));
+
+// Delete vehicle
+router.delete("/vehicles/:id", isAuthenticated, asyncHandler(async (req, res) => {
+  const [deletedVehicle] = await db
+    .delete(companyVehicles)
+    .where(eq(companyVehicles.id, parseInt(req.params.id)))
+    .returning();
+
+  if (!deletedVehicle) {
+    return res.status(404).json({ error: "Vehicle not found" });
+  }
+
+  res.json({ message: "Vehicle deleted successfully" });
+}));
 
 export default router;
