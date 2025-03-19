@@ -2,11 +2,12 @@ import { Router } from "express";
 import { db } from "@db";
 import { companyVehicles, insertCompanyVehicleSchema } from "@db/schema";
 import { eq } from "drizzle-orm";
+import { isAuthenticated } from "../middleware/auth";
 
 const router = Router();
 
 // Get all vehicles
-router.get("/vehicles", async (req, res) => {
+router.get("/vehicles", isAuthenticated, async (req, res) => {
   try {
     const vehicles = await db.query.companyVehicles.findMany({
       orderBy: (vehicles, { desc }) => [desc(vehicles.createdAt)],
@@ -19,7 +20,7 @@ router.get("/vehicles", async (req, res) => {
 });
 
 // Get single vehicle
-router.get("/vehicles/:id", async (req, res) => {
+router.get("/vehicles/:id", isAuthenticated, async (req, res) => {
   try {
     const vehicle = await db.query.companyVehicles.findFirst({
       where: eq(companyVehicles.id, parseInt(req.params.id)),
@@ -35,33 +36,53 @@ router.get("/vehicles/:id", async (req, res) => {
 });
 
 // Create new vehicle
-router.post("/vehicles", async (req, res) => {
+router.post("/vehicles", isAuthenticated, async (req, res) => {
   try {
-    const vehicleData = insertCompanyVehicleSchema.parse({
+    console.log('Received vehicle data:', req.body); // Debug log
+
+    const parsedData = insertCompanyVehicleSchema.parse({
       ...req.body,
-      companyId: req.user!.companyId
+      companyId: 1 // Using default company ID for now
     });
-    const vehicle = await db.insert(companyVehicles).values(vehicleData).returning();
-    res.status(201).json(vehicle[0]);
+
+    console.log('Parsed vehicle data:', parsedData); // Debug log
+
+    const [vehicle] = await db.insert(companyVehicles)
+      .values({
+        ...parsedData,
+        createdAt: new Date(),
+        updatedAt: new Date()
+      })
+      .returning();
+
+    console.log('Created vehicle:', vehicle); // Debug log
+    res.status(201).json(vehicle);
   } catch (error) {
     console.error("Error creating vehicle:", error);
-    res.status(500).json({ error: "Failed to create vehicle" });
+    res.status(500).json({ 
+      error: "Failed to create vehicle",
+      details: error instanceof Error ? error.message : 'Unknown error'
+    });
   }
 });
 
 // Update vehicle
-router.put("/vehicles/:id", async (req, res) => {
+router.put("/vehicles/:id", isAuthenticated, async (req, res) => {
   try {
-    const vehicleData = insertCompanyVehicleSchema.parse(req.body);
-    const vehicle = await db
+    const parsedData = insertCompanyVehicleSchema.parse(req.body);
+    const [vehicle] = await db
       .update(companyVehicles)
-      .set(vehicleData)
+      .set({
+        ...parsedData,
+        updatedAt: new Date()
+      })
       .where(eq(companyVehicles.id, parseInt(req.params.id)))
       .returning();
-    if (!vehicle.length) {
+
+    if (!vehicle) {
       return res.status(404).json({ error: "Vehicle not found" });
     }
-    res.json(vehicle[0]);
+    res.json(vehicle);
   } catch (error) {
     console.error("Error updating vehicle:", error);
     res.status(500).json({ error: "Failed to update vehicle" });

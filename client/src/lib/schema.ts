@@ -18,8 +18,13 @@ export const vehicleSchema = z.object({
 
 export type SelectCompanyVehicle = z.infer<typeof vehicleSchema>;
 
+// Schema for inserting/updating vehicles
 export const insertCompanyVehicleSchema = vehicleSchema.omit({ 
   id: true, 
   createdAt: true, 
   updatedAt: true 
+}).extend({
+  companyId: z.number().default(1) // Temporary default value for testing
 });
+
+export type InsertCompanyVehicle = z.infer<typeof insertCompanyVehicleSchema>;
