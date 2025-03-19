@@ -14,15 +14,24 @@ export const preTraveFormSchema = z.object({
   lastName: z.string().min(1, "Last name is required"),
   destination: z.string().min(1, "Destination is required"),
   tripPurpose: z.string().min(1, "Trip purpose is required"),
-  transportType: z.string().min(1, "Transport type is required"),
+  transportType: z.string(),
   isCompanyVehicle: z.boolean().default(false),
   companyVehicleId: z.number().optional(),
   transportDetails: z.string().optional(),
   isReturnTrip: z.boolean(),
   startDate: z.date(),
   duration: z.number().min(1, "Duration must be at least 1 day"),
-  projectCode: z.string().min(1, "Project code is required"),
+  projectCode: z.string().optional(), // Made project code optional
   requestedPrepayment: z.number().min(0, "Prepayment amount must be positive").optional(),
+}).refine((data) => {
+  // Custom validation for transport type based on company vehicle selection
+  if (data.isCompanyVehicle) {
+    return true; // Skip validation when using company vehicle
+  }
+  return data.transportType.length > 0;
+}, {
+  message: "Transport type is required when not using a company vehicle",
+  path: ["transportType"],
 });
 
 export const postTravelFormSchema = z.object({
@@ -67,7 +76,7 @@ export const fieldDescriptions = {
   isReturnTrip: "Indicate if you will return to your starting location",
   startDate: "The date when your travel will begin",
   duration: "Number of days you plan to stay",
-  projectCode: "The project code to which this travel will be billed",
+  projectCode: "The project code to which this travel will be billed (optional)",
   requestedPrepayment: "Amount of money (in EUR) requested as advance payment before the trip",
 };
 
