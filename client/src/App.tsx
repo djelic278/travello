@@ -11,14 +11,13 @@ import NotFound from "@/pages/not-found";
 import AuthPage from "@/pages/auth-page";
 import ExampleForm from "@/pages/example-form"; 
 import { useUser } from "@/hooks/use-user";
-import { Loader2, User, Home, Plus, Settings, Car } from "lucide-react"; // Added Car import
+import { Loader2, User, Home, Plus, Settings, Car } from "lucide-react";
 import { NotificationsButton } from "@/components/notifications";
 import { Button } from "@/components/ui/button";
 import { Link, useLocation } from "wouter";
 import ErrorBoundary from "@/components/ErrorBoundary";
 import { motion } from "framer-motion";
-import VehicleManagement from "./pages/VehicleManagement"; // Added VehicleManagement import
-
+import VehicleManagement from "./pages/VehicleManagement";
 
 function Layout({ children }: { children: React.ReactNode }) {
   const [location] = useLocation();
@@ -35,7 +34,7 @@ function Layout({ children }: { children: React.ReactNode }) {
               animate={{ opacity: 1, y: 0 }}
               transition={{ duration: 0.5 }}
             >
-              Travelo
+              Travello.ai
             </motion.h1>
             <nav className="hidden md:flex items-center space-x-4">
               <Button variant={location === "/" ? "default" : "ghost"} size="sm" asChild>

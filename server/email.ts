@@ -93,12 +93,12 @@ export async function sendInvitationEmail(email: string, token: string): Promise
 
     // Enhanced email template with better styling
     const mailOptions = {
-      from: '"Travel Expense System" <noreply@travelexpense.com>',
+      from: '"Travello.ai" <noreply@travello.ai>',
       to: email,
       subject: 'Invitation to Join as Company Admin',
       html: `
         <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px;">
-          <h1 style="color: #333; text-align: center;">Welcome to Travel Expense System</h1>
+          <h1 style="color: #333; text-align: center;">Welcome to Travello.ai</h1>
           <div style="background-color: #f8f9fa; border-radius: 5px; padding: 20px; margin: 20px 0;">
             <p style="color: #666;">You have been invited to join as a Company Administrator.</p>
             <p style="color: #666;">To complete your registration, please click the button below:</p>
