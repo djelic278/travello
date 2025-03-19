@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { useForm, useFieldArray } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { postTravelFormSchema, type PostTravelForm, type TravelFormResponse, calculateAllowance, calculateTotalHours, calculateDistanceAllowance } from "@/lib/forms";
+import { postTravelFormSchema, type PostTravelForm, calculateAllowance, calculateTotalHours, calculateDistanceAllowance } from "@/lib/forms";
 import { useMutation, useQuery } from "@tanstack/react-query";
 import { useLocation, useParams } from "wouter";
 import { useToast } from "@/hooks/use-toast";
@@ -47,7 +47,6 @@ import { VoiceInput } from "@/components/voice-input";
 import { Camera } from "lucide-react";
 import { FormWrapper } from "@/components/ui/form-wrapper";
 
-
 export default function PostTravelForm() {
   const [showSignatureDialog, setShowSignatureDialog] = useState(false);
   const params = useParams<{ id: string }>();
@@ -60,7 +59,7 @@ export default function PostTravelForm() {
     queryKey: ["/api/settings"],
   });
 
-  const { data: form, isLoading } = useQuery<TravelFormResponse>({
+  const { data: form, isLoading } = useQuery({
     queryKey: [`/api/forms/${params.id}`],
     enabled: !!params.id,
   });
@@ -76,92 +75,6 @@ export default function PostTravelForm() {
       files: [],
     },
   });
-
-  // Handle voice input data
-  const handleVoiceData = (data: Record<string, any>) => {
-    const fields = formHook.getValues();
-
-    try {
-      // Update start mileage if provided
-      if (data.startMileage !== undefined) {
-        const startMileageValue = typeof data.startMileage === 'string'
-          ? parseFloat(data.startMileage.replace(/[^0-9.]/g, ''))
-          : parseFloat(data.startMileage);
-
-        if (!isNaN(startMileageValue)) {
-          formHook.setValue('startMileage', startMileageValue);
-          toast({
-            title: "Start Mileage Updated",
-            description: `Set to ${startMileageValue} kilometers`,
-          });
-        }
-      }
-
-      // Update end mileage if provided
-      if (data.endMileage !== undefined) {
-        const endMileageValue = typeof data.endMileage === 'string'
-          ? parseFloat(data.endMileage.replace(/[^0-9.]/g, ''))
-          : parseFloat(data.endMileage);
-
-        if (!isNaN(endMileageValue)) {
-          formHook.setValue('endMileage', endMileageValue);
-          toast({
-            title: "End Mileage Updated",
-            description: `Set to ${endMileageValue} kilometers`,
-          });
-        }
-      }
-
-      // Handle departure and return times
-      if (data.departureTime) {
-        const departureDate = new Date(data.departureTime);
-        if (!isNaN(departureDate.getTime())) {
-          formHook.setValue('departureTime', departureDate);
-          toast({
-            title: "Departure Time Updated",
-            description: `Set to ${departureDate.toLocaleString()}`,
-          });
-        }
-      }
-
-      if (data.returnTime) {
-        const returnDate = new Date(data.returnTime);
-        if (!isNaN(returnDate.getTime())) {
-          formHook.setValue('returnTime', returnDate);
-          toast({
-            title: "Return Time Updated",
-            description: `Set to ${returnDate.toLocaleString()}`,
-          });
-        }
-      } else if (data.departureTime) {
-        // If only departure time is set, set return time to 8 hours later
-        const departureDate = new Date(data.departureTime);
-        const returnDate = new Date(departureDate.getTime() + 8 * 60 * 60 * 1000);
-        formHook.setValue('returnTime', returnDate);
-        toast({
-          title: "Return Time Updated",
-          description: `Set to ${returnDate.toLocaleString()} (8 hours after departure)`,
-        });
-      }
-
-      // Add expense if provided
-      if (data.purpose) {
-        append({ name: data.purpose, amount: data.amount || 0 });
-        toast({
-          title: "Expense Added",
-          description: `New expense "${data.purpose}" has been added`,
-        });
-      }
-
-    } catch (error) {
-      console.error('Error processing voice input:', error);
-      toast({
-        title: "Voice Input Error",
-        description: "There was an error processing your voice input. Please try again.",
-        variant: "destructive",
-      });
-    }
-  };
 
   const { fields, append, remove } = useFieldArray({
     control: formHook.control,
@@ -306,17 +219,6 @@ export default function PostTravelForm() {
             </div>
           </div>
 
-          {/* Voice input section */}
-          <div className="mb-6">
-            <VoiceInput
-              onDataReceived={handleVoiceData}
-              className="mb-4"
-            />
-            <p className="text-sm text-muted-foreground">
-              Try saying: "Start mileage is 1000 kilometers, end mileage is 1500 kilometers, traveled on January 30th 2025"
-            </p>
-          </div>
-
           <FormWrapper formId="post-travel-form">
             <Form {...formHook}>
               <form onSubmit={formHook.handleSubmit(onSubmit)} className="space-y-6">
@@ -334,7 +236,7 @@ export default function PostTravelForm() {
                             onChange={(e) =>
                               field.onChange(new Date(e.target.value))
                             }
-                            value={field.value?.toISOString().slice(0, 16)}
+                            value={field.value instanceof Date ? field.value.toISOString().slice(0, 16) : field.value}
                           />
                         </FormControl>
                         <FormMessage />
@@ -355,7 +257,7 @@ export default function PostTravelForm() {
                             onChange={(e) =>
                               field.onChange(new Date(e.target.value))
                             }
-                            value={field.value?.toISOString().slice(0, 16)}
+                            value={field.value instanceof Date ? field.value.toISOString().slice(0, 16) : field.value}
                           />
                         </FormControl>
                         <FormDescription>
@@ -417,7 +319,6 @@ export default function PostTravelForm() {
                     </div>
                   </div>
                 </div>
-
                 <FormField
                   control={formHook.control}
                   name="files"
