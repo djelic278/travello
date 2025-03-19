@@ -2,7 +2,7 @@ import { ColumnDef } from "@tanstack/react-table";
 import { SelectCompanyVehicle } from "@/lib/schema";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Settings, Trash2 } from "lucide-react";
+import { Settings, Trash2, LineChart } from "lucide-react";
 
 export const columns: ColumnDef<SelectCompanyVehicle>[] = [
   {
@@ -66,6 +66,17 @@ export const columns: ColumnDef<SelectCompanyVehicle>[] = [
 
       return (
         <div className="flex items-center gap-2">
+          <Button 
+            variant="ghost" 
+            size="icon"
+            className="h-8 w-8 p-0"
+            onClick={(e) => {
+              e.stopPropagation();
+              document.dispatchEvent(new CustomEvent('view-mileage', { detail: vehicle }));
+            }}
+          >
+            <LineChart className="h-4 w-4" />
+          </Button>
           <Button 
             variant="ghost" 
             size="icon"

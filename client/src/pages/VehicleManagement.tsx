@@ -4,6 +4,7 @@ import { Button } from "@/components/ui/button";
 import { Plus } from "lucide-react";
 import { columns } from "@/components/vehicles/columns";
 import { VehicleDialog } from "@/components/vehicles/VehicleDialog";
+import { MileageDialog } from "@/components/vehicles/MileageDialog";
 import { useState, useEffect } from "react";
 import { SelectCompanyVehicle } from "@/lib/schema";
 import {
@@ -20,8 +21,10 @@ import { useToast } from "@/hooks/use-toast";
 
 export default function VehicleManagement() {
   const [isDialogOpen, setIsDialogOpen] = useState(false);
+  const [isMileageDialogOpen, setIsMileageDialogOpen] = useState(false);
   const [selectedVehicle, setSelectedVehicle] = useState<SelectCompanyVehicle | null>(null);
   const [deleteVehicle, setDeleteVehicle] = useState<SelectCompanyVehicle | null>(null);
+  const [mileageVehicle, setMileageVehicle] = useState<SelectCompanyVehicle | null>(null);
   const { toast } = useToast();
   const queryClient = useQueryClient();
 
@@ -72,12 +75,19 @@ export default function VehicleManagement() {
       setDeleteVehicle(event.detail);
     };
 
+    const handleViewMileage = (event: CustomEvent<SelectCompanyVehicle>) => {
+      setMileageVehicle(event.detail);
+      setIsMileageDialogOpen(true);
+    };
+
     document.addEventListener('edit-vehicle', handleEdit as EventListener);
     document.addEventListener('delete-vehicle', handleDelete as EventListener);
+    document.addEventListener('view-mileage', handleViewMileage as EventListener);
 
     return () => {
       document.removeEventListener('edit-vehicle', handleEdit as EventListener);
       document.removeEventListener('delete-vehicle', handleDelete as EventListener);
+      document.removeEventListener('view-mileage', handleViewMileage as EventListener);
     };
   }, []);
 
@@ -105,6 +115,12 @@ export default function VehicleManagement() {
           setSelectedVehicle(null);
           setIsDialogOpen(false);
         }}
+      />
+
+      <MileageDialog
+        open={isMileageDialogOpen}
+        onOpenChange={setIsMileageDialogOpen}
+        vehicle={mileageVehicle}
       />
 
       <AlertDialog 
