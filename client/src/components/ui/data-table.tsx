@@ -6,8 +6,12 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { ColumnDef } from "@tanstack/react-table";
-import { useTable } from "@tanstack/react-table";
+import { 
+  ColumnDef,
+  flexRender,
+  getCoreRowModel,
+  useReactTable
+} from "@tanstack/react-table";
 import { Skeleton } from "@/components/ui/skeleton";
 
 interface DataTableProps<TData> {
@@ -23,9 +27,10 @@ export function DataTable<TData>({
   isLoading,
   onRowClick,
 }: DataTableProps<TData>) {
-  const table = useTable({
+  const table = useReactTable({
     data,
     columns,
+    getCoreRowModel: getCoreRowModel(),
   });
 
   if (isLoading) {
@@ -48,7 +53,10 @@ export function DataTable<TData>({
             <TableRow key={headerGroup.id}>
               {headerGroup.headers.map((header) => (
                 <TableHead key={header.id}>
-                  {header.column.columnDef.header as string}
+                  {flexRender(
+                    header.column.columnDef.header,
+                    header.getContext()
+                  )}
                 </TableHead>
               ))}
             </TableRow>
@@ -63,9 +71,10 @@ export function DataTable<TData>({
             >
               {row.getVisibleCells().map((cell) => (
                 <TableCell key={cell.id}>
-                  {cell.column.columnDef.cell
-                    ? cell.column.columnDef.cell(cell.getContext())
-                    : cell.getValue() as string}
+                  {flexRender(
+                    cell.column.columnDef.cell,
+                    cell.getContext()
+                  )}
                 </TableCell>
               ))}
             </TableRow>
