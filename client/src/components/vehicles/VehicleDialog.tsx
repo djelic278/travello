@@ -1,5 +1,5 @@
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
-import { Form } from "@/components/ui/form";
+import { Form, FormField, FormItem, FormLabel, FormControl } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -35,14 +35,15 @@ export function VehicleDialog({ open, onOpenChange, vehicle, onClose }: VehicleD
   });
 
   const mutation = useMutation({
-    mutationFn: async (data: typeof form.getValues) => {
+    mutationFn: async (data: any) => {
       const response = await fetch(`/api/vehicles${vehicle ? `/${vehicle.id}` : ''}`, {
         method: vehicle ? 'PUT' : 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(form.getValues()), // Get the actual form values
+        body: JSON.stringify(data),
       });
       if (!response.ok) {
-        throw new Error('Failed to save vehicle');
+        const error = await response.json();
+        throw new Error(error.message || 'Failed to save vehicle');
       }
       return response.json();
     },
@@ -73,65 +74,123 @@ export function VehicleDialog({ open, onOpenChange, vehicle, onClose }: VehicleD
         <Form {...form}>
           <form onSubmit={form.handleSubmit((data) => mutation.mutate(data))} className="space-y-4">
             <div className="grid gap-4">
-              <Input
-                {...form.register("manufacturer")}
-                placeholder="Manufacturer"
-                label="Manufacturer"
+              <FormField
+                control={form.control}
+                name="manufacturer"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Manufacturer</FormLabel>
+                    <FormControl>
+                      <Input placeholder="Manufacturer" {...field} />
+                    </FormControl>
+                  </FormItem>
+                )}
               />
-              <Input
-                {...form.register("model")}
-                placeholder="Model"
-                label="Model"
+              <FormField
+                control={form.control}
+                name="model"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Model</FormLabel>
+                    <FormControl>
+                      <Input placeholder="Model" {...field} />
+                    </FormControl>
+                  </FormItem>
+                )}
               />
-              <Input
-                {...form.register("year", { valueAsNumber: true })}
-                type="number"
-                placeholder="Year"
-                label="Year"
+              <FormField
+                control={form.control}
+                name="year"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Year</FormLabel>
+                    <FormControl>
+                      <Input type="number" placeholder="Year" {...field} />
+                    </FormControl>
+                  </FormItem>
+                )}
               />
-              <Input
-                {...form.register("licensePlate")}
-                placeholder="License Plate"
-                label="License Plate"
+              <FormField
+                control={form.control}
+                name="licensePlate"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>License Plate</FormLabel>
+                    <FormControl>
+                      <Input placeholder="License Plate" {...field} />
+                    </FormControl>
+                  </FormItem>
+                )}
               />
-              <Input
-                {...form.register("engineType")}
-                placeholder="Engine Type"
-                label="Engine Type"
+              <FormField
+                control={form.control}
+                name="engineType"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Engine Type</FormLabel>
+                    <FormControl>
+                      <Input placeholder="Engine Type" {...field} />
+                    </FormControl>
+                  </FormItem>
+                )}
               />
-              <Input
-                {...form.register("enginePower", { valueAsNumber: true })}
-                type="number"
-                placeholder="Engine Power (HP)"
-                label="Engine Power (HP)"
+              <FormField
+                control={form.control}
+                name="enginePower"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Engine Power (HP)</FormLabel>
+                    <FormControl>
+                      <Input type="number" placeholder="Engine Power" {...field} />
+                    </FormControl>
+                  </FormItem>
+                )}
               />
-              <Input
-                {...form.register("fuelConsumption", { valueAsNumber: true })}
-                type="number"
-                step="0.1"
-                placeholder="Fuel Consumption (L/100km)"
-                label="Fuel Consumption (L/100km)"
+              <FormField
+                control={form.control}
+                name="fuelConsumption"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Fuel Consumption (L/100km)</FormLabel>
+                    <FormControl>
+                      <Input type="number" step="0.1" placeholder="Fuel Consumption" {...field} />
+                    </FormControl>
+                  </FormItem>
+                )}
               />
-              <Select
-                onValueChange={(value) => form.setValue("status", value)}
-                defaultValue={form.getValues("status")}
-              >
-                <SelectTrigger>
-                  <SelectValue placeholder="Select status" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="available">Available</SelectItem>
-                  <SelectItem value="in_use">In Use</SelectItem>
-                  <SelectItem value="maintenance">Maintenance</SelectItem>
-                  <SelectItem value="retired">Retired</SelectItem>
-                </SelectContent>
-              </Select>
-              <Input
-                {...form.register("currentMileage", { valueAsNumber: true })}
-                type="number"
-                step="0.1"
-                placeholder="Current Mileage"
-                label="Current Mileage"
+              <FormField
+                control={form.control}
+                name="status"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Status</FormLabel>
+                    <Select onValueChange={field.onChange} defaultValue={field.value}>
+                      <FormControl>
+                        <SelectTrigger>
+                          <SelectValue placeholder="Select status" />
+                        </SelectTrigger>
+                      </FormControl>
+                      <SelectContent>
+                        <SelectItem value="available">Available</SelectItem>
+                        <SelectItem value="in_use">In Use</SelectItem>
+                        <SelectItem value="maintenance">Maintenance</SelectItem>
+                        <SelectItem value="retired">Retired</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </FormItem>
+                )}
+              />
+              <FormField
+                control={form.control}
+                name="currentMileage"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel>Current Mileage</FormLabel>
+                    <FormControl>
+                      <Input type="number" step="0.1" placeholder="Current Mileage" {...field} />
+                    </FormControl>
+                  </FormItem>
+                )}
               />
             </div>
             <div className="flex justify-end space-x-4">

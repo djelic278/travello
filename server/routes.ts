@@ -8,6 +8,7 @@ import multer from "multer";
 import { processReceipt } from "./services/ocr";
 import OpenAI from "openai";
 import { z } from "zod";
+import vehicleRoutes from './routes/vehicles';
 
 // Update User interface to match our schema
 interface User {
@@ -73,6 +74,9 @@ const voiceInputSchema = z.object({
 });
 
 export function registerRoutes(app: Express): Server {
+  // Add vehicle routes
+  app.use('/api', vehicleRoutes);
+
   // Get all users (super admin only)
   app.get("/api/users", isAuthenticated, asyncHandler(async (req: Request, res: Response) => {
     // Check if user is super admin
