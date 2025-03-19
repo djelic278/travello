@@ -67,133 +67,135 @@ export function VehicleDialog({ open, onOpenChange, vehicle, onClose }: VehicleD
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-[425px]">
+      <DialogContent className="sm:max-w-[425px] max-h-[90vh] flex flex-col">
         <DialogHeader>
           <DialogTitle>{vehicle ? 'Edit' : 'Add'} Vehicle</DialogTitle>
         </DialogHeader>
         <Form {...form}>
-          <form onSubmit={form.handleSubmit((data) => mutation.mutate(data))} className="space-y-4">
-            <div className="grid gap-4">
-              <FormField
-                control={form.control}
-                name="manufacturer"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Manufacturer</FormLabel>
-                    <FormControl>
-                      <Input placeholder="Manufacturer" {...field} />
-                    </FormControl>
-                  </FormItem>
-                )}
-              />
-              <FormField
-                control={form.control}
-                name="model"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Model</FormLabel>
-                    <FormControl>
-                      <Input placeholder="Model" {...field} />
-                    </FormControl>
-                  </FormItem>
-                )}
-              />
-              <FormField
-                control={form.control}
-                name="year"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Year</FormLabel>
-                    <FormControl>
-                      <Input type="number" placeholder="Year" {...field} />
-                    </FormControl>
-                  </FormItem>
-                )}
-              />
-              <FormField
-                control={form.control}
-                name="licensePlate"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>License Plate</FormLabel>
-                    <FormControl>
-                      <Input placeholder="License Plate" {...field} />
-                    </FormControl>
-                  </FormItem>
-                )}
-              />
-              <FormField
-                control={form.control}
-                name="engineType"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Engine Type</FormLabel>
-                    <FormControl>
-                      <Input placeholder="Engine Type" {...field} />
-                    </FormControl>
-                  </FormItem>
-                )}
-              />
-              <FormField
-                control={form.control}
-                name="enginePower"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Engine Power (HP)</FormLabel>
-                    <FormControl>
-                      <Input type="number" placeholder="Engine Power" {...field} />
-                    </FormControl>
-                  </FormItem>
-                )}
-              />
-              <FormField
-                control={form.control}
-                name="fuelConsumption"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Fuel Consumption (L/100km)</FormLabel>
-                    <FormControl>
-                      <Input type="number" step="0.1" placeholder="Fuel Consumption" {...field} />
-                    </FormControl>
-                  </FormItem>
-                )}
-              />
-              <FormField
-                control={form.control}
-                name="status"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Status</FormLabel>
-                    <Select onValueChange={field.onChange} defaultValue={field.value}>
+          <form onSubmit={form.handleSubmit((data) => mutation.mutate(data))} className="flex flex-col h-full">
+            <div className="flex-1 overflow-y-auto pr-2">
+              <div className="space-y-4">
+                <FormField
+                  control={form.control}
+                  name="manufacturer"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Manufacturer</FormLabel>
                       <FormControl>
-                        <SelectTrigger>
-                          <SelectValue placeholder="Select status" />
-                        </SelectTrigger>
+                        <Input placeholder="Manufacturer" {...field} />
                       </FormControl>
-                      <SelectContent>
-                        <SelectItem value="available">Available</SelectItem>
-                        <SelectItem value="in_use">In Use</SelectItem>
-                        <SelectItem value="maintenance">Maintenance</SelectItem>
-                        <SelectItem value="retired">Retired</SelectItem>
-                      </SelectContent>
-                    </Select>
-                  </FormItem>
-                )}
-              />
-              <FormField
-                control={form.control}
-                name="currentMileage"
-                render={({ field }) => (
-                  <FormItem>
-                    <FormLabel>Current Mileage</FormLabel>
-                    <FormControl>
-                      <Input type="number" step="0.1" placeholder="Current Mileage" {...field} />
-                    </FormControl>
-                  </FormItem>
-                )}
-              />
+                    </FormItem>
+                  )}
+                />
+                <FormField
+                  control={form.control}
+                  name="model"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Model</FormLabel>
+                      <FormControl>
+                        <Input placeholder="Model" {...field} />
+                      </FormControl>
+                    </FormItem>
+                  )}
+                />
+                <FormField
+                  control={form.control}
+                  name="year"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Year</FormLabel>
+                      <FormControl>
+                        <Input type="number" placeholder="Year" {...field} />
+                      </FormControl>
+                    </FormItem>
+                  )}
+                />
+                <FormField
+                  control={form.control}
+                  name="licensePlate"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>License Plate</FormLabel>
+                      <FormControl>
+                        <Input placeholder="License Plate" {...field} />
+                      </FormControl>
+                    </FormItem>
+                  )}
+                />
+                <FormField
+                  control={form.control}
+                  name="engineType"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Engine Type</FormLabel>
+                      <FormControl>
+                        <Input placeholder="Engine Type" {...field} />
+                      </FormControl>
+                    </FormItem>
+                  )}
+                />
+                <FormField
+                  control={form.control}
+                  name="enginePower"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Engine Power (HP)</FormLabel>
+                      <FormControl>
+                        <Input type="number" placeholder="Engine Power" {...field} />
+                      </FormControl>
+                    </FormItem>
+                  )}
+                />
+                <FormField
+                  control={form.control}
+                  name="fuelConsumption"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Fuel Consumption (L/100km)</FormLabel>
+                      <FormControl>
+                        <Input type="number" step="0.1" placeholder="Fuel Consumption" {...field} />
+                      </FormControl>
+                    </FormItem>
+                  )}
+                />
+                <FormField
+                  control={form.control}
+                  name="status"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Status</FormLabel>
+                      <Select onValueChange={field.onChange} defaultValue={field.value}>
+                        <FormControl>
+                          <SelectTrigger>
+                            <SelectValue placeholder="Select status" />
+                          </SelectTrigger>
+                        </FormControl>
+                        <SelectContent>
+                          <SelectItem value="available">Available</SelectItem>
+                          <SelectItem value="in_use">In Use</SelectItem>
+                          <SelectItem value="maintenance">Maintenance</SelectItem>
+                          <SelectItem value="retired">Retired</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </FormItem>
+                  )}
+                />
+                <FormField
+                  control={form.control}
+                  name="currentMileage"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Current Mileage</FormLabel>
+                      <FormControl>
+                        <Input type="number" step="0.1" placeholder="Current Mileage" {...field} />
+                      </FormControl>
+                    </FormItem>
+                  )}
+                />
+              </div>
             </div>
-            <div className="flex justify-end space-x-4">
+            <div className="flex justify-end space-x-4 pt-4 mt-4 border-t">
               <Button type="button" variant="outline" onClick={onClose}>
                 Cancel
               </Button>
