@@ -174,9 +174,18 @@ export default function PostTravelForm() {
         startLoading("post-travel-form");
         const formData = new FormData();
 
+        // Ensure proper date serialization
+        const departureTime = data.departureTime instanceof Date 
+          ? data.departureTime.toISOString() 
+          : new Date(data.departureTime).toISOString();
+
+        const returnTime = data.returnTime instanceof Date 
+          ? data.returnTime.toISOString() 
+          : new Date(data.returnTime).toISOString();
+
         // Add form fields
-        formData.append('departureTime', data.departureTime.toISOString());
-        formData.append('returnTime', data.returnTime.toISOString());
+        formData.append('departureTime', departureTime);
+        formData.append('returnTime', returnTime);
         formData.append('startMileage', data.startMileage.toString());
         formData.append('endMileage', data.endMileage.toString());
         formData.append('expenses', JSON.stringify(data.expenses));
