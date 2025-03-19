@@ -37,7 +37,7 @@ export default function AuthPage() {
         await register({ username, password, email });
         toast({
           title: "Registration successful",
-          description: "Welcome to Travelo!",
+          description: "Welcome to Travello.ai!",
         });
         navigate("/");
       }
@@ -74,7 +74,7 @@ export default function AuthPage() {
       if (result.user) {
         toast({
           title: "Login successful",
-          description: "Welcome to Travelo!",
+          description: "Welcome to Travello.ai!",
         });
         navigate("/");
       }
@@ -116,7 +116,7 @@ export default function AuthPage() {
         className="mb-8"
       >
         <h1 className="text-4xl font-black tracking-tight bg-gradient-to-r from-primary to-primary/70 bg-clip-text text-transparent">
-          Travelo
+          Travello.ai
         </h1>
       </motion.div>
 
@@ -128,14 +128,16 @@ export default function AuthPage() {
       >
         <Card>
           <CardHeader className="space-y-1">
-            <motion.div
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              transition={{ delay: 0.4 }}
-              className="text-center text-muted-foreground"
-            >
-              Your travel companion for expense management
-            </motion.div>
+            <div className="space-y-0.5">
+              <motion.div
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                transition={{ delay: 0.4 }}
+                className="text-center text-muted-foreground"
+              >
+                Your travel companion for expense management
+              </motion.div>
+            </div>
           </CardHeader>
           <CardContent className="space-y-4">
             <Tabs defaultValue="login" className="space-y-4">
