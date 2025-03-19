@@ -19,6 +19,42 @@ router.get("/vehicles", isAuthenticated, async (req, res) => {
   }
 });
 
+// Create new vehicle
+router.post("/vehicles", isAuthenticated, async (req, res) => {
+  try {
+    console.log('Received vehicle data:', req.body);
+
+    // Parse and validate the data
+    const validatedData = await insertCompanyVehicleSchema.parseAsync({
+      ...req.body,
+      enginePower: parseInt(req.body.enginePower),
+      fuelConsumption: parseFloat(req.body.fuelConsumption),
+      currentMileage: parseFloat(req.body.currentMileage),
+      year: parseInt(req.body.year),
+      companyId: 1, // Default company ID
+    });
+
+    console.log('Validated vehicle data:', validatedData);
+
+    const [vehicle] = await db.insert(companyVehicles)
+      .values({
+        ...validatedData,
+        createdAt: new Date(),
+        updatedAt: new Date()
+      })
+      .returning();
+
+    console.log('Created vehicle:', vehicle);
+    res.status(201).json(vehicle);
+  } catch (error) {
+    console.error("Error creating vehicle:", error);
+    res.status(500).json({ 
+      error: "Failed to create vehicle",
+      details: error instanceof Error ? error.message : 'Unknown error'
+    });
+  }
+});
+
 // Get single vehicle
 router.get("/vehicles/:id", isAuthenticated, async (req, res) => {
   try {
@@ -35,45 +71,21 @@ router.get("/vehicles/:id", isAuthenticated, async (req, res) => {
   }
 });
 
-// Create new vehicle
-router.post("/vehicles", isAuthenticated, async (req, res) => {
-  try {
-    console.log('Received vehicle data:', req.body); // Debug log
-
-    const parsedData = insertCompanyVehicleSchema.parse({
-      ...req.body,
-      companyId: 1 // Using default company ID for now
-    });
-
-    console.log('Parsed vehicle data:', parsedData); // Debug log
-
-    const [vehicle] = await db.insert(companyVehicles)
-      .values({
-        ...parsedData,
-        createdAt: new Date(),
-        updatedAt: new Date()
-      })
-      .returning();
-
-    console.log('Created vehicle:', vehicle); // Debug log
-    res.status(201).json(vehicle);
-  } catch (error) {
-    console.error("Error creating vehicle:", error);
-    res.status(500).json({ 
-      error: "Failed to create vehicle",
-      details: error instanceof Error ? error.message : 'Unknown error'
-    });
-  }
-});
-
 // Update vehicle
 router.put("/vehicles/:id", isAuthenticated, async (req, res) => {
   try {
-    const parsedData = insertCompanyVehicleSchema.parse(req.body);
+    const validatedData = await insertCompanyVehicleSchema.parseAsync({
+      ...req.body,
+      enginePower: parseInt(req.body.enginePower),
+      fuelConsumption: parseFloat(req.body.fuelConsumption),
+      currentMileage: parseFloat(req.body.currentMileage),
+      year: parseInt(req.body.year),
+    });
+
     const [vehicle] = await db
       .update(companyVehicles)
       .set({
-        ...parsedData,
+        ...validatedData,
         updatedAt: new Date()
       })
       .where(eq(companyVehicles.id, parseInt(req.params.id)))
