@@ -9,14 +9,16 @@ import ProfilePage from "./pages/profile";
 import AdminPage from "./pages/admin";
 import NotFound from "@/pages/not-found";
 import AuthPage from "@/pages/auth-page";
-import ExampleForm from "@/pages/example-form"; // Add example form import
+import ExampleForm from "@/pages/example-form"; 
 import { useUser } from "@/hooks/use-user";
-import { Loader2, User, Home, Plus, Settings } from "lucide-react";
+import { Loader2, User, Home, Plus, Settings, Car } from "lucide-react"; // Added Car import
 import { NotificationsButton } from "@/components/notifications";
 import { Button } from "@/components/ui/button";
 import { Link, useLocation } from "wouter";
 import ErrorBoundary from "@/components/ErrorBoundary";
 import { motion } from "framer-motion";
+import VehicleManagement from "./pages/VehicleManagement"; // Added VehicleManagement import
+
 
 function Layout({ children }: { children: React.ReactNode }) {
   const [location] = useLocation();
@@ -48,11 +50,10 @@ function Layout({ children }: { children: React.ReactNode }) {
                   New Request
                 </Link>
               </Button>
-              {/* Add example form link */}
-              <Button variant={location === "/example" ? "default" : "ghost"} size="sm" asChild>
-                <Link href="/example" className="flex items-center">
-                  <Plus className="mr-2 h-4 w-4" />
-                  Example Form
+              <Button variant={location === "/vehicles" ? "default" : "ghost"} size="sm" asChild>
+                <Link href="/vehicles" className="flex items-center">
+                  <Car className="mr-2 h-4 w-4" />
+                  Company Vehicles
                 </Link>
               </Button>
               {user?.role === 'super_admin' && (
@@ -109,7 +110,8 @@ function Router() {
         <Route path="/new-request" component={PreTravelForm} />
         <Route path="/forms/:id/post-travel" component={PostTravelForm} />
         <Route path="/profile" component={ProfilePage} />
-        <Route path="/example" component={ExampleForm} /> {/* Add example form route */}
+        <Route path="/vehicles" component={VehicleManagement} />
+        <Route path="/example" component={ExampleForm} />
         {user.role === 'super_admin' && (
           <Route path="/admin" component={AdminPage} />
         )}

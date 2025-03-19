@@ -135,6 +135,35 @@ export const invitations = pgTable("invitations", {
   createdAt: timestamp("created_at").defaultNow().notNull(),
 });
 
+export const companyVehicles = pgTable("company_vehicles", {
+  id: serial("id").primaryKey(),
+  companyId: integer("company_id").references(() => companies.id).notNull(),
+  manufacturer: text("manufacturer").notNull(),
+  model: text("model").notNull(),
+  year: integer("year").notNull(),
+  licensePlate: text("license_plate").unique().notNull(),
+  engineType: text("engine_type").notNull(),
+  enginePower: integer("engine_power").notNull(), // horsepower
+  fuelConsumption: decimal("fuel_consumption", { precision: 4, scale: 1 }).notNull(), // L/100km
+  status: text("status", {
+    enum: ['available', 'in_use', 'maintenance', 'retired']
+  }).default('available').notNull(),
+  currentMileage: decimal("current_mileage", { precision: 10, scale: 1 }).default('0').notNull(),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().notNull(),
+});
+
+export const vehicleMileage = pgTable("vehicle_mileage", {
+  id: serial("id").primaryKey(),
+  vehicleId: integer("vehicle_id").references(() => companyVehicles.id).notNull(),
+  travelFormId: integer("travel_form_id").references(() => travelForms.id),
+  startMileage: decimal("start_mileage", { precision: 10, scale: 1 }).notNull(),
+  endMileage: decimal("end_mileage", { precision: 10, scale: 1 }).notNull(),
+  date: timestamp("date").defaultNow().notNull(),
+  notes: text("notes"),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+});
+
 // Define relations
 export const usersRelations = relations(users, ({ one }) => ({
   company: one(companies, {
@@ -146,6 +175,7 @@ export const usersRelations = relations(users, ({ one }) => ({
 export const companiesRelations = relations(companies, ({ many }) => ({
   users: many(users),
   forms: many(travelForms),
+  vehicles: many(companyVehicles), // Add this line
 }));
 
 export const travelFormsRelations = relations(travelForms, ({ one, many }) => ({
@@ -173,6 +203,26 @@ export const notificationsRelations = relations(notifications, ({ one }) => ({
     references: [users.id],
   }),
 }));
+
+export const companyVehiclesRelations = relations(companyVehicles, ({ one, many }) => ({
+  company: one(companies, {
+    fields: [companyVehicles.companyId],
+    references: [companies.id],
+  }),
+  mileageRecords: many(vehicleMileage),
+}));
+
+export const vehicleMileageRelations = relations(vehicleMileage, ({ one }) => ({
+  vehicle: one(companyVehicles, {
+    fields: [vehicleMileage.vehicleId],
+    references: [companyVehicles.id],
+  }),
+  travelForm: one(travelForms, {
+    fields: [vehicleMileage.travelFormId],
+    references: [travelForms.id],
+  }),
+}));
+
 
 // Create schemas for validation
 export const updateUserProfileSchema = z.object({
@@ -221,3 +271,13 @@ export const sendInvitationSchema = z.object({
   email: z.string().email("Invalid email address"),
   type: z.enum([InvitationType.COMPANY_ADMIN]),
 });
+
+export const insertCompanyVehicleSchema = createInsertSchema(companyVehicles);
+export const selectCompanyVehicleSchema = createSelectSchema(companyVehicles);
+export type InsertCompanyVehicle = typeof companyVehicles.$inferInsert;
+export type SelectCompanyVehicle = typeof companyVehicles.$inferSelect;
+
+export const insertVehicleMileageSchema = createInsertSchema(vehicleMileage);
+export const selectVehicleMileageSchema = createSelectSchema(vehicleMileage);
+export type InsertVehicleMileage = typeof vehicleMileage.$inferInsert;
+export type SelectVehicleMileage = typeof vehicleMileage.$inferSelect;
