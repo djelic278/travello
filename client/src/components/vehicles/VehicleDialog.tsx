@@ -38,8 +38,8 @@ export function VehicleDialog({ open, onOpenChange, vehicle, onClose }: VehicleD
   const mutation = useMutation({
     mutationFn: async (data: InsertCompanyVehicle) => {
       console.log('Submitting vehicle data:', data);
-      const response = await fetch('/api/vehicles', {
-        method: 'POST',
+      const response = await fetch(vehicle ? `/api/vehicles/${vehicle.id}` : '/api/vehicles', {
+        method: vehicle ? 'PUT' : 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(data),
       });
