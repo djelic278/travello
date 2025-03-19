@@ -67,11 +67,11 @@ export default function PostTravelForm() {
   const formHook = useForm<PostTravelForm>({
     resolver: zodResolver(postTravelFormSchema),
     defaultValues: {
-      departureTime: form?.departureTime 
-        ? new Date(form.departureTime).toISOString().slice(0, 16) 
+      departureTime: form?.departureTime
+        ? new Date(form.departureTime).toISOString().slice(0, 16)
         : new Date().toISOString().slice(0, 16),
-      returnTime: form?.returnTime 
-        ? new Date(form.returnTime).toISOString().slice(0, 16) 
+      returnTime: form?.returnTime
+        ? new Date(form.returnTime).toISOString().slice(0, 16)
         : new Date().toISOString().slice(0, 16),
       startMileage: 0,
       endMileage: 0,
@@ -85,24 +85,49 @@ export default function PostTravelForm() {
     name: "expenses"
   });
 
+  // Calculate total kilometers
+  const startMileage = formHook.watch('startMileage');
+  const endMileage = formHook.watch('endMileage');
+  const totalKilometers = Math.max(0, endMileage - startMileage);
+
+  // Calculate allowances
+  const departureTime = formHook.watch('departureTime');
+  const returnTime = formHook.watch('returnTime');
+
+  const totalHours = calculateTotalHours(
+    new Date(departureTime),
+    new Date(returnTime)
+  );
+
+  const timeAllowance = calculateAllowance(
+    totalHours,
+    settings?.dailyAllowance ? parseFloat(settings.dailyAllowance) : 35
+  );
+
+  const distanceAllowance = calculateDistanceAllowance(
+    totalKilometers,
+    settings?.kilometerRate ? parseFloat(settings.kilometerRate) : 0.3
+  );
+
+  const totalExpenses = formHook.watch('expenses').reduce(
+    (sum, expense) => sum + (expense.amount || 0),
+    0
+  );
+
+  // Ensure prepaidAmount is a number
+  const prepaidAmount = form?.requestedPrepayment ? parseFloat(form.requestedPrepayment.toString()) : 0;
+  const totalAllowances = timeAllowance + distanceAllowance + totalExpenses;
+  const finalReimbursement = totalAllowances - prepaidAmount;
+
   const mutation = useMutation({
     mutationFn: async (data: PostTravelForm) => {
       try {
         startLoading("post-travel-form");
         const formData = new FormData();
 
-        // Ensure proper date serialization
-        const departureTime = data.departureTime instanceof Date 
-          ? data.departureTime.toISOString() 
-          : new Date(data.departureTime).toISOString();
-
-        const returnTime = data.returnTime instanceof Date 
-          ? data.returnTime.toISOString() 
-          : new Date(data.returnTime).toISOString();
-
         // Add form fields
-        formData.append('departureTime', departureTime);
-        formData.append('returnTime', returnTime);
+        formData.append('departureTime', data.departureTime);
+        formData.append('returnTime', data.returnTime);
         formData.append('startMileage', data.startMileage.toString());
         formData.append('endMileage', data.endMileage.toString());
         formData.append('expenses', JSON.stringify(data.expenses));
@@ -151,37 +176,6 @@ export default function PostTravelForm() {
       </div>
     );
   }
-
-  // Calculate total kilometers
-  const startMileage = formHook.watch('startMileage');
-  const endMileage = formHook.watch('endMileage');
-  const totalKilometers = Math.max(0, endMileage - startMileage);
-
-  // Calculate allowances
-  const totalHours = calculateTotalHours(
-    formHook.watch('departureTime'),
-    formHook.watch('returnTime')
-  );
-
-  const timeAllowance = calculateAllowance(
-    totalHours,
-    settings?.dailyAllowance ? parseFloat(settings.dailyAllowance) : 35
-  );
-
-  const distanceAllowance = calculateDistanceAllowance(
-    totalKilometers,
-    settings?.kilometerRate ? parseFloat(settings.kilometerRate) : 0.3
-  );
-
-  const totalExpenses = formHook.watch('expenses').reduce(
-    (sum, expense) => sum + (expense.amount || 0),
-    0
-  );
-
-  // Ensure prepaidAmount is a number
-  const prepaidAmount = form?.requestedPrepayment ? parseFloat(form.requestedPrepayment.toString()) : 0;
-  const totalAllowances = timeAllowance + distanceAllowance + totalExpenses;
-  const finalReimbursement = totalAllowances - prepaidAmount;
 
   const onSubmit = (data: PostTravelForm) => {
     setShowSignatureDialog(true);

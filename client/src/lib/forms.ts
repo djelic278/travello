@@ -119,11 +119,13 @@ export function calculateDistanceAllowance(kilometers: number, ratePerKm: number
   return Math.max(0, kilometers * ratePerKm);
 }
 
-export function calculateTotalHours(departure: Date, return_: Date): number {
-  if (!(departure instanceof Date) || !(return_ instanceof Date) ||
-      isNaN(departure.getTime()) || isNaN(return_.getTime())) {
+export function calculateTotalHours(departure: Date | string, return_: Date | string): number {
+  const departureDate = departure instanceof Date ? departure : new Date(departure);
+  const returnDate = return_ instanceof Date ? return_ : new Date(return_);
+
+  if (isNaN(departureDate.getTime()) || isNaN(returnDate.getTime())) {
     return 0;
   }
-  const diff = return_.getTime() - departure.getTime();
+  const diff = returnDate.getTime() - departureDate.getTime();
   return Math.max(0, Math.floor(diff / (1000 * 60 * 60)));
 }
