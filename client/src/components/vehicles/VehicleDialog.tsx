@@ -32,7 +32,7 @@ export function VehicleDialog({ open, onOpenChange, vehicle, onClose }: VehicleD
       fuelConsumption: 0,
       status: "available",
       currentMileage: 0,
-      companyId: 1, // Default company ID
+      companyId: 1,
     },
   });
 
@@ -42,14 +42,14 @@ export function VehicleDialog({ open, onOpenChange, vehicle, onClose }: VehicleD
       form.reset({
         manufacturer: vehicle.manufacturer,
         model: vehicle.model,
-        year: vehicle.year,
+        year: Number(vehicle.year),
         licensePlate: vehicle.licensePlate,
         engineType: vehicle.engineType,
-        enginePower: vehicle.enginePower,
-        fuelConsumption: vehicle.fuelConsumption,
+        enginePower: Number(vehicle.enginePower),
+        fuelConsumption: Number(vehicle.fuelConsumption),
         status: vehicle.status,
-        currentMileage: vehicle.currentMileage,
-        companyId: vehicle.companyId,
+        currentMileage: Number(vehicle.currentMileage),
+        companyId: Number(vehicle.companyId),
       });
     } else {
       form.reset({
@@ -69,11 +69,21 @@ export function VehicleDialog({ open, onOpenChange, vehicle, onClose }: VehicleD
 
   const mutation = useMutation({
     mutationFn: async (data: InsertCompanyVehicle) => {
-      console.log('Submitting vehicle data:', data);
+      // Ensure numeric fields are numbers
+      const processedData = {
+        ...data,
+        year: Number(data.year),
+        enginePower: Number(data.enginePower),
+        fuelConsumption: Number(data.fuelConsumption),
+        currentMileage: Number(data.currentMileage),
+        companyId: Number(data.companyId),
+      };
+
+      console.log('Submitting vehicle data:', processedData);
       const response = await fetch(vehicle ? `/api/vehicles/${vehicle.id}` : '/api/vehicles', {
         method: vehicle ? 'PUT' : 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(data),
+        body: JSON.stringify(processedData),
       });
 
       if (!response.ok) {
@@ -151,7 +161,7 @@ export function VehicleDialog({ open, onOpenChange, vehicle, onClose }: VehicleD
                         type="number" 
                         placeholder="Year"
                         {...field}
-                        onChange={(e) => field.onChange(parseInt(e.target.value))}
+                        onChange={(e) => field.onChange(Number(e.target.value))}
                       />
                     </FormControl>
                     <FormMessage />
@@ -195,7 +205,8 @@ export function VehicleDialog({ open, onOpenChange, vehicle, onClose }: VehicleD
                         type="number" 
                         placeholder="Engine Power"
                         {...field}
-                        onChange={(e) => field.onChange(parseInt(e.target.value))}
+                        value={field.value}
+                        onChange={(e) => field.onChange(Number(e.target.value))}
                       />
                     </FormControl>
                     <FormMessage />
@@ -214,7 +225,8 @@ export function VehicleDialog({ open, onOpenChange, vehicle, onClose }: VehicleD
                         step="0.1" 
                         placeholder="Fuel Consumption"
                         {...field}
-                        onChange={(e) => field.onChange(parseFloat(e.target.value))}
+                        value={field.value}
+                        onChange={(e) => field.onChange(Number(e.target.value))}
                       />
                     </FormControl>
                     <FormMessage />
@@ -227,7 +239,7 @@ export function VehicleDialog({ open, onOpenChange, vehicle, onClose }: VehicleD
                 render={({ field }) => (
                   <FormItem>
                     <FormLabel>Status</FormLabel>
-                    <Select onValueChange={field.onChange} defaultValue={field.value}>
+                    <Select onValueChange={field.onChange} value={field.value}>
                       <FormControl>
                         <SelectTrigger>
                           <SelectValue placeholder="Select status" />
@@ -256,7 +268,8 @@ export function VehicleDialog({ open, onOpenChange, vehicle, onClose }: VehicleD
                         step="0.1" 
                         placeholder="Current Mileage"
                         {...field}
-                        onChange={(e) => field.onChange(parseFloat(e.target.value))}
+                        value={field.value}
+                        onChange={(e) => field.onChange(Number(e.target.value))}
                       />
                     </FormControl>
                     <FormMessage />
