@@ -1,5 +1,11 @@
 import { z } from "zod";
 
+// Define base schemas first
+export const expenseSchema = z.object({
+  name: z.string().min(1, "Expense name is required"),
+  amount: z.number().min(0, "Amount must be positive"),
+});
+
 export const preTraveFormSchema = z.object({
   submissionLocation: z.string().min(1, "Submission location is required"),
   submissionDate: z.date(),
@@ -9,6 +15,8 @@ export const preTraveFormSchema = z.object({
   destination: z.string().min(1, "Destination is required"),
   tripPurpose: z.string().min(1, "Trip purpose is required"),
   transportType: z.string().min(1, "Transport type is required"),
+  isCompanyVehicle: z.boolean().default(false),
+  companyVehicleId: z.number().optional(),
   transportDetails: z.string().optional(),
   isReturnTrip: z.boolean(),
   startDate: z.date(),
@@ -17,7 +25,31 @@ export const preTraveFormSchema = z.object({
   requestedPrepayment: z.number().min(0, "Prepayment amount must be positive").optional(),
 });
 
+export const postTravelFormSchema = z.object({
+  departureTime: z.date(),
+  returnTime: z.date(),
+  startMileage: z.number().min(0, "Start mileage must be positive"),
+  endMileage: z.number().min(0, "End mileage must be positive"),
+  expenses: z.array(expenseSchema),
+  files: z.array(z.custom<File>((val) => val instanceof File, "Must be a valid file")).max(4, "Maximum 4 files allowed").optional(),
+}).refine((data) => {
+  if (data.departureTime && data.returnTime) {
+    const departure = new Date(data.departureTime);
+    const return_ = new Date(data.returnTime);
+    if (return_ < departure) {
+      throw new Error("Return time must be after departure time");
+    }
+  }
+  return true;
+}, {
+  message: "Return time must be after departure time",
+  path: ["returnTime"],
+});
+
+// Export types
 export type PreTravelForm = z.infer<typeof preTraveFormSchema>;
+export type PostTravelForm = z.infer<typeof postTravelFormSchema>;
+export type Expense = z.infer<typeof expenseSchema>;
 
 // Field descriptions for tooltips
 export const fieldDescriptions = {
@@ -29,7 +61,9 @@ export const fieldDescriptions = {
   destination: "The city or location where you will be traveling to",
   tripPurpose: "Brief description of why this trip is necessary and its business objectives",
   transportType: "Mode of transportation you plan to use (e.g., car, train, bus, plane)",
-  transportDetails: "If using a car, enter the vehicle type and registration number",
+  isCompanyVehicle: "Check if you are using a company vehicle",
+  companyVehicleId: "Select the company vehicle you will be using",
+  transportDetails: "Additional transport details or private vehicle information",
   isReturnTrip: "Indicate if you will return to your starting location",
   startDate: "The date when your travel will begin",
   duration: "Number of days you plan to stay",
@@ -37,54 +71,8 @@ export const fieldDescriptions = {
   requestedPrepayment: "Amount of money (in EUR) requested as advance payment before the trip",
 };
 
-export const expenseSchema = z.object({
-  name: z.string().min(1, "Expense name is required"),
-  amount: z.number().min(0, "Amount must be positive"),
-});
-
-// Define the API response type for travel forms
-export type TravelFormResponse = {
-  id: number;
-  firstName: string;
-  lastName: string;
-  destination: string;
-  projectCode: string;
-  requestedPrepayment?: number;
-  departureTime?: string;
-  returnTime?: string;
-  emailPreviewUrl?: string;
-};
-
-// Custom validator for dates
-const validateDates = (data: any) => {
-  if (data.departureTime && data.returnTime) {
-    const departure = new Date(data.departureTime);
-    const return_ = new Date(data.returnTime);
-
-    if (return_ < departure) {
-      throw new Error("Return time must be after departure time");
-    }
-  }
-  return true;
-};
-
-export const postTravelFormSchema = z.object({
-  departureTime: z.date(),
-  returnTime: z.date(),
-  startMileage: z.number().min(0, "Start mileage must be positive"),
-  endMileage: z.number().min(0, "End mileage must be positive"),
-  expenses: z.array(expenseSchema),
-  files: z.array(z.custom<File>((val) => val instanceof File, "Must be a valid file")).max(4, "Maximum 4 files allowed").optional(),
-}).refine(validateDates, {
-  message: "Return time must be after departure time",
-  path: ["returnTime"],
-});
-
-export type PostTravelForm = z.infer<typeof postTravelFormSchema>;
-export type Expense = z.infer<typeof expenseSchema>;
-
+// Utility functions
 export function calculateAllowance(hours: number, dailyAllowance: number = 35): number {
-  // Ensure hours is a valid number
   if (typeof hours !== 'number' || isNaN(hours) || hours < 0) {
     return 0;
   }
@@ -92,28 +80,23 @@ export function calculateAllowance(hours: number, dailyAllowance: number = 35): 
   if (hours < 6) {
     return 0;
   } else if (hours < 12) {
-    return dailyAllowance / 2; // Half day allowance
+    return dailyAllowance / 2;
   } else {
     const fullDays = Math.floor(hours / 24);
     const remainingHours = hours % 24;
-
     let allowance = fullDays * dailyAllowance;
-
-    // Check remaining hours
     if (remainingHours >= 12) {
-      allowance += dailyAllowance; // Full day allowance
+      allowance += dailyAllowance;
     } else if (remainingHours >= 6) {
-      allowance += dailyAllowance / 2; // Half day allowance
+      allowance += dailyAllowance / 2;
     }
-
     return allowance;
   }
 }
 
 export function calculateDistanceAllowance(kilometers: number, ratePerKm: number = 0.3): number {
-  // Ensure inputs are valid numbers
-  if (typeof kilometers !== 'number' || typeof ratePerKm !== 'number' || 
-      isNaN(kilometers) || isNaN(ratePerKm) || 
+  if (typeof kilometers !== 'number' || typeof ratePerKm !== 'number' ||
+      isNaN(kilometers) || isNaN(ratePerKm) ||
       kilometers < 0 || ratePerKm < 0) {
     return 0;
   }
@@ -121,12 +104,10 @@ export function calculateDistanceAllowance(kilometers: number, ratePerKm: number
 }
 
 export function calculateTotalHours(departure: Date, return_: Date): number {
-  // Validate inputs
-  if (!(departure instanceof Date) || !(return_ instanceof Date) || 
+  if (!(departure instanceof Date) || !(return_ instanceof Date) ||
       isNaN(departure.getTime()) || isNaN(return_.getTime())) {
     return 0;
   }
-
   const diff = return_.getTime() - departure.getTime();
   return Math.max(0, Math.floor(diff / (1000 * 60 * 60)));
 }

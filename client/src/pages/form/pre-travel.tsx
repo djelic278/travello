@@ -37,6 +37,13 @@ import {
   PopoverTrigger,
 } from "@/components/ui/popover";
 import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import {
   HoverCard,
   HoverCardContent,
   HoverCardTrigger,
@@ -84,6 +91,18 @@ export default function PreTravelForm() {
       transportType: "",
       transportDetails: "",
       projectCode: "",
+      isCompanyVehicle: false,
+      companyVehicleId: undefined,
+    },
+  });
+
+  // Fetch available company vehicles
+  const { data: vehicles = [] } = useQuery({
+    queryKey: ['/api/vehicles'],
+    queryFn: async () => {
+      const response = await fetch('/api/vehicles');
+      if (!response.ok) throw new Error('Failed to fetch vehicles');
+      return response.json();
     },
   });
 
@@ -99,6 +118,9 @@ export default function PreTravelForm() {
   const { data: previousLocations = [] } = useQuery({
     queryKey: ["/api/submission-locations"]
   });
+
+  // Watch for company vehicle toggle
+  const isCompanyVehicle = form.watch("isCompanyVehicle");
 
   const handleVoiceData = (data: Record<string, any>) => {
     try {
@@ -456,75 +478,145 @@ export default function PreTravelForm() {
               </div>
 
               {/* Transport and Return Trip row */}
-              <div className="grid grid-cols-12 gap-6">
-                <div className="col-span-2">
-                  <FormField
-                    control={form.control}
-                    name="transportType"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabelWithTooltip
-                          label="Transport Type"
-                          description={fieldDescriptions.transportType}
+              <div className="space-y-4">
+                {/* Company Vehicle Switch */}
+                <FormField
+                  control={form.control}
+                  name="isCompanyVehicle"
+                  render={({ field }) => (
+                    <FormItem className="flex flex-row items-center justify-between rounded-lg border p-4">
+                      <div className="space-y-0.5">
+                        <FormLabel className="text-base">Use Company Vehicle</FormLabel>
+                        <FormDescription>
+                          Toggle to select a company vehicle for your travel
+                        </FormDescription>
+                      </div>
+                      <FormControl>
+                        <Switch
+                          checked={field.value}
+                          onCheckedChange={(checked) => {
+                            field.onChange(checked);
+                            if (!checked) {
+                              form.setValue('companyVehicleId', undefined);
+                            }
+                          }}
                         />
-                        <FormControl>
-                          <Input {...field} placeholder="e.g., Car, Train" />
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-                </div>
+                      </FormControl>
+                    </FormItem>
+                  )}
+                />
 
-                <div className="col-span-6">
-                  <FormField
-                    control={form.control}
-                    name="transportDetails"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormLabelWithTooltip
-                          label="Transport Details"
-                          description={fieldDescriptions.transportDetails}
-                        />
-                        <FormControl>
-                          <Input {...field} placeholder="Car type & registration (if applicable)" />
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-                </div>
-
-                <div className="col-span-4">
-                  <FormField
-                    control={form.control}
-                    name="isReturnTrip"
-                    render={({ field }) => (
-                      <FormItem className="flex flex-row items-center justify-between rounded-lg border p-4 h-[90%]">
-                        <div className="space-y-0.5">
-                          <div className="flex items-center gap-2">
-                            <FormLabel className="text-base">Return Trip</FormLabel>
-                            <HoverCard>
-                              <HoverCardTrigger asChild>
-                                <HelpCircle className="h-4 w-4 text-muted-foreground cursor-help" />
-                              </HoverCardTrigger>
-                              <HoverCardContent className="w-80">
-                                <p className="text-sm text-muted-foreground">
-                                  {fieldDescriptions.isReturnTrip}
-                                </p>
-                              </HoverCardContent>
-                            </HoverCard>
-                          </div>
-                        </div>
-                        <FormControl>
-                          <Switch
-                            checked={field.value}
-                            onCheckedChange={field.onChange}
+                <div className="grid grid-cols-12 gap-6">
+                  <div className="col-span-2">
+                    <FormField
+                      control={form.control}
+                      name="transportType"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabelWithTooltip
+                            label="Transport Type"
+                            description={fieldDescriptions.transportType}
                           />
-                        </FormControl>
-                      </FormItem>
+                          <FormControl>
+                            <Input 
+                              {...field} 
+                              placeholder="e.g., Car, Train" 
+                              disabled={isCompanyVehicle}
+                              value={isCompanyVehicle ? 'Company Car' : field.value}
+                            />
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                  </div>
+
+                  <div className="col-span-6">
+                    {isCompanyVehicle ? (
+                      <FormField
+                        control={form.control}
+                        name="companyVehicleId"
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormLabelWithTooltip
+                              label="Select Company Vehicle"
+                              description={fieldDescriptions.companyVehicleId}
+                            />
+                            <Select
+                              onValueChange={(value) => field.onChange(Number(value))}
+                              value={field.value?.toString()}
+                            >
+                              <FormControl>
+                                <SelectTrigger>
+                                  <SelectValue placeholder="Select a company vehicle" />
+                                </SelectTrigger>
+                              </FormControl>
+                              <SelectContent>
+                                {vehicles.map((vehicle: any) => (
+                                  <SelectItem 
+                                    key={vehicle.id} 
+                                    value={vehicle.id.toString()}
+                                  >
+                                    {vehicle.manufacturer} {vehicle.model} - {vehicle.licensePlate}
+                                  </SelectItem>
+                                ))}
+                              </SelectContent>
+                            </Select>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
+                    ) : (
+                      <FormField
+                        control={form.control}
+                        name="transportDetails"
+                        render={({ field }) => (
+                          <FormItem>
+                            <FormLabelWithTooltip
+                              label="Transport Details"
+                              description={fieldDescriptions.transportDetails}
+                            />
+                            <FormControl>
+                              <Input {...field} placeholder="Transport details or private vehicle information" />
+                            </FormControl>
+                            <FormMessage />
+                          </FormItem>
+                        )}
+                      />
                     )}
-                  />
+                  </div>
+
+                  <div className="col-span-4">
+                    <FormField
+                      control={form.control}
+                      name="isReturnTrip"
+                      render={({ field }) => (
+                        <FormItem className="flex flex-row items-center justify-between rounded-lg border p-4 h-[90%]">
+                          <div className="space-y-0.5">
+                            <div className="flex items-center gap-2">
+                              <FormLabel className="text-base">Return Trip</FormLabel>
+                              <HoverCard>
+                                <HoverCardTrigger asChild>
+                                  <HelpCircle className="h-4 w-4 text-muted-foreground cursor-help" />
+                                </HoverCardTrigger>
+                                <HoverCardContent className="w-80">
+                                  <p className="text-sm text-muted-foreground">
+                                    {fieldDescriptions.isReturnTrip}
+                                  </p>
+                                </HoverCardContent>
+                              </HoverCard>
+                            </div>
+                          </div>
+                          <FormControl>
+                            <Switch
+                              checked={field.value}
+                              onCheckedChange={field.onChange}
+                            />
+                          </FormControl>
+                        </FormItem>
+                      )}
+                    />
+                  </div>
                 </div>
               </div>
 
