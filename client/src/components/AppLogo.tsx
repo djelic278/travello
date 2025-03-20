@@ -1,4 +1,4 @@
-import { Globe, Network, Briefcase } from "lucide-react";
+import { Briefcase } from "lucide-react";
 import { cn } from "@/lib/utils";
 
 interface AppLogoProps {
@@ -15,26 +15,9 @@ const sizeClasses = {
 export function AppLogo({ className, size = "md" }: AppLogoProps) {
   return (
     <div className={cn("relative inline-block", className)}>
-      {/* Base Globe */}
-      <Globe 
-        className={cn(
-          "text-primary absolute",
-          sizeClasses[size]
-        )} 
-      />
-
-      {/* Network overlay */}
-      <Network 
-        className={cn(
-          "text-primary/60 absolute",
-          sizeClasses[size]
-        )} 
-      />
-
-      {/* Briefcase in center */}
       <Briefcase 
         className={cn(
-          "text-primary/80 absolute scale-75",
+          "text-primary transition-colors duration-200",
           sizeClasses[size]
         )} 
       />
