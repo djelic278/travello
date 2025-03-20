@@ -79,7 +79,7 @@ export const travelForms = pgTable("travel_forms", {
   }).default('pre_travel_submitted').notNull(),
   approvalStatus: text("approval_status", {
     enum: ['pending', 'approved', 'rejected']
-  }).default('approved').notNull(), // Default to approved
+  }).default('approved').notNull(),
   departureTime: timestamp("departure_time"),
   returnTime: timestamp("return_time"),
   startMileage: decimal("start_mileage", { precision: 10, scale: 2 }),
@@ -87,6 +87,7 @@ export const travelForms = pgTable("travel_forms", {
   allowanceAmount: decimal("allowance_amount", { precision: 10, scale: 2 }),
   totalExpenses: decimal("total_expenses", { precision: 10, scale: 2 }),
   companyId: integer("company_id").references(() => companies.id),
+  companyVehicleId: integer("company_vehicle_id").references(() => companyVehicles.id),
   createdAt: timestamp("created_at").defaultNow().notNull(),
   updatedAt: timestamp("updated_at").defaultNow().notNull(),
 });
@@ -153,15 +154,16 @@ export const companyVehicles = pgTable("company_vehicles", {
   updatedAt: timestamp("updated_at").defaultNow().notNull(),
 });
 
-// Update vehicle mileage schema to match form date handling
+// Update vehicle mileage schema to directly use travel form dates
 export const vehicleMileage = pgTable("vehicle_mileage", {
   id: serial("id").primaryKey(),
   vehicleId: integer("vehicle_id").references(() => companyVehicles.id).notNull(),
   travelFormId: integer("travel_form_id").references(() => travelForms.id),
   startMileage: decimal("start_mileage", { precision: 10, scale: 1 }).notNull(),
   endMileage: decimal("end_mileage", { precision: 10, scale: 1 }).notNull(),
-  startDate: timestamp("start_date").notNull(),
-  endDate: timestamp("end_date").notNull(),
+  // Use travel form's departure and return times directly
+  departureTime: timestamp("departure_time").notNull(),
+  returnTime: timestamp("return_time").notNull(),
   notes: text("notes"),
   createdAt: timestamp("created_at").defaultNow().notNull(),
 });
@@ -177,7 +179,7 @@ export const usersRelations = relations(users, ({ one }) => ({
 export const companiesRelations = relations(companies, ({ many }) => ({
   users: many(users),
   forms: many(travelForms),
-  vehicles: many(companyVehicles), // Add this line
+  vehicles: many(companyVehicles),
 }));
 
 export const travelFormsRelations = relations(travelForms, ({ one, many }) => ({
@@ -290,8 +292,8 @@ export type SelectCompanyVehicle = typeof companyVehicles.$inferSelect;
 // Update insert schema validation
 export const insertVehicleMileageSchema = createInsertSchema(vehicleMileage)
   .extend({
-    startDate: z.string().transform((val) => new Date(val)),
-    endDate: z.string().transform((val) => new Date(val)),
+    departureTime: z.string().transform((val) => new Date(val).toISOString()),
+    returnTime: z.string().transform((val) => new Date(val).toISOString()),
   });
 
 export const selectVehicleMileageSchema = createSelectSchema(vehicleMileage);

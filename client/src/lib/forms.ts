@@ -47,11 +47,11 @@ export type Expense = z.infer<typeof expenseSchema>;
 
 // Utility functions for date handling
 export function formatDateForInput(date: string | Date | null | undefined): string {
-  if (!date) return new Date().toISOString().slice(0, 16);
+  if (!date) return '';
   const dateObj = new Date(date);
   return !isNaN(dateObj.getTime()) 
     ? dateObj.toISOString().slice(0, 16)
-    : new Date().toISOString().slice(0, 16);
+    : '';
 }
 
 export function parseDate(dateStr: string): Date {
@@ -60,6 +60,41 @@ export function parseDate(dateStr: string): Date {
     throw new Error("Invalid date format");
   }
   return date;
+}
+
+// Calculation functions remain unchanged
+export function calculateTotalHours(departure: string | Date, return_: string | Date): number {
+  const departureDate = typeof departure === 'string' ? new Date(departure) : departure;
+  const returnDate = typeof return_ === 'string' ? new Date(return_) : return_;
+
+  if (isNaN(departureDate.getTime()) || isNaN(returnDate.getTime())) {
+    return 0;
+  }
+  const diff = returnDate.getTime() - departureDate.getTime();
+  return Math.max(0, Math.floor(diff / (1000 * 60 * 60)));
+}
+
+export function calculateAllowance(hours: number, dailyAllowance: number = 35): number {
+  if (hours < 6) return 0;
+  if (hours < 12) return dailyAllowance / 2;
+
+  const fullDays = Math.floor(hours / 24);
+  const remainingHours = hours % 24;
+  let allowance = fullDays * dailyAllowance;
+
+  if (remainingHours >= 12) allowance += dailyAllowance;
+  else if (remainingHours >= 6) allowance += dailyAllowance / 2;
+
+  return allowance;
+}
+
+export function calculateDistanceAllowance(kilometers: number, ratePerKm: number = 0.3): number {
+  if (typeof kilometers !== 'number' || typeof ratePerKm !== 'number' ||
+      isNaN(kilometers) || isNaN(ratePerKm) ||
+      kilometers < 0 || ratePerKm < 0) {
+    return 0;
+  }
+  return Math.max(0, kilometers * ratePerKm);
 }
 
 export const preTraveFormSchema = z.object({
@@ -112,40 +147,3 @@ export const fieldDescriptions = {
   projectCode: "The project code to which this travel will be billed (optional)",
   requestedPrepayment: "Amount of money (in EUR) requested as advance payment before the trip",
 };
-
-// Utility functions for date handling
-
-// Calculation functions remain unchanged
-export function calculateTotalHours(departure: string | Date, return_: string | Date): number {
-  const departureDate = typeof departure === 'string' ? new Date(departure) : departure;
-  const returnDate = typeof return_ === 'string' ? new Date(return_) : return_;
-
-  if (isNaN(departureDate.getTime()) || isNaN(returnDate.getTime())) {
-    return 0;
-  }
-  const diff = returnDate.getTime() - departureDate.getTime();
-  return Math.max(0, Math.floor(diff / (1000 * 60 * 60)));
-}
-
-export function calculateAllowance(hours: number, dailyAllowance: number = 35): number {
-  if (hours < 6) return 0;
-  if (hours < 12) return dailyAllowance / 2;
-
-  const fullDays = Math.floor(hours / 24);
-  const remainingHours = hours % 24;
-  let allowance = fullDays * dailyAllowance;
-
-  if (remainingHours >= 12) allowance += dailyAllowance;
-  else if (remainingHours >= 6) allowance += dailyAllowance / 2;
-
-  return allowance;
-}
-
-export function calculateDistanceAllowance(kilometers: number, ratePerKm: number = 0.3): number {
-  if (typeof kilometers !== 'number' || typeof ratePerKm !== 'number' ||
-      isNaN(kilometers) || isNaN(ratePerKm) ||
-      kilometers < 0 || ratePerKm < 0) {
-    return 0;
-  }
-  return Math.max(0, kilometers * ratePerKm);
-}
