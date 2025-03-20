@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { useForm, useFieldArray } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { postTravelFormSchema, type PostTravelForm, calculateAllowance, calculateTotalHours, calculateDistanceAllowance } from "@/lib/forms";
+import { postTravelFormSchema, type PostTravelForm, calculateAllowance, calculateTotalHours, calculateDistanceAllowance, formatDateForInput } from "@/lib/forms";
 import { useMutation, useQuery } from "@tanstack/react-query";
 import { useLocation, useParams } from "wouter";
 import { useToast } from "@/hooks/use-toast";
@@ -13,6 +13,8 @@ import {
   AlertDialogFooter,
   AlertDialogHeader,
   AlertDialogTitle,
+  AlertDialogAction,
+  AlertDialogCancel,
 } from "@/components/ui/alert-dialog";
 import {
   Form,
@@ -25,26 +27,9 @@ import {
 } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-  CardFooter,
-} from "@/components/ui/card";
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "@/components/ui/table";
-import { Loader2, Plus, X } from "lucide-react";
-import { FileText } from 'lucide-react';
-import { VoiceInput } from "@/components/voice-input";
-import { Camera } from "lucide-react";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle, CardFooter } from "@/components/ui/card";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { Loader2, Plus, X, Camera, FileText } from "lucide-react";
 import { FormWrapper } from "@/components/ui/form-wrapper";
 
 interface TravelFormData {
@@ -75,27 +60,11 @@ export default function PostTravelForm() {
     enabled: !!params.id,
   });
 
-  const defaultDepartureTime = () => {
-    if (form?.departureTime) {
-      const date = new Date(form.departureTime);
-      return !isNaN(date.getTime()) ? date.toISOString().slice(0, 16) : new Date().toISOString().slice(0, 16);
-    }
-    return new Date().toISOString().slice(0, 16);
-  };
-
-  const defaultReturnTime = () => {
-    if (form?.returnTime) {
-      const date = new Date(form.returnTime);
-      return !isNaN(date.getTime()) ? date.toISOString().slice(0, 16) : new Date(Date.now() + 8 * 60 * 60 * 1000).toISOString().slice(0, 16);
-    }
-    return new Date(Date.now() + 8 * 60 * 60 * 1000).toISOString().slice(0, 16);
-  };
-
   const formHook = useForm<PostTravelForm>({
     resolver: zodResolver(postTravelFormSchema),
     defaultValues: {
-      departureTime: defaultDepartureTime(),
-      returnTime: defaultReturnTime(),
+      departureTime: formatDateForInput(form?.departureTime),
+      returnTime: formatDateForInput(form?.returnTime),
       startMileage: form?.startMileage || 0,
       endMileage: form?.endMileage || 0,
       expenses: [],
@@ -139,28 +108,9 @@ export default function PostTravelForm() {
         startLoading("post-travel-form");
         const formData = new FormData();
 
-        // Validate and format dates
-        const departureTime = data.departureTime;
-        const returnTime = data.returnTime;
-
-        // Create dates for validation
-        const departureDate = new Date(departureTime);
-        const returnDate = new Date(returnTime);
-
-        // Validate dates
-        if (isNaN(departureDate.getTime())) {
-          throw new Error('Invalid departure time format');
-        }
-        if (isNaN(returnDate.getTime())) {
-          throw new Error('Invalid return time format');
-        }
-        if (returnDate <= departureDate) {
-          throw new Error('Return time must be after departure time');
-        }
-
-        // Add the validated dates to form data
-        formData.append('departureTime', departureDate.toISOString());
-        formData.append('returnTime', returnDate.toISOString());
+        // Add form fields
+        formData.append('departureTime', data.departureTime);
+        formData.append('returnTime', data.returnTime);
         formData.append('startMileage', data.startMileage.toString());
         formData.append('endMileage', data.endMileage.toString());
         formData.append('expenses', JSON.stringify(data.expenses));
@@ -226,49 +176,29 @@ export default function PostTravelForm() {
 
   return (
     <div className="container mx-auto py-6">
-      <Card>
-        <CardHeader>
-          <CardTitle>Post-Travel Form</CardTitle>
-          <CardDescription>
-            Complete this form after your travel to claim expenses
-          </CardDescription>
-        </CardHeader>
-        <CardContent>
-          {/* Pre-travel form details */}
-          <div className="mb-6 p-4 bg-muted rounded-lg">
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-              <div>
-                <p className="text-sm font-medium text-muted-foreground">Traveler</p>
-                <p className="text-base font-medium">
-                  {form?.firstName} {form?.lastName}
-                </p>
-              </div>
-              <div>
-                <p className="text-sm font-medium text-muted-foreground">Destination</p>
-                <p className="text-base font-medium">{form?.destination}</p>
-              </div>
-              <div>
-                <p className="text-sm font-medium text-muted-foreground">Project Code</p>
-                <p className="text-base font-medium">{form?.projectCode}</p>
-              </div>
-            </div>
-          </div>
-
-          <FormWrapper formId="post-travel-form">
-            <Form {...formHook}>
-              <form onSubmit={formHook.handleSubmit(onSubmit)} className="space-y-6">
+      <FormWrapper formId="post-travel-form">
+        <Form {...formHook}>
+          <form onSubmit={formHook.handleSubmit(onSubmit)} className="space-y-6">
+            <Card>
+              <CardHeader>
+                <CardTitle>Post-Travel Form</CardTitle>
+                <CardDescription>
+                  Complete this form after your travel to claim expenses
+                </CardDescription>
+              </CardHeader>
+              <CardContent>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                   <FormField
                     control={formHook.control}
                     name="departureTime"
                     render={({ field }) => (
                       <FormItem>
-                        <FormLabel>Departure Date & Time</FormLabel>
+                        <FormLabel>Departure Time</FormLabel>
                         <FormControl>
                           <Input
                             type="datetime-local"
                             {...field}
-                            value={field.value || ''}
+                            value={field.value ? field.value.slice(0, 16) : ''}
                           />
                         </FormControl>
                         <FormMessage />
@@ -281,12 +211,12 @@ export default function PostTravelForm() {
                     name="returnTime"
                     render={({ field }) => (
                       <FormItem>
-                        <FormLabel>Return Date & Time</FormLabel>
+                        <FormLabel>Return Time</FormLabel>
                         <FormControl>
                           <Input
                             type="datetime-local"
                             {...field}
-                            value={field.value || ''}
+                            value={field.value ? field.value.slice(0, 16) : ''}
                           />
                         </FormControl>
                         <FormDescription>
@@ -297,7 +227,6 @@ export default function PostTravelForm() {
                     )}
                   />
                 </div>
-
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
                   <FormField
                     control={formHook.control}
@@ -586,12 +515,11 @@ export default function PostTravelForm() {
                   </div>
                   <Button type="submit">Submit Form</Button>
                 </CardFooter>
-              </form>
-            </Form>
-          </FormWrapper>
-        </CardContent>
-      </Card>
-
+              </CardContent>
+            </Card>
+          </form>
+        </Form>
+      </FormWrapper>
       <AlertDialog open={showSignatureDialog} onOpenChange={setShowSignatureDialog}>
         <AlertDialogContent>
           <AlertDialogHeader>

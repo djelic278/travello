@@ -6,6 +6,62 @@ export const expenseSchema = z.object({
   amount: z.number().min(0, "Amount must be positive"),
 });
 
+// Post Travel Form Schema with strict date handling
+export const postTravelFormSchema = z.object({
+  departureTime: z.string()
+    .min(1, "Departure time is required")
+    .transform((val) => {
+      const date = new Date(val);
+      if (isNaN(date.getTime())) {
+        throw new Error("Invalid departure time");
+      }
+      return date.toISOString(); // Store as ISO string
+    }),
+  returnTime: z.string()
+    .min(1, "Return time is required")
+    .transform((val) => {
+      const date = new Date(val);
+      if (isNaN(date.getTime())) {
+        throw new Error("Invalid return time");
+      }
+      return date.toISOString(); // Store as ISO string
+    }),
+  startMileage: z.number().min(0, "Start mileage must be positive"),
+  endMileage: z.number().min(0, "End mileage must be positive"),
+  expenses: z.array(expenseSchema),
+  files: z.array(z.custom<File>((val) => val instanceof File, "Must be a valid file"))
+    .max(4, "Maximum 4 files allowed")
+    .optional(),
+}).refine((data) => {
+  const departure = new Date(data.departureTime);
+  const return_ = new Date(data.returnTime);
+  return return_ > departure;
+}, {
+  message: "Return time must be after departure time",
+  path: ["returnTime"],
+});
+
+// Export types
+export type PostTravelForm = z.infer<typeof postTravelFormSchema>;
+export type Expense = z.infer<typeof expenseSchema>;
+
+// Utility functions for date handling
+export function formatDateForInput(date: string | Date | null | undefined): string {
+  if (!date) return new Date().toISOString().slice(0, 16);
+  const dateObj = new Date(date);
+  return !isNaN(dateObj.getTime()) 
+    ? dateObj.toISOString().slice(0, 16)
+    : new Date().toISOString().slice(0, 16);
+}
+
+export function parseDate(dateStr: string): Date {
+  const date = new Date(dateStr);
+  if (isNaN(date.getTime())) {
+    throw new Error("Invalid date format");
+  }
+  return date;
+}
+
 export const preTraveFormSchema = z.object({
   submissionLocation: z.string().min(1, "Submission location is required"),
   submissionDate: z.date(),
@@ -33,56 +89,9 @@ export const preTraveFormSchema = z.object({
   path: ["transportType"],
 });
 
-export const postTravelFormSchema = z.object({
-  departureTime: z.string()
-    .min(1, "Departure time is required")
-    .transform((val) => {
-      try {
-        const date = new Date(val);
-        if (isNaN(date.getTime())) {
-          throw new Error("Invalid departure time");
-        }
-        return val;
-      } catch {
-        throw new Error("Invalid departure time format");
-      }
-    }),
-  returnTime: z.string()
-    .min(1, "Return time is required")
-    .transform((val) => {
-      try {
-        const date = new Date(val);
-        if (isNaN(date.getTime())) {
-          throw new Error("Invalid return time");
-        }
-        return val;
-      } catch {
-        throw new Error("Invalid return time format");
-      }
-    }),
-  startMileage: z.number().min(0, "Start mileage must be positive"),
-  endMileage: z.number().min(0, "End mileage must be positive"),
-  expenses: z.array(expenseSchema),
-  files: z.array(z.custom<File>((val) => val instanceof File, "Must be a valid file"))
-    .max(4, "Maximum 4 files allowed")
-    .optional(),
-}).refine((data) => {
-  try {
-    const departure = new Date(data.departureTime);
-    const return_ = new Date(data.returnTime);
-    return return_ > departure;
-  } catch {
-    return false;
-  }
-}, {
-  message: "Return time must be after departure time",
-  path: ["returnTime"],
-});
-
 // Export types
 export type PreTravelForm = z.infer<typeof preTraveFormSchema>;
-export type PostTravelForm = z.infer<typeof postTravelFormSchema>;
-export type Expense = z.infer<typeof expenseSchema>;
+
 
 // Field descriptions for tooltips
 export const fieldDescriptions = {
@@ -104,38 +113,9 @@ export const fieldDescriptions = {
   requestedPrepayment: "Amount of money (in EUR) requested as advance payment before the trip",
 };
 
-// Utility functions
-export function calculateAllowance(hours: number, dailyAllowance: number = 35): number {
-  if (typeof hours !== 'number' || isNaN(hours) || hours < 0) {
-    return 0;
-  }
+// Utility functions for date handling
 
-  if (hours < 6) {
-    return 0;
-  } else if (hours < 12) {
-    return dailyAllowance / 2;
-  } else {
-    const fullDays = Math.floor(hours / 24);
-    const remainingHours = hours % 24;
-    let allowance = fullDays * dailyAllowance;
-    if (remainingHours >= 12) {
-      allowance += dailyAllowance;
-    } else if (remainingHours >= 6) {
-      allowance += dailyAllowance / 2;
-    }
-    return allowance;
-  }
-}
-
-export function calculateDistanceAllowance(kilometers: number, ratePerKm: number = 0.3): number {
-  if (typeof kilometers !== 'number' || typeof ratePerKm !== 'number' ||
-      isNaN(kilometers) || isNaN(ratePerKm) ||
-      kilometers < 0 || ratePerKm < 0) {
-    return 0;
-  }
-  return Math.max(0, kilometers * ratePerKm);
-}
-
+// Calculation functions remain unchanged
 export function calculateTotalHours(departure: string | Date, return_: string | Date): number {
   const departureDate = typeof departure === 'string' ? new Date(departure) : departure;
   const returnDate = typeof return_ === 'string' ? new Date(return_) : return_;
@@ -145,4 +125,27 @@ export function calculateTotalHours(departure: string | Date, return_: string | 
   }
   const diff = returnDate.getTime() - departureDate.getTime();
   return Math.max(0, Math.floor(diff / (1000 * 60 * 60)));
+}
+
+export function calculateAllowance(hours: number, dailyAllowance: number = 35): number {
+  if (hours < 6) return 0;
+  if (hours < 12) return dailyAllowance / 2;
+
+  const fullDays = Math.floor(hours / 24);
+  const remainingHours = hours % 24;
+  let allowance = fullDays * dailyAllowance;
+
+  if (remainingHours >= 12) allowance += dailyAllowance;
+  else if (remainingHours >= 6) allowance += dailyAllowance / 2;
+
+  return allowance;
+}
+
+export function calculateDistanceAllowance(kilometers: number, ratePerKm: number = 0.3): number {
+  if (typeof kilometers !== 'number' || typeof ratePerKm !== 'number' ||
+      isNaN(kilometers) || isNaN(ratePerKm) ||
+      kilometers < 0 || ratePerKm < 0) {
+    return 0;
+  }
+  return Math.max(0, kilometers * ratePerKm);
 }
