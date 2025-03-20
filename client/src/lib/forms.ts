@@ -35,28 +35,28 @@ export const preTraveFormSchema = z.object({
 });
 
 export const postTravelFormSchema = z.object({
-  departureTime: z.string().min(1, "Departure time is required"),
-  returnTime: z.string().min(1, "Return time is required"),
+  departureTime: z.string()
+    .min(1, "Departure time is required")
+    .refine((val) => !isNaN(new Date(val).getTime()), {
+      message: "Invalid departure time format"
+    }),
+  returnTime: z.string()
+    .min(1, "Return time is required")
+    .refine((val) => !isNaN(new Date(val).getTime()), {
+      message: "Invalid return time format"
+    }),
   startMileage: z.number().min(0, "Start mileage must be positive"),
   endMileage: z.number().min(0, "End mileage must be positive"),
   expenses: z.array(expenseSchema),
-  files: z.array(z.custom<File>((val) => val instanceof File, "Must be a valid file")).max(4, "Maximum 4 files allowed").optional(),
+  files: z.array(z.custom<File>((val) => val instanceof File, "Must be a valid file"))
+    .max(4, "Maximum 4 files allowed")
+    .optional(),
 }).refine((data) => {
   const departure = new Date(data.departureTime);
   const return_ = new Date(data.returnTime);
-
-  if (isNaN(departure.getTime())) {
-    return false;
-  }
-  if (isNaN(return_.getTime())) {
-    return false;
-  }
-  if (return_ <= departure) {
-    return false;
-  }
-  return true;
+  return return_ > departure;
 }, {
-  message: "Return time must be after departure time and both dates must be valid",
+  message: "Return time must be after departure time",
   path: ["returnTime"],
 });
 
