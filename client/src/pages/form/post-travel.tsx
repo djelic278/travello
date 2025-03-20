@@ -47,6 +47,18 @@ import { VoiceInput } from "@/components/voice-input";
 import { Camera } from "lucide-react";
 import { FormWrapper } from "@/components/ui/form-wrapper";
 
+interface TravelFormData {
+  departureTime?: string;
+  returnTime?: string;
+  startMileage?: number;
+  endMileage?: number;
+  requestedPrepayment?: number;
+  firstName?: string;
+  lastName?: string;
+  destination?: string;
+  projectCode?: string;
+}
+
 export default function PostTravelForm() {
   const [showSignatureDialog, setShowSignatureDialog] = useState(false);
   const params = useParams<{ id: string }>();
@@ -58,20 +70,32 @@ export default function PostTravelForm() {
     queryKey: ["/api/settings"],
   });
 
-  const { data: form, isLoading } = useQuery({
+  const { data: form, isLoading } = useQuery<TravelFormData>({
     queryKey: [`/api/forms/${params.id}`],
     enabled: !!params.id,
   });
 
+  const defaultDepartureTime = () => {
+    if (form?.departureTime) {
+      const date = new Date(form.departureTime);
+      return !isNaN(date.getTime()) ? date.toISOString().slice(0, 16) : new Date().toISOString().slice(0, 16);
+    }
+    return new Date().toISOString().slice(0, 16);
+  };
+
+  const defaultReturnTime = () => {
+    if (form?.returnTime) {
+      const date = new Date(form.returnTime);
+      return !isNaN(date.getTime()) ? date.toISOString().slice(0, 16) : new Date(Date.now() + 8 * 60 * 60 * 1000).toISOString().slice(0, 16);
+    }
+    return new Date(Date.now() + 8 * 60 * 60 * 1000).toISOString().slice(0, 16);
+  };
+
   const formHook = useForm<PostTravelForm>({
     resolver: zodResolver(postTravelFormSchema),
     defaultValues: {
-      departureTime: form?.departureTime
-        ? new Date(form.departureTime).toISOString().slice(0, 16)
-        : new Date().toISOString().slice(0, 16),
-      returnTime: form?.returnTime
-        ? new Date(form.returnTime).toISOString().slice(0, 16)
-        : new Date(Date.now() + 8 * 60 * 60 * 1000).toISOString().slice(0, 16),
+      departureTime: defaultDepartureTime(),
+      returnTime: defaultReturnTime(),
       startMileage: form?.startMileage || 0,
       endMileage: form?.endMileage || 0,
       expenses: [],
