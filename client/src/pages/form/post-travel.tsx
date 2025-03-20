@@ -66,7 +66,7 @@ export default function PostTravelForm() {
   const formHook = useForm<PostTravelForm>({
     resolver: zodResolver(postTravelFormSchema),
     defaultValues: {
-      departureTime: form?.departureTime 
+      departureTime: form?.departureTime
         ? new Date(form.departureTime).toISOString().slice(0, 16)
         : new Date().toISOString().slice(0, 16),
       returnTime: form?.returnTime
@@ -115,9 +115,16 @@ export default function PostTravelForm() {
         startLoading("post-travel-form");
         const formData = new FormData();
 
-        // Format dates for backend
-        formData.append('departureTime', new Date(data.departureTime).toISOString());
-        formData.append('returnTime', new Date(data.returnTime).toISOString());
+        // Format dates consistently for the backend
+        const departureDate = new Date(data.departureTime);
+        const returnDate = new Date(data.returnTime);
+
+        if (isNaN(departureDate.getTime()) || isNaN(returnDate.getTime())) {
+          throw new Error('Invalid date format');
+        }
+
+        formData.append('departureTime', departureDate.toISOString());
+        formData.append('returnTime', returnDate.toISOString());
         formData.append('startMileage', data.startMileage.toString());
         formData.append('endMileage', data.endMileage.toString());
         formData.append('expenses', JSON.stringify(data.expenses));
@@ -168,6 +175,27 @@ export default function PostTravelForm() {
   }
 
   const onSubmit = (data: PostTravelForm) => {
+    const departureDate = new Date(data.departureTime);
+    const returnDate = new Date(data.returnTime);
+
+    if (isNaN(departureDate.getTime()) || isNaN(returnDate.getTime())) {
+      toast({
+        title: "Error",
+        description: "Invalid date format. Please check departure and return times.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    if (returnDate <= departureDate) {
+      toast({
+        title: "Error",
+        description: "Return time must be after departure time",
+        variant: "destructive",
+      });
+      return;
+    }
+
     setShowSignatureDialog(true);
   };
 

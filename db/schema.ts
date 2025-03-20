@@ -153,14 +153,15 @@ export const companyVehicles = pgTable("company_vehicles", {
   updatedAt: timestamp("updated_at").defaultNow().notNull(),
 });
 
+// Update vehicle mileage schema to match form date handling
 export const vehicleMileage = pgTable("vehicle_mileage", {
   id: serial("id").primaryKey(),
   vehicleId: integer("vehicle_id").references(() => companyVehicles.id).notNull(),
   travelFormId: integer("travel_form_id").references(() => travelForms.id),
   startMileage: decimal("start_mileage", { precision: 10, scale: 1 }).notNull(),
   endMileage: decimal("end_mileage", { precision: 10, scale: 1 }).notNull(),
-  startDate: timestamp("start_date").defaultNow().notNull(),
-  endDate: timestamp("end_date").defaultNow().notNull(),
+  startDate: timestamp("start_date").notNull(),
+  endDate: timestamp("end_date").notNull(),
   notes: text("notes"),
   createdAt: timestamp("created_at").defaultNow().notNull(),
 });
@@ -286,7 +287,13 @@ export const selectCompanyVehicleSchema = createSelectSchema(companyVehicles);
 export type InsertCompanyVehicle = typeof companyVehicles.$inferInsert;
 export type SelectCompanyVehicle = typeof companyVehicles.$inferSelect;
 
-export const insertVehicleMileageSchema = createInsertSchema(vehicleMileage);
+// Update insert schema validation
+export const insertVehicleMileageSchema = createInsertSchema(vehicleMileage)
+  .extend({
+    startDate: z.string().transform((val) => new Date(val)),
+    endDate: z.string().transform((val) => new Date(val)),
+  });
+
 export const selectVehicleMileageSchema = createSelectSchema(vehicleMileage);
 export type InsertVehicleMileage = typeof vehicleMileage.$inferInsert;
 export type SelectVehicleMileage = typeof vehicleMileage.$inferSelect;
