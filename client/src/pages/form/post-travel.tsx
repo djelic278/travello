@@ -108,14 +108,16 @@ export default function PostTravelForm() {
         startLoading("post-travel-form");
         const formData = new FormData();
 
-        // Add form fields
-        formData.append('departureTime', data.departureTime);
-        formData.append('returnTime', data.returnTime);
+        // Ensure dates are in ISO format
+        const departureTime = new Date(data.departureTime).toISOString();
+        const returnTime = new Date(data.returnTime).toISOString();
+
+        formData.append('departureTime', departureTime);
+        formData.append('returnTime', returnTime);
         formData.append('startMileage', data.startMileage.toString());
         formData.append('endMileage', data.endMileage.toString());
         formData.append('expenses', JSON.stringify(data.expenses));
 
-        // Add files if present
         if (data.files) {
           for (const file of data.files) {
             formData.append('files', file);
@@ -198,7 +200,11 @@ export default function PostTravelForm() {
                           <Input
                             type="datetime-local"
                             {...field}
-                            value={field.value ? field.value.slice(0, 16) : ''}
+                            value={field.value ? new Date(field.value).toISOString().slice(0, 16) : ''}
+                            onChange={(e) => {
+                              const date = new Date(e.target.value);
+                              field.onChange(date.toISOString());
+                            }}
                           />
                         </FormControl>
                         <FormMessage />
@@ -216,7 +222,11 @@ export default function PostTravelForm() {
                           <Input
                             type="datetime-local"
                             {...field}
-                            value={field.value ? field.value.slice(0, 16) : ''}
+                            value={field.value ? new Date(field.value).toISOString().slice(0, 16) : ''}
+                            onChange={(e) => {
+                              const date = new Date(e.target.value);
+                              field.onChange(date.toISOString());
+                            }}
                           />
                         </FormControl>
                         <FormDescription>

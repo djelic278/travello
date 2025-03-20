@@ -11,20 +11,28 @@ export const postTravelFormSchema = z.object({
   departureTime: z.string()
     .min(1, "Departure time is required")
     .transform((val) => {
-      const date = new Date(val);
-      if (isNaN(date.getTime())) {
-        throw new Error("Invalid departure time");
+      try {
+        const date = new Date(val);
+        if (isNaN(date.getTime())) {
+          throw new Error("Invalid departure time");
+        }
+        return date.toISOString();
+      } catch {
+        throw new Error("Invalid departure time format");
       }
-      return date.toISOString(); // Store as ISO string
     }),
   returnTime: z.string()
     .min(1, "Return time is required")
     .transform((val) => {
-      const date = new Date(val);
-      if (isNaN(date.getTime())) {
-        throw new Error("Invalid return time");
+      try {
+        const date = new Date(val);
+        if (isNaN(date.getTime())) {
+          throw new Error("Invalid return time");
+        }
+        return date.toISOString();
+      } catch {
+        throw new Error("Invalid return time format");
       }
-      return date.toISOString(); // Store as ISO string
     }),
   startMileage: z.number().min(0, "Start mileage must be positive"),
   endMileage: z.number().min(0, "End mileage must be positive"),
@@ -33,9 +41,13 @@ export const postTravelFormSchema = z.object({
     .max(4, "Maximum 4 files allowed")
     .optional(),
 }).refine((data) => {
-  const departure = new Date(data.departureTime);
-  const return_ = new Date(data.returnTime);
-  return return_ > departure;
+  try {
+    const departure = new Date(data.departureTime);
+    const return_ = new Date(data.returnTime);
+    return return_ > departure;
+  } catch {
+    return false;
+  }
 }, {
   message: "Return time must be after departure time",
   path: ["returnTime"],
@@ -48,10 +60,13 @@ export type Expense = z.infer<typeof expenseSchema>;
 // Utility functions for date handling
 export function formatDateForInput(date: string | Date | null | undefined): string {
   if (!date) return '';
-  const dateObj = new Date(date);
-  return !isNaN(dateObj.getTime()) 
-    ? dateObj.toISOString().slice(0, 16)
-    : '';
+  try {
+    const dateObj = new Date(date);
+    if (isNaN(dateObj.getTime())) return '';
+    return dateObj.toISOString().slice(0, 16);
+  } catch {
+    return '';
+  }
 }
 
 export function parseDate(dateStr: string): Date {
@@ -62,16 +77,20 @@ export function parseDate(dateStr: string): Date {
   return date;
 }
 
-// Calculation functions remain unchanged
+// Calculation functions
 export function calculateTotalHours(departure: string | Date, return_: string | Date): number {
-  const departureDate = typeof departure === 'string' ? new Date(departure) : departure;
-  const returnDate = typeof return_ === 'string' ? new Date(return_) : return_;
+  try {
+    const departureDate = typeof departure === 'string' ? new Date(departure) : departure;
+    const returnDate = typeof return_ === 'string' ? new Date(return_) : return_;
 
-  if (isNaN(departureDate.getTime()) || isNaN(returnDate.getTime())) {
+    if (isNaN(departureDate.getTime()) || isNaN(returnDate.getTime())) {
+      return 0;
+    }
+    const diff = returnDate.getTime() - departureDate.getTime();
+    return Math.max(0, Math.floor(diff / (1000 * 60 * 60)));
+  } catch {
     return 0;
   }
-  const diff = returnDate.getTime() - departureDate.getTime();
-  return Math.max(0, Math.floor(diff / (1000 * 60 * 60)));
 }
 
 export function calculateAllowance(hours: number, dailyAllowance: number = 35): number {
