@@ -21,12 +21,11 @@ export const preTraveFormSchema = z.object({
   isReturnTrip: z.boolean(),
   startDate: z.date(),
   duration: z.number().min(1, "Duration must be at least 1 day"),
-  projectCode: z.string().optional(), // Made project code optional
+  projectCode: z.string().optional(),
   requestedPrepayment: z.number().min(0, "Prepayment amount must be positive").optional(),
 }).refine((data) => {
-  // Custom validation for transport type based on company vehicle selection
   if (data.isCompanyVehicle) {
-    return true; // Skip validation when using company vehicle
+    return true;
   }
   return data.transportType.length > 0;
 }, {
@@ -36,19 +35,9 @@ export const preTraveFormSchema = z.object({
 
 export const postTravelFormSchema = z.object({
   departureTime: z.string()
-    .min(1, "Departure time is required")
-    .transform((val) => {
-      const date = new Date(val);
-      if (isNaN(date.getTime())) throw new Error("Invalid departure time");
-      return val;
-    }),
+    .min(1, "Departure time is required"),
   returnTime: z.string()
-    .min(1, "Return time is required")
-    .transform((val) => {
-      const date = new Date(val);
-      if (isNaN(date.getTime())) throw new Error("Invalid return time");
-      return val;
-    }),
+    .min(1, "Return time is required"),
   startMileage: z.number().min(0, "Start mileage must be positive"),
   endMileage: z.number().min(0, "End mileage must be positive"),
   expenses: z.array(expenseSchema),
@@ -56,11 +45,25 @@ export const postTravelFormSchema = z.object({
     .max(4, "Maximum 4 files allowed")
     .optional(),
 }).refine((data) => {
-  const departure = new Date(data.departureTime);
-  const return_ = new Date(data.returnTime);
-  return return_ > departure;
+  try {
+    const departure = new Date(data.departureTime);
+    const return_ = new Date(data.returnTime);
+
+    if (isNaN(departure.getTime())) {
+      throw new Error("Invalid departure time");
+    }
+    if (isNaN(return_.getTime())) {
+      throw new Error("Invalid return time");
+    }
+    if (return_ <= departure) {
+      throw new Error("Return time must be after departure time");
+    }
+    return true;
+  } catch (error) {
+    return false;
+  }
 }, {
-  message: "Return time must be after departure time",
+  message: "Please enter valid dates. Return time must be after departure time.",
   path: ["returnTime"],
 });
 

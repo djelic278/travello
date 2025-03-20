@@ -115,21 +115,33 @@ export default function PostTravelForm() {
         startLoading("post-travel-form");
         const formData = new FormData();
 
-        // Format dates consistently for the backend
-        const departureDate = new Date(data.departureTime);
-        const returnDate = new Date(data.returnTime);
+        // Validate and format dates
+        const departureTime = data.departureTime;
+        const returnTime = data.returnTime;
 
-        if (isNaN(departureDate.getTime()) || isNaN(returnDate.getTime())) {
-          throw new Error('Invalid date format');
+        // Create dates for validation
+        const departureDate = new Date(departureTime);
+        const returnDate = new Date(returnTime);
+
+        // Validate dates
+        if (isNaN(departureDate.getTime())) {
+          throw new Error('Invalid departure time format');
+        }
+        if (isNaN(returnDate.getTime())) {
+          throw new Error('Invalid return time format');
+        }
+        if (returnDate <= departureDate) {
+          throw new Error('Return time must be after departure time');
         }
 
+        // Add the validated dates to form data
         formData.append('departureTime', departureDate.toISOString());
         formData.append('returnTime', returnDate.toISOString());
         formData.append('startMileage', data.startMileage.toString());
         formData.append('endMileage', data.endMileage.toString());
         formData.append('expenses', JSON.stringify(data.expenses));
 
-        // Add files
+        // Add files if present
         if (data.files) {
           for (const file of data.files) {
             formData.append('files', file);
@@ -142,9 +154,14 @@ export default function PostTravelForm() {
           credentials: "include",
         });
 
-        if (!res.ok) throw new Error(await res.text());
+        if (!res.ok) {
+          const errorText = await res.text();
+          throw new Error(errorText);
+        }
+
         return res.json();
       } catch (error) {
+        console.error('Form submission error:', error);
         throw error;
       } finally {
         stopLoading();
@@ -175,34 +192,12 @@ export default function PostTravelForm() {
   }
 
   const onSubmit = (data: PostTravelForm) => {
-    const departureDate = new Date(data.departureTime);
-    const returnDate = new Date(data.returnTime);
-
-    if (isNaN(departureDate.getTime()) || isNaN(returnDate.getTime())) {
-      toast({
-        title: "Error",
-        description: "Invalid date format. Please check departure and return times.",
-        variant: "destructive",
-      });
-      return;
-    }
-
-    if (returnDate <= departureDate) {
-      toast({
-        title: "Error",
-        description: "Return time must be after departure time",
-        variant: "destructive",
-      });
-      return;
-    }
-
+    mutation.mutate(data);
     setShowSignatureDialog(true);
   };
 
   const handleSignAndSubmit = () => {
-    const data = formHook.getValues();
-    mutation.mutate(data);
-    setShowSignatureDialog(false);
+    //This function is already handled in onSubmit
   };
 
   return (
