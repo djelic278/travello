@@ -12,6 +12,7 @@ import { useUser } from "@/hooks/use-user";
 import { auth, googleProvider } from "@/lib/firebase";
 import { signInWithPopup } from "firebase/auth";
 import { motion } from "framer-motion";
+import { AppLogo } from "@/components/AppLogo";
 
 export default function AuthPage() {
   const [username, setUsername] = useState("");
@@ -113,8 +114,9 @@ export default function AuthPage() {
         initial={{ opacity: 0, y: -20 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.5 }}
-        className="mb-8"
+        className="mb-8 flex flex-col items-center gap-4"
       >
+        <AppLogo size="lg" className="mb-2" />
         <h1 className="text-4xl font-black tracking-tight bg-gradient-to-r from-primary to-primary/70 bg-clip-text text-transparent">
           Travello.ai
         </h1>
