@@ -37,13 +37,17 @@ export const preTraveFormSchema = z.object({
 export const postTravelFormSchema = z.object({
   departureTime: z.string()
     .min(1, "Departure time is required")
-    .refine((val) => !isNaN(new Date(val).getTime()), {
-      message: "Invalid departure time format"
+    .transform((val) => {
+      const date = new Date(val);
+      if (isNaN(date.getTime())) throw new Error("Invalid departure time");
+      return val;
     }),
   returnTime: z.string()
     .min(1, "Return time is required")
-    .refine((val) => !isNaN(new Date(val).getTime()), {
-      message: "Invalid return time format"
+    .transform((val) => {
+      const date = new Date(val);
+      if (isNaN(date.getTime())) throw new Error("Invalid return time");
+      return val;
     }),
   startMileage: z.number().min(0, "Start mileage must be positive"),
   endMileage: z.number().min(0, "End mileage must be positive"),

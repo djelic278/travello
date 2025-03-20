@@ -24,12 +24,18 @@ const columns: ColumnDef<MileageRecord>[] = [
   {
     accessorKey: "startDate",
     header: "Start Date",
-    cell: ({ row }) => format(new Date(row.getValue("startDate")), "PPP"),
+    cell: ({ row }) => {
+      const date = new Date(row.getValue("startDate"));
+      return isNaN(date.getTime()) ? "Invalid date" : format(date, "PPP");
+    },
   },
   {
     accessorKey: "endDate",
     header: "End Date",
-    cell: ({ row }) => format(new Date(row.getValue("endDate")), "PPP"),
+    cell: ({ row }) => {
+      const date = new Date(row.getValue("endDate"));
+      return isNaN(date.getTime()) ? "Invalid date" : format(date, "PPP");
+    },
   },
   {
     accessorKey: "startMileage",
@@ -68,13 +74,7 @@ export function MileageDialog({ open, onOpenChange, vehicle }: MileageDialogProp
       if (!vehicle) return [];
       const response = await fetch(`/api/vehicles/${vehicle.id}/mileage`);
       if (!response.ok) throw new Error('Failed to fetch mileage records');
-      const data = await response.json();
-      // Transform the dates into the correct format
-      return data.map((record: any) => ({
-        ...record,
-        startDate: new Date(record.startDate).toISOString(),
-        endDate: new Date(record.endDate).toISOString(),
-      }));
+      return response.json();
     },
     enabled: !!vehicle,
   });

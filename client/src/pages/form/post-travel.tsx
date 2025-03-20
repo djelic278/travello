@@ -249,6 +249,7 @@ export default function PostTravelForm() {
                           <Input
                             type="datetime-local"
                             {...field}
+                            value={field.value || ''}
                           />
                         </FormControl>
                         <FormMessage />
@@ -266,6 +267,7 @@ export default function PostTravelForm() {
                           <Input
                             type="datetime-local"
                             {...field}
+                            value={field.value || ''}
                           />
                         </FormControl>
                         <FormDescription>
