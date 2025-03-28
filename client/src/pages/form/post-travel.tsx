@@ -116,9 +116,17 @@ export default function PostTravelForm() {
     mutationFn: async (data: PostTravelForm) => {
       try {
         startLoading("post-travel-form");
-        const formData = new FormData();
-
-        // Ensure dates are in valid ISO format with proper error handling
+        
+        // Separate file upload from form data
+        let filesData;
+        if (data.files && data.files.length > 0) {
+          filesData = new FormData();
+          for (const file of data.files) {
+            filesData.append('files', file);
+          }
+        }
+        
+        // Validate and process date values
         let departureTime: string;
         let returnTime: string;
         
@@ -139,22 +147,34 @@ export default function PostTravelForm() {
         } catch (error: any) {
           throw new Error(error?.message || "Invalid date format for departure or return time");
         }
+        
+        // Use JSON instead of FormData for non-file data
+        const jsonData = {
+          departureTime,
+          returnTime,
+          startMileage: data.startMileage,
+          endMileage: data.endMileage,
+          expenses: data.expenses,
+        };
 
-        formData.append('departureTime', departureTime);
-        formData.append('returnTime', returnTime);
-        formData.append('startMileage', data.startMileage.toString());
-        formData.append('endMileage', data.endMileage.toString());
-        formData.append('expenses', JSON.stringify(data.expenses));
-
-        if (data.files) {
-          for (const file of data.files) {
-            formData.append('files', file);
-          }
+        // For now, submit only the JSON data (file uploads will be implemented later)
+        // If the user has selected files, show a notification
+        if (data.files && data.files.length > 0) {
+          console.warn("File uploads not yet implemented on the server");
+          toast({
+            title: "File Upload Not Available",
+            description: "Receipt file upload will be available in a future update.",
+            variant: "warning",
+          });
         }
-
+        
+        // Send data as JSON
         const res = await fetch(`/api/forms/${params.id}/post-travel`, {
           method: "PUT",
-          body: formData,
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify(jsonData),
           credentials: "include",
         });
 
