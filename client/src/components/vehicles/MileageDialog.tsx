@@ -20,39 +20,73 @@ type MileageRecord = {
   notes?: string;
 };
 
+// Helper function to format dates safely
+const formatDateCell = (dateValue: unknown, fieldName: string): string => {
+  try {
+    if (dateValue === null || dateValue === undefined) return "N/A";
+    
+    // Handle string date values
+    if (typeof dateValue === 'string') {
+      const date = new Date(dateValue);
+      if (!isNaN(date.getTime())) {
+        return format(date, "PPP");
+      }
+    }
+    
+    // Handle Date objects
+    if (dateValue instanceof Date) {
+      if (!isNaN(dateValue.getTime())) {
+        return format(dateValue, "PPP");
+      }
+    }
+    
+    // If we got here, it's an invalid date
+    return `Invalid date format`;
+  } catch (error) {
+    console.error(`Error formatting ${fieldName}:`, error, dateValue);
+    return "Error";
+  }
+};
+
 const columns: ColumnDef<MileageRecord>[] = [
   {
     accessorKey: "startDate",
     header: "Start Date",
-    cell: ({ row }) => {
-      const date = new Date(row.getValue("startDate"));
-      return isNaN(date.getTime()) ? "Invalid date" : format(date, "PPP");
-    },
+    cell: ({ row }) => formatDateCell(row.getValue("startDate"), "startDate"),
   },
   {
     accessorKey: "endDate",
     header: "End Date",
-    cell: ({ row }) => {
-      const date = new Date(row.getValue("endDate"));
-      return isNaN(date.getTime()) ? "Invalid date" : format(date, "PPP");
-    },
+    cell: ({ row }) => formatDateCell(row.getValue("endDate"), "endDate"),
   },
   {
     accessorKey: "startMileage",
     header: "Start Mileage",
-    cell: ({ row }) => `${row.getValue<number>("startMileage").toLocaleString()} km`,
+    cell: ({ row }) => {
+      const value = row.getValue<number | undefined>("startMileage");
+      return value !== undefined ? `${value.toLocaleString()} km` : "N/A";
+    },
   },
   {
     accessorKey: "endMileage",
     header: "End Mileage",
-    cell: ({ row }) => `${row.getValue<number>("endMileage").toLocaleString()} km`,
+    cell: ({ row }) => {
+      const value = row.getValue<number | undefined>("endMileage");
+      return value !== undefined ? `${value.toLocaleString()} km` : "N/A";
+    },
   },
   {
     accessorKey: "distance",
     header: "Distance",
     cell: ({ row }) => {
-      const distance = row.getValue<number>("endMileage") - row.getValue<number>("startMileage");
-      return `${distance.toLocaleString()} km`;
+      const startMileage = row.getValue<number | undefined>("startMileage");
+      const endMileage = row.getValue<number | undefined>("endMileage");
+      
+      if (startMileage !== undefined && endMileage !== undefined) {
+        const distance = endMileage - startMileage;
+        return `${distance.toLocaleString()} km`;
+      }
+      return "N/A";
     },
   },
   {

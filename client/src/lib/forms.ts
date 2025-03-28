@@ -56,10 +56,36 @@ export function formatDateForInput(date: string | Date | null | undefined): stri
   if (!date) return '';
   try {
     // Handle different date formats
-    const dateObj = typeof date === 'string' ? new Date(date) : date;
-    if (isNaN(dateObj.getTime())) return '';
+    let dateObj: Date;
     
-    // Format date-time for input
+    if (typeof date === 'string') {
+      // Check if it's an ISO date string
+      dateObj = new Date(date);
+      
+      // If it's not a valid date, try European date format dd/mm/yyyy
+      if (isNaN(dateObj.getTime()) && date.includes('/')) {
+        const parts = date.split('/');
+        if (parts.length === 3) {
+          // Try DD/MM/YYYY format
+          dateObj = new Date(`${parts[2]}-${parts[1]}-${parts[0]}`);
+        }
+      }
+      
+      // If still invalid, try other potential formats
+      if (isNaN(dateObj.getTime())) {
+        console.error("Invalid date string format:", date);
+        return '';
+      }
+    } else {
+      dateObj = date;
+    }
+    
+    if (isNaN(dateObj.getTime())) {
+      console.error("Invalid date object:", date);
+      return '';
+    }
+    
+    // Format date-time for input (HTML datetime-local format: YYYY-MM-DDThh:mm)
     const year = dateObj.getFullYear();
     const month = String(dateObj.getMonth() + 1).padStart(2, '0');
     const day = String(dateObj.getDate()).padStart(2, '0');
@@ -67,7 +93,8 @@ export function formatDateForInput(date: string | Date | null | undefined): stri
     const minutes = String(dateObj.getMinutes()).padStart(2, '0');
     
     return `${year}-${month}-${day}T${hours}:${minutes}`;
-  } catch {
+  } catch (error) {
+    console.error("Error formatting date for input:", error, date);
     return '';
   }
 }

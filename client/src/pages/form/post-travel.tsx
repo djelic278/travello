@@ -118,9 +118,27 @@ export default function PostTravelForm() {
         startLoading("post-travel-form");
         const formData = new FormData();
 
-        // Ensure dates are in ISO format
-        const departureTime = new Date(data.departureTime).toISOString();
-        const returnTime = new Date(data.returnTime).toISOString();
+        // Ensure dates are in valid ISO format with proper error handling
+        let departureTime: string;
+        let returnTime: string;
+        
+        try {
+          // Validate departure time
+          const departureDate = new Date(data.departureTime);
+          if (isNaN(departureDate.getTime())) {
+            throw new Error("Invalid departure time format");
+          }
+          departureTime = departureDate.toISOString();
+          
+          // Validate return time
+          const returnDate = new Date(data.returnTime);
+          if (isNaN(returnDate.getTime())) {
+            throw new Error("Invalid return time format");
+          }
+          returnTime = returnDate.toISOString();
+        } catch (error: any) {
+          throw new Error(error?.message || "Invalid date format for departure or return time");
+        }
 
         formData.append('departureTime', departureTime);
         formData.append('returnTime', returnTime);
@@ -210,10 +228,18 @@ export default function PostTravelForm() {
                           <Input
                             type="datetime-local"
                             {...field}
-                            value={field.value ? new Date(field.value).toISOString().slice(0, 16) : ''}
+                            value={field.value ? formatDateForInput(field.value) : ''}
                             onChange={(e) => {
-                              const date = new Date(e.target.value);
-                              field.onChange(date.toISOString());
+                              try {
+                                const date = new Date(e.target.value);
+                                if (!isNaN(date.getTime())) {
+                                  field.onChange(date.toISOString());
+                                } else {
+                                  console.error("Invalid date input:", e.target.value);
+                                }
+                              } catch (error) {
+                                console.error("Error parsing date:", error);
+                              }
                             }}
                           />
                         </FormControl>
@@ -232,10 +258,18 @@ export default function PostTravelForm() {
                           <Input
                             type="datetime-local"
                             {...field}
-                            value={field.value ? new Date(field.value).toISOString().slice(0, 16) : ''}
+                            value={field.value ? formatDateForInput(field.value) : ''}
                             onChange={(e) => {
-                              const date = new Date(e.target.value);
-                              field.onChange(date.toISOString());
+                              try {
+                                const date = new Date(e.target.value);
+                                if (!isNaN(date.getTime())) {
+                                  field.onChange(date.toISOString());
+                                } else {
+                                  console.error("Invalid date input:", e.target.value);
+                                }
+                              } catch (error) {
+                                console.error("Error parsing date:", error);
+                              }
                             }}
                           />
                         </FormControl>

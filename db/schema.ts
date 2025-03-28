@@ -288,7 +288,7 @@ export const selectCompanyVehicleSchema = createSelectSchema(companyVehicles);
 export type InsertCompanyVehicle = typeof companyVehicles.$inferInsert;
 export type SelectCompanyVehicle = typeof companyVehicles.$inferSelect;
 
-// Update insert schema validation with better date handling
+// Update insert schema validation with better date handling and transformation
 export const insertVehicleMileageSchema = createInsertSchema(vehicleMileage)
   .extend({
     departureTime: z.string()
@@ -299,7 +299,11 @@ export const insertVehicleMileageSchema = createInsertSchema(vehicleMileage)
         } catch {
           return false;
         }
-      }, "Invalid departure time format"),
+      }, "Invalid departure time format")
+      .transform((val) => {
+        // Ensure ISO format for storage
+        return new Date(val).toISOString();
+      }),
     returnTime: z.string()
       .refine((val) => {
         try {
@@ -308,7 +312,11 @@ export const insertVehicleMileageSchema = createInsertSchema(vehicleMileage)
         } catch {
           return false;
         }
-      }, "Invalid return time format"),
+      }, "Invalid return time format")
+      .transform((val) => {
+        // Ensure ISO format for storage
+        return new Date(val).toISOString();
+      }),
   });
 
 export const selectVehicleMileageSchema = createSelectSchema(vehicleMileage);
