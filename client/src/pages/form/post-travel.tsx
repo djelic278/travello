@@ -1,4 +1,4 @@
-import { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { useForm, useFieldArray } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { postTravelFormSchema, type PostTravelForm, calculateAllowance, calculateTotalHours, calculateDistanceAllowance, formatDateForInput } from "@/lib/forms";
@@ -63,14 +63,24 @@ export default function PostTravelForm() {
   const formHook = useForm<PostTravelForm>({
     resolver: zodResolver(postTravelFormSchema),
     defaultValues: {
-      departureTime: formatDateForInput(form?.departureTime),
-      returnTime: formatDateForInput(form?.returnTime),
-      startMileage: form?.startMileage || 0,
-      endMileage: form?.endMileage || 0,
+      departureTime: '',
+      returnTime: '',
+      startMileage: 0,
+      endMileage: 0,
       expenses: [],
       files: [],
     },
   });
+  
+  // Update form values when data is available
+  useEffect(() => {
+    if (form) {
+      formHook.setValue('departureTime', formatDateForInput(form.departureTime));
+      formHook.setValue('returnTime', formatDateForInput(form.returnTime));
+      formHook.setValue('startMileage', form.startMileage || 0);
+      formHook.setValue('endMileage', form.endMileage || 0);
+    }
+  }, [form, formHook]);
 
   const { fields, append, remove } = useFieldArray({
     control: formHook.control,
@@ -411,10 +421,10 @@ export default function PostTravelForm() {
                                 title: "Receipt Processed",
                                 description: "The expense has been added from the receipt.",
                               });
-                            } catch (error) {
+                            } catch (error: any) {
                               toast({
                                 title: "Error",
-                                description: error.message,
+                                description: error?.message || "Failed to process receipt",
                                 variant: "destructive",
                               });
                             }

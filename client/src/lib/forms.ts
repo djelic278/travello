@@ -10,30 +10,24 @@ export const expenseSchema = z.object({
 export const postTravelFormSchema = z.object({
   departureTime: z.string()
     .min(1, "Departure time is required")
-    .transform((val) => {
+    .refine((val) => {
       try {
         const date = new Date(val);
-        if (isNaN(date.getTime())) {
-          throw new Error("Invalid departure time");
-        }
-        return date.toISOString();
+        return !isNaN(date.getTime());
       } catch {
-        throw new Error("Invalid departure time format");
+        return false;
       }
-    }),
+    }, "Invalid departure time format"),
   returnTime: z.string()
     .min(1, "Return time is required")
-    .transform((val) => {
+    .refine((val) => {
       try {
         const date = new Date(val);
-        if (isNaN(date.getTime())) {
-          throw new Error("Invalid return time");
-        }
-        return date.toISOString();
+        return !isNaN(date.getTime());
       } catch {
-        throw new Error("Invalid return time format");
+        return false;
       }
-    }),
+    }, "Invalid return time format"),
   startMileage: z.number().min(0, "Start mileage must be positive"),
   endMileage: z.number().min(0, "End mileage must be positive"),
   expenses: z.array(expenseSchema),
@@ -44,7 +38,7 @@ export const postTravelFormSchema = z.object({
   try {
     const departure = new Date(data.departureTime);
     const return_ = new Date(data.returnTime);
-    return return_ > departure;
+    return !isNaN(departure.getTime()) && !isNaN(return_.getTime()) && return_ > departure;
   } catch {
     return false;
   }
@@ -61,9 +55,18 @@ export type Expense = z.infer<typeof expenseSchema>;
 export function formatDateForInput(date: string | Date | null | undefined): string {
   if (!date) return '';
   try {
-    const dateObj = new Date(date);
+    // Handle different date formats
+    const dateObj = typeof date === 'string' ? new Date(date) : date;
     if (isNaN(dateObj.getTime())) return '';
-    return dateObj.toISOString().slice(0, 16);
+    
+    // Format date-time for input
+    const year = dateObj.getFullYear();
+    const month = String(dateObj.getMonth() + 1).padStart(2, '0');
+    const day = String(dateObj.getDate()).padStart(2, '0');
+    const hours = String(dateObj.getHours()).padStart(2, '0');
+    const minutes = String(dateObj.getMinutes()).padStart(2, '0');
+    
+    return `${year}-${month}-${day}T${hours}:${minutes}`;
   } catch {
     return '';
   }

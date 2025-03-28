@@ -72,7 +72,7 @@ export const travelForms = pgTable("travel_forms", {
   startDate: timestamp("start_date").notNull(),
   duration: integer("duration").notNull(),
   isReturnTrip: boolean("is_return_trip").default(true).notNull(),
-  projectCode: text("project_code").notNull(),
+  projectCode: text("project_code"),
   requestedPrepayment: decimal("requested_prepayment", { precision: 10, scale: 2 }),
   status: text("status", {
     enum: ['pre_travel_submitted', 'post_travel_submitted', 'completed']
@@ -103,7 +103,6 @@ export const expenses = pgTable("expenses", {
 
 // Create expense type
 export type TravelExpense = typeof expenses.$inferSelect;
-export type InsertExpense = typeof expenses.$inferInsert;
 
 export const notifications = pgTable("notifications", {
   id: serial("id").primaryKey(),
@@ -289,11 +288,27 @@ export const selectCompanyVehicleSchema = createSelectSchema(companyVehicles);
 export type InsertCompanyVehicle = typeof companyVehicles.$inferInsert;
 export type SelectCompanyVehicle = typeof companyVehicles.$inferSelect;
 
-// Update insert schema validation
+// Update insert schema validation with better date handling
 export const insertVehicleMileageSchema = createInsertSchema(vehicleMileage)
   .extend({
-    departureTime: z.string().transform((val) => new Date(val).toISOString()),
-    returnTime: z.string().transform((val) => new Date(val).toISOString()),
+    departureTime: z.string()
+      .refine((val) => {
+        try {
+          const date = new Date(val);
+          return !isNaN(date.getTime());
+        } catch {
+          return false;
+        }
+      }, "Invalid departure time format"),
+    returnTime: z.string()
+      .refine((val) => {
+        try {
+          const date = new Date(val);
+          return !isNaN(date.getTime());
+        } catch {
+          return false;
+        }
+      }, "Invalid return time format"),
   });
 
 export const selectVehicleMileageSchema = createSelectSchema(vehicleMileage);
