@@ -110,7 +110,7 @@ export default function AdminPage() {
 
   // Fetch all users
   const { data: users = [], isLoading: isLoadingUsers } = useQuery<User[]>({
-    queryKey: ['/api/users']
+    queryKey: ['/api/admin/users']
   });
 
   // Fetch pending invitations
@@ -327,7 +327,7 @@ export default function AdminPage() {
         title: "Success",
         description: "User company updated successfully",
       });
-      queryClient.invalidateQueries({ queryKey: ['/api/users'] });
+      queryClient.invalidateQueries({ queryKey: ['/api/admin/users'] });
       setEditingUser(null);
     },
     onError: (error: Error) => {
@@ -341,7 +341,7 @@ export default function AdminPage() {
 
   const updateRoleMutation = useMutation({
     mutationFn: async (data: { userId: number; role: User['role'] }) => {
-      const response = await fetch(`/api/users/${data.userId}/role`, {
+      const response = await fetch(`/api/admin/users/${data.userId}/role`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ role: data.role }),
@@ -357,7 +357,7 @@ export default function AdminPage() {
     },
     onSuccess: () => {
       toast({ title: "Success", description: "User role updated successfully" });
-      queryClient.invalidateQueries({ queryKey: ['/api/users'] });
+      queryClient.invalidateQueries({ queryKey: ['/api/admin/users'] });
     },
     onError: (error: Error) => {
       toast({ title: "Error", description: error.message, variant: "destructive" });
@@ -382,7 +382,7 @@ export default function AdminPage() {
     },
     onSuccess: () => {
       toast({ title: "Success", description: "User company updated successfully" });
-      queryClient.invalidateQueries({ queryKey: ['/api/users'] });
+      queryClient.invalidateQueries({ queryKey: ['/api/admin/users'] });
     },
     onError: (error: Error) => {
       toast({ title: "Error", description: error.message, variant: "destructive" });
