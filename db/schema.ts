@@ -236,7 +236,7 @@ export const vehicleMileageRelations = relations(vehicleMileage, ({ one }) => ({
 export const updateUserProfileSchema = z.object({
   firstName: z.string().optional(),
   lastName: z.string().optional(),
-  position: z.string().min(1, "Position is required"),
+  position: z.string().optional(),
   dateOfBirth: z.string().optional(),
   preferredEmail: z.string().email("Invalid email address"),
   companyId: z.number().optional(),

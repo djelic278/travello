@@ -48,7 +48,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 const updateProfileSchema = z.object({
   firstName: z.string().optional(),
   lastName: z.string().optional(),
-  position: z.string().min(1, "Position is required"),
+  position: z.string().optional(),
   dateOfBirth: z.string().optional(),
   preferredEmail: z.string().email("Invalid email address"),
   companyId: z.number().optional(),
