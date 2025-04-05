@@ -16,7 +16,7 @@ import { updateUserProfileSchema, sendInvitationSchema } from "@db/schema";
 
 export function registerRoutes(app: Express): Server {
   // Add vehicle routes
-  app.use('/api', vehicleRoutes);
+  app.use('', vehicleRoutes);
 
   // Get all users (super admin only)
   app.get("/api/users", isAuthenticated, asyncHandler(async (req: Request, res: Response) => {

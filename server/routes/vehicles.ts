@@ -8,7 +8,7 @@ import { asyncHandler } from "../utils/asyncHandler";
 const router = Router();
 
 // Get all vehicles
-router.get("/vehicles", isAuthenticated, asyncHandler(async (req, res) => {
+router.get("/api/vehicles", isAuthenticated, asyncHandler(async (req, res) => {
   const vehicles = await db.query.companyVehicles.findMany({
     orderBy: (vehicles, { desc }) => [desc(vehicles.createdAt)],
   });
@@ -16,7 +16,7 @@ router.get("/vehicles", isAuthenticated, asyncHandler(async (req, res) => {
 }));
 
 // Create new vehicle
-router.post("/vehicles", isAuthenticated, asyncHandler(async (req, res) => {
+router.post("/api/vehicles", isAuthenticated, asyncHandler(async (req, res) => {
   try {
     console.log('Received vehicle data:', req.body);
 
@@ -62,7 +62,7 @@ router.post("/vehicles", isAuthenticated, asyncHandler(async (req, res) => {
 }));
 
 // Get single vehicle
-router.get("/vehicles/:id", isAuthenticated, asyncHandler(async (req, res) => {
+router.get("/api/vehicles/:id", isAuthenticated, asyncHandler(async (req, res) => {
   const vehicle = await db.query.companyVehicles.findFirst({
     where: eq(companyVehicles.id, parseInt(req.params.id)),
   });
@@ -75,7 +75,7 @@ router.get("/vehicles/:id", isAuthenticated, asyncHandler(async (req, res) => {
 }));
 
 // Update vehicle
-router.put("/vehicles/:id", isAuthenticated, asyncHandler(async (req, res) => {
+router.put("/api/vehicles/:id", isAuthenticated, asyncHandler(async (req, res) => {
   try {
     const validatedData = await insertCompanyVehicleSchema.parseAsync({
       ...req.body,
@@ -107,7 +107,7 @@ router.put("/vehicles/:id", isAuthenticated, asyncHandler(async (req, res) => {
 }));
 
 // Delete vehicle
-router.delete("/vehicles/:id", isAuthenticated, asyncHandler(async (req, res) => {
+router.delete("/api/vehicles/:id", isAuthenticated, asyncHandler(async (req, res) => {
   const [deletedVehicle] = await db
     .delete(companyVehicles)
     .where(eq(companyVehicles.id, parseInt(req.params.id)))

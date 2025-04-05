@@ -112,8 +112,8 @@ const findAvailablePort = async (startPort: number, maxAttempts: number = 10): P
       });
     });
 
-    // Try to start server on port 5000 or find an available port
-    const PORT = await findAvailablePort(5000);
+    // Use port 5000 to ensure compatibility with Replit workflow
+    const PORT = 5000;
 
     server.listen(PORT, "0.0.0.0", () => {
       log(`Server running on port ${PORT} in ${app.get("env")} mode`);
