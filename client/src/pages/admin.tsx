@@ -307,11 +307,11 @@ export default function AdminPage() {
   });
 
   const updateUserMutation = useMutation({
-    mutationFn: async (data: { userId: number; organization: string }) => {
+    mutationFn: async (data: { userId: number; companyId: number | null }) => {
       const response = await fetch(`/api/users/${data.userId}`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ organization: data.organization }),
+        body: JSON.stringify({ companyId: data.companyId }),
         credentials: 'include',
       });
 
@@ -325,7 +325,7 @@ export default function AdminPage() {
     onSuccess: () => {
       toast({
         title: "Success",
-        description: "User organization updated successfully",
+        description: "User company updated successfully",
       });
       queryClient.invalidateQueries({ queryKey: ['/api/users'] });
       setEditingUser(null);
@@ -759,9 +759,9 @@ export default function AdminPage() {
       <Dialog open={!!editingUser} onOpenChange={(open) => !open && setEditingUser(null)}>
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>Edit Organization</DialogTitle>
+            <DialogTitle>Edit Company</DialogTitle>
             <DialogDescription>
-              Update the organization for {editingUser?.username}
+              Update the company for {editingUser?.username}
             </DialogDescription>
           </DialogHeader>
           <form
@@ -769,25 +769,29 @@ export default function AdminPage() {
               e.preventDefault();
               if (!editingUser) return;
               const formData = new FormData(e.currentTarget);
+              const companyIdStr = formData.get('companyId') as string;
+              const companyId = companyIdStr === 'none' ? null : parseInt(companyIdStr);
+              
               updateUserMutation.mutate({
                 userId: editingUser.id,
-                organization: formData.get('organization') as string,
+                companyId: companyId,
               });
             }}
             className="space-y-4"
           >
             <div className="space-y-2">
-              <label htmlFor="organization">Organization</label>
+              <label htmlFor="companyId">Company</label>
               <Select
-                name="organization"
-                defaultValue={editingUser?.organization || ''}
+                name="companyId"
+                defaultValue={editingUser?.companyId?.toString() || 'none'}
               >
                 <SelectTrigger>
-                  <SelectValue placeholder="Select an organization" />
+                  <SelectValue placeholder="Select a company" />
                 </SelectTrigger>
                 <SelectContent>
+                  <SelectItem value="none">No Company</SelectItem>
                   {companies.map((company) => (
-                    <SelectItem key={company.id} value={company.name}>
+                    <SelectItem key={company.id} value={company.id.toString()}>
                       {company.name}
                     </SelectItem>
                   ))}
