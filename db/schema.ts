@@ -45,6 +45,8 @@ export const users = pgTable("users", {
   password: text("password").notNull(),
   email: text("email").unique().notNull(),
   preferredEmail: text("preferred_email"),
+  firstName: text("first_name"),
+  lastName: text("last_name"),
   position: text("position"),
   dateOfBirth: date("date_of_birth"),
   role: text("role", { enum: [UserRole.USER, UserRole.COMPANY_ADMIN, UserRole.SUPER_ADMIN] })
@@ -232,6 +234,8 @@ export const vehicleMileageRelations = relations(vehicleMileage, ({ one }) => ({
 
 // Create schemas for validation
 export const updateUserProfileSchema = z.object({
+  firstName: z.string().min(1, "First name is required"),
+  lastName: z.string().min(1, "Last name is required"),
   position: z.string().min(1, "Position is required"),
   dateOfBirth: z.string().optional(),
   preferredEmail: z.string().email("Invalid email address"),
