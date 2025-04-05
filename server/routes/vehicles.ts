@@ -27,7 +27,8 @@ router.post("/vehicles", isAuthenticated, asyncHandler(async (req, res) => {
       fuelConsumption: parseFloat(req.body.fuelConsumption),
       currentMileage: parseFloat(req.body.currentMileage),
       year: parseInt(req.body.year),
-      companyId: 1, // Default company ID
+      // Use the companyId from the request or from the user if one is not provided
+      companyId: req.body.companyId || (req.user && 'companyId' in req.user ? req.user.companyId : 1),
     };
 
     // Validate the data
@@ -82,6 +83,8 @@ router.put("/vehicles/:id", isAuthenticated, asyncHandler(async (req, res) => {
       fuelConsumption: parseFloat(req.body.fuelConsumption),
       currentMileage: parseFloat(req.body.currentMileage),
       year: parseInt(req.body.year),
+      // Keep the company ID from the request or use the user's company ID as fallback
+      companyId: req.body.companyId || (req.user && 'companyId' in req.user ? req.user.companyId : null),
     });
 
     const [vehicle] = await db

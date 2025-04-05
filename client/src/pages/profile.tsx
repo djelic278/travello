@@ -241,8 +241,9 @@ export default function ProfilePage() {
           <Form {...form}>
             <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-6">
               <Tabs defaultValue="profile" className="w-full">
-                <TabsList className="grid w-full grid-cols-2">
+                <TabsList className="grid w-full grid-cols-3">
                   <TabsTrigger value="profile">Profile Information</TabsTrigger>
+                  <TabsTrigger value="company">Company Details</TabsTrigger>
                   <TabsTrigger value="preferences">Preferences</TabsTrigger>
                 </TabsList>
 
@@ -425,6 +426,80 @@ export default function ProfilePage() {
                         </DialogContent>
                       </Dialog>
                     </div>
+                  </div>
+                </TabsContent>
+                
+                <TabsContent value="company">
+                  <div className="space-y-6">
+                    {!user.companyId ? (
+                      <div className="flex flex-col items-center justify-center p-6 text-center">
+                        <div className="text-lg font-medium mb-2">No Company Selected</div>
+                        <p className="text-sm text-muted-foreground mb-4">
+                          You are not currently associated with any company.
+                        </p>
+                        <Dialog open={isAddingCompany} onOpenChange={setIsAddingCompany}>
+                          <DialogTrigger asChild>
+                            <Button type="button">+ Add New Company</Button>
+                          </DialogTrigger>
+                        </Dialog>
+                      </div>
+                    ) : (
+                      <div className="space-y-4">
+                        {companies.length > 0 && (() => {
+                          const userCompany = companies.find(c => c.id === user.companyId);
+                          if (!userCompany) return null;
+                          
+                          return (
+                            <>
+                              <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+                                <div className="bg-muted/50 p-4 rounded-lg">
+                                  <h3 className="font-medium text-sm mb-1">Company Name</h3>
+                                  <p className="text-sm">{userCompany.name}</p>
+                                </div>
+                                
+                                <div className="bg-muted/50 p-4 rounded-lg">
+                                  <h3 className="font-medium text-sm mb-1">VAT Number</h3>
+                                  <p className="text-sm">{userCompany.vatNumber || 'Not provided'}</p>
+                                </div>
+                                
+                                <div className="bg-muted/50 p-4 rounded-lg">
+                                  <h3 className="font-medium text-sm mb-1">Address</h3>
+                                  <p className="text-sm">{userCompany.address || 'Not provided'}</p>
+                                </div>
+                                
+                                <div className="bg-muted/50 p-4 rounded-lg">
+                                  <h3 className="font-medium text-sm mb-1">Contact Email</h3>
+                                  <p className="text-sm">{userCompany.contactEmail || 'Not provided'}</p>
+                                </div>
+                                
+                                <div className="bg-muted/50 p-4 rounded-lg col-span-full">
+                                  <h3 className="font-medium text-sm mb-1">Administrator Email</h3>
+                                  <p className="text-sm">{userCompany.adminEmail || 'Not provided'}</p>
+                                </div>
+                              </div>
+                              
+                              {user.role === 'super_admin' || user.role === 'company_admin' ? (
+                                <div className="pt-4">
+                                  <Button type="button" variant="outline" onClick={() => {
+                                    // Pre-fill the form with company data when editing
+                                    companyForm.reset({
+                                      name: userCompany.name,
+                                      address: userCompany.address || '',
+                                      vatNumber: userCompany.vatNumber || '',
+                                      contactEmail: userCompany.contactEmail || '',
+                                      adminEmail: userCompany.adminEmail || '',
+                                    });
+                                    setIsAddingCompany(true);
+                                  }}>
+                                    Edit Company Details
+                                  </Button>
+                                </div>
+                              ) : null}
+                            </>
+                          );
+                        })()}
+                      </div>
+                    )}
                   </div>
                 </TabsContent>
 

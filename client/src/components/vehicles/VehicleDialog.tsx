@@ -5,10 +5,11 @@ import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { useMutation, useQueryClient, useQuery } from "@tanstack/react-query";
 import { InsertCompanyVehicle, insertCompanyVehicleSchema } from "@/lib/schema";
 import { useToast } from "@/hooks/use-toast";
 import { useEffect } from "react";
+import { useUser } from "@/hooks/use-user";
 
 type VehicleDialogProps = {
   open: boolean;
@@ -20,6 +21,14 @@ type VehicleDialogProps = {
 export function VehicleDialog({ open, onOpenChange, vehicle, onClose }: VehicleDialogProps) {
   const { toast } = useToast();
   const queryClient = useQueryClient();
+  const { user } = useUser();
+  
+  // Fetch companies for dropdown
+  const { data: companies = [] } = useQuery({
+    queryKey: ['/api/companies'],
+    enabled: open, // Only fetch when dialog is open
+  });
+  
   const form = useForm<InsertCompanyVehicle>({
     resolver: zodResolver(insertCompanyVehicleSchema),
     defaultValues: {
@@ -32,9 +41,16 @@ export function VehicleDialog({ open, onOpenChange, vehicle, onClose }: VehicleD
       fuelConsumption: 0,
       status: "available",
       currentMileage: 0,
-      companyId: 1,
+      companyId: user?.companyId || 1,
     },
   });
+
+  // Effect to set the company based on user profile when form opens
+  useEffect(() => {
+    if (open && !vehicle && user?.companyId) {
+      form.setValue('companyId', user.companyId);
+    }
+  }, [open, user, form, vehicle]);
 
   // Update form values when vehicle changes
   useEffect(() => {
@@ -62,10 +78,10 @@ export function VehicleDialog({ open, onOpenChange, vehicle, onClose }: VehicleD
         fuelConsumption: 0,
         status: "available",
         currentMileage: 0,
-        companyId: 1,
+        companyId: user?.companyId || 1,
       });
     }
-  }, [vehicle, form]);
+  }, [vehicle, form, user]);
 
   const mutation = useMutation({
     mutationFn: async (data: InsertCompanyVehicle) => {
@@ -276,6 +292,37 @@ export function VehicleDialog({ open, onOpenChange, vehicle, onClose }: VehicleD
                   </FormItem>
                 )}
               />
+              
+              {/* Only show company selector for admin users */}
+              {user?.role === 'super_admin' && companies.length > 0 && (
+                <FormField
+                  control={form.control}
+                  name="companyId"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Company</FormLabel>
+                      <Select 
+                        onValueChange={(value) => field.onChange(Number(value))} 
+                        value={String(field.value)}
+                      >
+                        <FormControl>
+                          <SelectTrigger>
+                            <SelectValue placeholder="Select company" />
+                          </SelectTrigger>
+                        </FormControl>
+                        <SelectContent>
+                          {companies.map((company) => (
+                            <SelectItem key={company.id} value={String(company.id)}>
+                              {company.name}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+              )}
             </div>
             <div className="mt-auto p-6 border-t bg-background">
               <div className="flex justify-end gap-4">
