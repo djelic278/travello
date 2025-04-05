@@ -38,6 +38,19 @@ router.post("/api/vehicles", isAuthenticated, asyncHandler(async (req, res) => {
       companyId: req.body.companyId || (req.user && 'companyId' in req.user ? req.user.companyId : 1),
     };
 
+    // Check if license plate already exists
+    const licensePlate = dataToValidate.licensePlate;
+    const existingVehicle = await db.query.companyVehicles.findFirst({
+      where: eq(companyVehicles.licensePlate, licensePlate),
+    });
+
+    if (existingVehicle) {
+      return res.status(400).json({
+        error: "License plate already exists",
+        message: "This license plate is already in use. Please use a different one."
+      });
+    }
+
     // Validate the data
     const validatedData = await insertCompanyVehicleSchema.parseAsync(dataToValidate);
     console.log('Validated vehicle data:', validatedData);
@@ -51,6 +64,14 @@ router.post("/api/vehicles", isAuthenticated, asyncHandler(async (req, res) => {
     res.status(201).json(vehicle);
   } catch (error) {
     console.error("Error creating vehicle:", error);
+
+    // Check for unique constraint violation
+    if (error.code === '23505' || error.message?.includes('unique constraint')) {
+      return res.status(400).json({
+        error: "License plate already exists",
+        message: "This license plate is already in use. Please use a different one."
+      });
+    }
 
     // If it's a validation error, send the validation messages
     if (error.errors) {
@@ -111,6 +132,20 @@ router.put("/api/vehicles/:id", isAuthenticated, asyncHandler(async (req, res) =
       return res.status(403).json({ error: "You don't have permission to update this vehicle" });
     }
     
+    // Check if license plate already exists and doesn't belong to this vehicle
+    if (req.body.licensePlate !== existingVehicle.licensePlate) {
+      const duplicatePlate = await db.query.companyVehicles.findFirst({
+        where: eq(companyVehicles.licensePlate, req.body.licensePlate),
+      });
+      
+      if (duplicatePlate) {
+        return res.status(400).json({
+          error: "License plate already exists",
+          message: "This license plate is already in use. Please use a different one."
+        });
+      }
+    }
+    
     const validatedData = await insertCompanyVehicleSchema.parseAsync({
       ...req.body,
       enginePower: parseInt(req.body.enginePower),
@@ -133,7 +168,19 @@ router.put("/api/vehicles/:id", isAuthenticated, asyncHandler(async (req, res) =
     res.json(vehicle);
   } catch (error) {
     console.error("Error updating vehicle:", error);
-    res.status(500).json({ error: "Failed to update vehicle" });
+    
+    // Check for unique constraint violation
+    if (error.code === '23505' || error.message?.includes('unique constraint')) {
+      return res.status(400).json({
+        error: "License plate already exists",
+        message: "This license plate is already in use. Please use a different one."
+      });
+    }
+    
+    res.status(500).json({ 
+      error: "Failed to update vehicle",
+      message: error instanceof Error ? error.message : 'Unknown error'
+    });
   }
 }));
 

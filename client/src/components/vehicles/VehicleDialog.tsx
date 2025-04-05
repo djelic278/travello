@@ -120,9 +120,16 @@ export function VehicleDialog({ open, onOpenChange, vehicle, onClose }: VehicleD
     },
     onError: (error) => {
       console.error('Mutation error:', error);
+      
+      // Check for specific error messages related to license plate
+      let errorMessage = error.message;
+      if (error.message?.includes('license_plate') || error.message?.includes('unique constraint')) {
+        errorMessage = "This license plate is already in use. Please use a different one.";
+      }
+      
       toast({
         title: "Error",
-        description: error.message,
+        description: errorMessage,
         variant: "destructive",
       });
     },
