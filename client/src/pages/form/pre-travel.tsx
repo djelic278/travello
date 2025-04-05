@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { preTraveFormSchema, type PreTravelForm, fieldDescriptions } from "@/lib/forms";
@@ -48,10 +48,11 @@ import {
   HoverCardContent,
   HoverCardTrigger,
 } from "@/components/ui/hover-card";
-import { Check, ChevronsUpDown, HelpCircle, Loader2 } from "lucide-react";
+import { Check, ChevronsUpDown, HelpCircle } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { VoiceInput } from "@/components/voice-input";
 
+// Helper component for form labels with tooltips
 function FormLabelWithTooltip({ label, description }: { label: string; description: string }) {
   return (
     <div className="flex items-center gap-2">
@@ -74,6 +75,7 @@ export default function PreTravelForm() {
   const [open, setOpen] = useState(false);
   const [inputValue, setInputValue] = useState("");
 
+  // Initialize form with default values
   const form = useForm<PreTravelForm>({
     resolver: zodResolver(preTraveFormSchema),
     defaultValues: {
@@ -96,37 +98,61 @@ export default function PreTravelForm() {
     },
   });
 
-  // Fetch available company vehicles
-  const { data: vehicles = [] } = useQuery({
-    queryKey: ['/api/vehicles'],
-    queryFn: async () => {
-      const response = await fetch('/api/vehicles');
-      if (!response.ok) throw new Error('Failed to fetch vehicles');
-      return response.json();
-    },
-  });
-
-  const { data: user } = useQuery({
-    queryKey: ['/api/users/me']
-  });
-
-  // Query to get user's company details
-  const { data: companies } = useQuery({
-    queryKey: ['/api/companies'],
-    enabled: !!user?.companyId,
-  });
-  
-  // Find the user's company from the companies list
-  const userCompany = user?.companyId && companies ? 
-    companies.find((c: any) => c.id === user.companyId) : null;
-
-  const { data: previousLocations = [] } = useQuery({
-    queryKey: ["/api/submission-locations"]
-  });
-
   // Watch for company vehicle toggle
   const isCompanyVehicle = form.watch("isCompanyVehicle");
 
+  // Fetch user data
+  const { data: user } = useQuery({
+    queryKey: ['/api/user'],
+    queryFn: async () => {
+      const response = await fetch('/api/user', {
+        credentials: 'include'
+      });
+      if (!response.ok) throw new Error('Failed to fetch user data');
+      return response.json();
+    }
+  });
+
+  // Fetch companies data if user has companyId
+  const { data: companies } = useQuery({
+    queryKey: ['/api/companies'],
+    queryFn: async () => {
+      const response = await fetch('/api/companies', {
+        credentials: 'include'
+      });
+      if (!response.ok) throw new Error('Failed to fetch companies');
+      return response.json();
+    },
+    enabled: !!user?.companyId,
+  });
+
+  // Find user's company from companies list
+  const userCompany = user?.companyId && companies ? 
+    companies.find((c: any) => c.id === user.companyId) : null;
+
+  // Fetch company vehicles when needed
+  const { data: vehicles = [] } = useQuery({
+    queryKey: ['/api/vehicles'],
+    queryFn: async () => {
+      const response = await fetch('/api/vehicles', {
+        credentials: 'include'
+      });
+      if (!response.ok) throw new Error('Failed to fetch vehicles');
+      return response.json();
+    },
+    enabled: isCompanyVehicle && !!user?.companyId,
+  });
+
+  // Default locations until API endpoint is available
+  const previousLocations = [
+    "Zagreb", 
+    "Split", 
+    "Rijeka", 
+    "Osijek", 
+    "Dubrovnik"
+  ];
+
+  // Handle voice input data
   const handleVoiceData = (data: Record<string, any>) => {
     try {
       // Update form fields based on voice data
@@ -217,7 +243,6 @@ export default function PreTravelForm() {
           description: `Set to ${data.submissionLocation}`,
         });
       }
-
     } catch (error) {
       console.error('Error processing voice input:', error);
       toast({
@@ -228,6 +253,7 @@ export default function PreTravelForm() {
     }
   };
 
+  // Form submission mutation
   const mutation = useMutation({
     mutationFn: async (data: PreTravelForm) => {
       const res = await fetch("/api/forms/pre-travel", {
@@ -260,21 +286,24 @@ export default function PreTravelForm() {
     },
   });
 
-  // Set form values when data is available
+  // Populate form with user data when available
   React.useEffect(() => {
     if (user) {
-      // Set name values if available
-      if (user.firstName && !form.getValues('firstName')) {
-        form.setValue('firstName', user.firstName);
-      }
-      if (user.lastName && !form.getValues('lastName')) {
-        form.setValue('lastName', user.lastName);
-      }
+      // Always apply user data when available
+      form.setValue('firstName', user.firstName || '');
+      form.setValue('lastName', user.lastName || '');
       
       // Set company value if available
       if (userCompany && userCompany.name) {
         form.setValue('company', userCompany.name);
       }
+      
+      console.log('Setting form values from user profile:', {
+        firstName: user.firstName,
+        lastName: user.lastName,
+        companyId: user.companyId,
+        companyName: userCompany?.name
+      });
     }
   }, [user, userCompany, form]);
 
@@ -347,7 +376,7 @@ export default function PreTravelForm() {
                               Press enter to use "{inputValue}"
                             </CommandEmpty>
                             <CommandGroup>
-                              {previousLocations?.map((location: string) => (
+                              {previousLocations.map((location: string) => (
                                 <CommandItem
                                   key={location}
                                   value={location}
@@ -644,16 +673,19 @@ export default function PreTravelForm() {
                   render={({ field }) => (
                     <FormItem>
                       <FormLabelWithTooltip
-                        label="Start Date"
+                        label="Travel Start Date"
                         description={fieldDescriptions.startDate}
                       />
                       <FormControl>
                         <Input
                           type="date"
                           value={field.value instanceof Date ? field.value.toISOString().split('T')[0] : ''}
-                          onChange={(e) =>
-                            field.onChange(new Date(e.target.value))
-                          }
+                          onChange={(e) => {
+                            const date = new Date(e.target.value);
+                            if (!isNaN(date.getTime())) {
+                              field.onChange(date);
+                            }
+                          }}
                         />
                       </FormControl>
                       <FormMessage />
@@ -673,10 +705,14 @@ export default function PreTravelForm() {
                       <FormControl>
                         <Input
                           type="number"
+                          min={1}
                           {...field}
-                          onChange={(e) =>
-                            field.onChange(parseInt(e.target.value))
-                          }
+                          onChange={(e) => {
+                            const value = parseInt(e.target.value);
+                            if (!isNaN(value) && value > 0) {
+                              field.onChange(value);
+                            }
+                          }}
                         />
                       </FormControl>
                       <FormMessage />
@@ -685,7 +721,7 @@ export default function PreTravelForm() {
                 />
               </div>
 
-              {/* Project Code and Prepayment row */}
+              {/* Project and Prepayment row */}
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 <FormField
                   control={form.control}
@@ -693,11 +729,11 @@ export default function PreTravelForm() {
                   render={({ field }) => (
                     <FormItem>
                       <FormLabelWithTooltip
-                        label="Project Code"
+                        label="Project Code (optional)"
                         description={fieldDescriptions.projectCode}
                       />
                       <FormControl>
-                        <Input {...field} />
+                        <Input {...field} placeholder="e.g., PRJ-1234" />
                       </FormControl>
                       <FormMessage />
                     </FormItem>
@@ -710,15 +746,21 @@ export default function PreTravelForm() {
                   render={({ field }) => (
                     <FormItem>
                       <FormLabelWithTooltip
-                        label="Requested Prepayment (EUR)"
+                        label="Requested Prepayment (€)"
                         description={fieldDescriptions.requestedPrepayment}
                       />
                       <FormControl>
                         <Input
                           type="number"
+                          min={0}
                           step="0.01"
                           {...field}
-                          onChange={(e) => field.onChange(parseFloat(e.target.value))}
+                          onChange={(e) => {
+                            const value = parseFloat(e.target.value);
+                            if (!isNaN(value) && value >= 0) {
+                              field.onChange(value);
+                            }
+                          }}
                         />
                       </FormControl>
                       <FormMessage />
@@ -727,15 +769,12 @@ export default function PreTravelForm() {
                 />
               </div>
 
-              <div className="rounded-lg border p-4 bg-muted/50">
-                <p className="text-sm text-muted-foreground">
-                  <strong>Important:</strong> After completing your travel, you are required to submit Form 2 (post-travel form) within 10 days of your return date to justify the travel expenses and reconcile any prepayments.
-                </p>
+              <div className="flex justify-end mt-8">
+                <Button variant="outline" type="button" className="mr-2" onClick={() => navigate("/")}>
+                  Cancel
+                </Button>
+                <Button type="submit">Submit Travel Request</Button>
               </div>
-
-              <Button type="submit" className="w-full">
-                Submit for Approval
-              </Button>
             </form>
           </Form>
         </CardContent>
