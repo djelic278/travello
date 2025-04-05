@@ -18,6 +18,7 @@ import {
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
 import { useToast } from "@/hooks/use-toast";
+import { useUser } from "@/hooks/use-user";
 
 export default function VehicleManagement() {
   const [isDialogOpen, setIsDialogOpen] = useState(false);
@@ -27,16 +28,27 @@ export default function VehicleManagement() {
   const [mileageVehicle, setMileageVehicle] = useState<SelectCompanyVehicle | null>(null);
   const { toast } = useToast();
   const queryClient = useQueryClient();
+  const { user } = useUser();
 
   const { data: vehicles, isLoading } = useQuery({
-    queryKey: ['/api/vehicles'],
+    queryKey: ['/api/vehicles', user?.companyId],
     queryFn: async () => {
       const response = await fetch('/api/vehicles');
       if (!response.ok) {
         throw new Error('Failed to fetch vehicles');
       }
-      return response.json();
+      const data = await response.json();
+      
+      // If user is not super_admin, filter vehicles by company
+      if (user && user.role !== 'super_admin' && user.companyId) {
+        return data.filter((vehicle: SelectCompanyVehicle) => 
+          vehicle.companyId === user.companyId
+        );
+      }
+      
+      return data;
     },
+    enabled: !!user, // Only run query when user data is available
   });
 
   const deleteMutation = useMutation({

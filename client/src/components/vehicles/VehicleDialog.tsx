@@ -293,8 +293,8 @@ export function VehicleDialog({ open, onOpenChange, vehicle, onClose }: VehicleD
                 )}
               />
               
-              {/* Only show company selector for admin users */}
-              {user?.role === 'super_admin' && companies.length > 0 && (
+              {/* Show company selector for admin users, but use hidden field for regular users */}
+              {user?.role === 'super_admin' && companies.length > 0 ? (
                 <FormField
                   control={form.control}
                   name="companyId"
@@ -318,6 +318,24 @@ export function VehicleDialog({ open, onOpenChange, vehicle, onClose }: VehicleD
                           ))}
                         </SelectContent>
                       </Select>
+                      <FormMessage />
+                    </FormItem>
+                  )}
+                />
+              ) : (
+                /* For regular users, show which company the vehicle will be associated with */
+                <FormField
+                  control={form.control}
+                  name="companyId"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel>Company</FormLabel>
+                      <FormControl>
+                        <Input 
+                          value={companies.find(c => c.id === user?.companyId)?.name || 'Your Company'} 
+                          disabled 
+                        />
+                      </FormControl>
                       <FormMessage />
                     </FormItem>
                   )}
