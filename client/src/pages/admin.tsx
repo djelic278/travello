@@ -366,7 +366,7 @@ export default function AdminPage() {
 
   const updateCompanyMutation = useMutation({
     mutationFn: async (data: { userId: number; companyId: number | null }) => {
-      const response = await fetch(`/api/users/${data.userId}/company`, {
+      const response = await fetch(`/api/users/${data.userId}`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ companyId: data.companyId }),
@@ -772,7 +772,7 @@ export default function AdminPage() {
               const companyIdStr = formData.get('companyId') as string;
               const companyId = companyIdStr === 'none' ? null : parseInt(companyIdStr);
               
-              updateUserMutation.mutate({
+              updateCompanyMutation.mutate({
                 userId: editingUser.id,
                 companyId: companyId,
               });
@@ -800,9 +800,9 @@ export default function AdminPage() {
             </div>
             <Button
               type="submit"
-              disabled={updateUserMutation.isPending}
+              disabled={updateCompanyMutation.isPending}
             >
-              {updateUserMutation.isPending && (
+              {updateCompanyMutation.isPending && (
                 <Loader2 className="mr-2 h-4 w-4 animate-spin" />
               )}
               Save Changes
