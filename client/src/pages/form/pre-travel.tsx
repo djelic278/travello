@@ -1,4 +1,4 @@
-import { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { preTraveFormSchema, type PreTravelForm, fieldDescriptions } from "@/lib/forms";
@@ -110,10 +110,15 @@ export default function PreTravelForm() {
     queryKey: ['/api/users/me']
   });
 
-  const { data: company } = useQuery({
-    queryKey: ['/api/companies', user?.companyId],
-    enabled: !!user?.companyId
+  // Query to get user's company details
+  const { data: companies } = useQuery({
+    queryKey: ['/api/companies'],
+    enabled: !!user?.companyId,
   });
+  
+  // Find the user's company from the companies list
+  const userCompany = user?.companyId && companies ? 
+    companies.find((c: any) => c.id === user.companyId) : null;
 
   const { data: previousLocations = [] } = useQuery({
     queryKey: ["/api/submission-locations"]
@@ -256,11 +261,22 @@ export default function PreTravelForm() {
   });
 
   // Set form values when data is available
-  if (user && company && !form.getValues('firstName')) {
-    form.setValue('firstName', user.firstName || '');
-    form.setValue('lastName', user.lastName || '');
-    form.setValue('company', company.name || '');
-  }
+  React.useEffect(() => {
+    if (user) {
+      // Set name values if available
+      if (user.firstName && !form.getValues('firstName')) {
+        form.setValue('firstName', user.firstName);
+      }
+      if (user.lastName && !form.getValues('lastName')) {
+        form.setValue('lastName', user.lastName);
+      }
+      
+      // Set company value if available
+      if (userCompany && userCompany.name) {
+        form.setValue('company', userCompany.name);
+      }
+    }
+  }, [user, userCompany, form]);
 
   return (
     <div className="container mx-auto py-6">
