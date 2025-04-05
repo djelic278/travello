@@ -9,7 +9,7 @@ type RequestResult = {
 async function handleRequest(
   url: string,
   method: string,
-  body?: { username: string; password: string; email?: string }
+  body?: { username: string; password: string; email?: string; firstName?: string; lastName?: string }
 ): Promise<RequestResult> {
   try {
     const response = await fetch(url, {
@@ -67,7 +67,7 @@ export function useUser() {
   });
 
   const registerMutation = useMutation({
-    mutationFn: (userData: { username: string; password: string; email: string }) =>
+    mutationFn: (userData: { username: string; password: string; email: string; firstName?: string; lastName?: string }) =>
       handleRequest('/api/register', 'POST', userData),
     onSuccess: (data) => {
       queryClient.setQueryData(['/api/user'], data.user);

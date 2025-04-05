@@ -18,6 +18,8 @@ export default function AuthPage() {
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
   const [email, setEmail] = useState("");
+  const [firstName, setFirstName] = useState("");
+  const [lastName, setLastName] = useState("");
   const [showPassword, setShowPassword] = useState(false);
   const { login, register } = useUser();
   const { toast } = useToast();
@@ -35,7 +37,7 @@ export default function AuthPage() {
         });
         navigate("/");
       } else {
-        await register({ username, password, email });
+        await register({ username, password, email, firstName, lastName });
         toast({
           title: "Registration successful",
           description: "Welcome to Travello.ai!",
@@ -210,6 +212,27 @@ export default function AuthPage() {
                     value={email}
                     onChange={(e) => setEmail(e.target.value)}
                   />
+                </div>
+                {/* First Name and Last Name fields */}
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="space-y-2">
+                    <Label htmlFor="firstName">First Name</Label>
+                    <Input
+                      id="firstName"
+                      value={firstName}
+                      onChange={(e) => setFirstName(e.target.value)}
+                      placeholder="John"
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="lastName">Last Name</Label>
+                    <Input
+                      id="lastName"
+                      value={lastName}
+                      onChange={(e) => setLastName(e.target.value)}
+                      placeholder="Doe"
+                    />
+                  </div>
                 </div>
                 <div className="space-y-2">
                   <Label htmlFor="reg-password">Password</Label>

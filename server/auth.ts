@@ -35,6 +35,8 @@ const registrationSchema = z.object({
   username: z.string().min(3, "Username must be at least 3 characters"),
   password: z.string().min(6, "Password must be at least 6 characters"),
   email: z.string().email("Invalid email address"),
+  firstName: z.string().optional(),
+  lastName: z.string().optional(),
 });
 
 export function setupAuth(app: Express) {
@@ -171,7 +173,7 @@ export function setupAuth(app: Express) {
           .send("Invalid input: " + result.error.issues.map(i => i.message).join(", "));
       }
 
-      const { username, password, email } = result.data;
+      const { username, password, email, firstName, lastName } = result.data;
 
       // Check if user exists
       const [existingUser] = await db
@@ -198,6 +200,8 @@ export function setupAuth(app: Express) {
           username,
           password: hashedPassword,
           email,
+          firstName,
+          lastName,
           role: 'user',
           isAdmin: false,
         })
@@ -213,6 +217,8 @@ export function setupAuth(app: Express) {
             id: newUser.id,
             username: newUser.username,
             email: newUser.email,
+            firstName: newUser.firstName,
+            lastName: newUser.lastName,
             role: newUser.role,
             isAdmin: newUser.isAdmin,
           },

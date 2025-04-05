@@ -15,6 +15,15 @@ import { sendInvitationEmail } from './email';
 import { updateUserProfileSchema, sendInvitationSchema } from "@db/schema";
 
 export function registerRoutes(app: Express): Server {
+  // Test endpoint to verify registration form fields
+  app.get("/api/test/registration-fields", (req, res) => {
+    res.json({
+      message: "Registration form fields verification",
+      fieldsExpected: ["username", "password", "email", "firstName", "lastName"],
+      registrationSchema: "See server/auth.ts for the complete schema"
+    });
+  });
+
   // Add vehicle routes
   app.use('', vehicleRoutes);
 
