@@ -18,6 +18,17 @@ export function registerRoutes(app: Express): Server {
   // Add vehicle routes
   app.use('', vehicleRoutes);
 
+  // Get current user data
+  app.get("/api/user", isAuthenticated, asyncHandler(async (req: Request, res: Response) => {
+    if (!req.user) {
+      return res.status(401).send("User not authenticated");
+    }
+    
+    // Return the user without the password
+    const { password, ...userWithoutPassword } = req.user;
+    res.json(userWithoutPassword);
+  }));
+
   // Get all users (super admin only)
   app.get("/api/users", isAuthenticated, asyncHandler(async (req: Request, res: Response) => {
     // Check if user is super admin
