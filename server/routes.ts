@@ -418,7 +418,7 @@ export function registerRoutes(app: Express): Server {
 
   // Add new company
   app.post("/api/companies", isAuthenticated, asyncHandler(async (req: Request, res: Response) => {
-    const { name, address } = req.body;
+    const { name, address, vatNumber, contactEmail, adminEmail } = req.body;
 
     // Check if company exists
     const [existingCompany] = await db
@@ -436,6 +436,9 @@ export function registerRoutes(app: Express): Server {
       .values({
         name,
         address,
+        vatNumber,
+        contactEmail,
+        adminEmail,
       })
       .returning();
 

@@ -32,6 +32,9 @@ export const companies = pgTable("companies", {
   id: serial("id").primaryKey(),
   name: text("name").unique().notNull(),
   address: text("address"),
+  vatNumber: text("vat_number"),
+  contactEmail: text("contact_email"),
+  adminEmail: text("admin_email"),
   createdAt: timestamp("created_at").defaultNow().notNull(),
   updatedAt: timestamp("updated_at").defaultNow().notNull(),
 });

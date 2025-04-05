@@ -58,12 +58,18 @@ const updateProfileSchema = z.object({
 const addCompanySchema = z.object({
   name: z.string().min(1, "Company name is required"),
   address: z.string().optional(),
+  vatNumber: z.string().optional(),
+  contactEmail: z.string().email("Invalid contact email").optional(),
+  adminEmail: z.string().email("Invalid admin email").optional(),
 });
 
 type Company = {
   id: number;
   name: string;
   address?: string;
+  vatNumber?: string;
+  contactEmail?: string;
+  adminEmail?: string;
 };
 
 type UpdateProfileForm = z.infer<typeof updateProfileSchema>;
@@ -99,6 +105,9 @@ export default function ProfilePage() {
     defaultValues: {
       name: "",
       address: "",
+      vatNumber: "",
+      contactEmail: "",
+      adminEmail: "",
     },
   });
 
@@ -354,6 +363,48 @@ export default function ProfilePage() {
                                     <FormLabel>Address (Optional)</FormLabel>
                                     <FormControl>
                                       <Input {...field} />
+                                    </FormControl>
+                                    <FormMessage />
+                                  </FormItem>
+                                )}
+                              />
+
+                              <FormField
+                                control={companyForm.control}
+                                name="vatNumber"
+                                render={({ field }) => (
+                                  <FormItem>
+                                    <FormLabel>VAT Number (Optional)</FormLabel>
+                                    <FormControl>
+                                      <Input {...field} />
+                                    </FormControl>
+                                    <FormMessage />
+                                  </FormItem>
+                                )}
+                              />
+
+                              <FormField
+                                control={companyForm.control}
+                                name="contactEmail"
+                                render={({ field }) => (
+                                  <FormItem>
+                                    <FormLabel>Contact Email (Optional)</FormLabel>
+                                    <FormControl>
+                                      <Input type="email" {...field} />
+                                    </FormControl>
+                                    <FormMessage />
+                                  </FormItem>
+                                )}
+                              />
+
+                              <FormField
+                                control={companyForm.control}
+                                name="adminEmail"
+                                render={({ field }) => (
+                                  <FormItem>
+                                    <FormLabel>Administrator Email (Optional)</FormLabel>
+                                    <FormControl>
+                                      <Input type="email" {...field} />
                                     </FormControl>
                                     <FormMessage />
                                   </FormItem>
