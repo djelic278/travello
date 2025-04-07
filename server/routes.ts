@@ -694,6 +694,86 @@ export function registerRoutes(app: Express): Server {
     }
   }));
 
+  // Voice processing endpoint for form data extraction
+  app.post("/api/voice-process", isAuthenticated, asyncHandler(async (req: Request, res: Response) => {
+    // Check if we have a transcript
+    if (!req.body.transcript) {
+      return res.status(400).json({ message: "No transcript provided" });
+    }
+
+    try {
+      const transcript = req.body.transcript;
+      console.log("Processing voice transcript:", transcript);
+
+      // Check if OpenAI API key is configured
+      if (!process.env.OPENAI_API_KEY) {
+        return res.status(500).json({ 
+          message: "OpenAI API key is not configured on the server. Please add it to your environment variables."
+        });
+      }
+
+      // Initialize OpenAI client
+      const openai = new (await import('openai')).default({
+        apiKey: process.env.OPENAI_API_KEY,
+      });
+
+      // Process transcript with OpenAI to extract form fields
+      const completion = await openai.chat.completions.create({
+        messages: [
+          {
+            role: "system",
+            content: `
+              You are an AI assistant that extracts form field data from voice transcripts.
+              Extract the following information if present:
+              - First Name
+              - Last Name (optional)
+              - Destination (location where the person is traveling to)
+              - Trip Purpose (reason for travel)
+              - Transport Type (e.g., car, train, plane)
+              - Transport Details (additional info about transportation)
+              - Start Date (travel begins)
+              - Duration (how many days)
+              - Project Code (if mentioned)
+              - Requested Prepayment (amount in euros or dollars)
+              - Submission Location (where the form is being filed from)
+              
+              Format the output as JSON with camelCase keys matching exactly: firstName, lastName, destination, tripPurpose, 
+              transportType, transportDetails, startDate (ISO format), duration, projectCode, requestedPrepayment (number),
+              submissionLocation. 
+              
+              Only include fields that can be extracted from the transcript. Parse dates in a smart way, and convert duration 
+              and money values to numbers.
+            `
+          },
+          {
+            role: "user",
+            content: transcript
+          }
+        ],
+        model: "gpt-3.5-turbo",
+        response_format: { type: "json_object" }
+      });
+
+      // Extract the JSON response from OpenAI
+      let formData = {};
+      try {
+        const responseContent = completion.choices[0]?.message?.content;
+        if (responseContent) {
+          formData = JSON.parse(responseContent);
+          console.log("Extracted form data:", formData);
+        }
+      } catch (parseError) {
+        console.error("Error parsing OpenAI response:", parseError);
+        return res.status(500).json({ message: "Failed to parse AI response. Please try again." });
+      }
+
+      res.json(formData);
+    } catch (error) {
+      console.error('Error processing voice input:', error);
+      res.status(500).json({ message: "Error processing voice input. Please try again." });
+    }
+  }));
+
   // Initialize settings
   initializeSettings().catch(console.error);
 

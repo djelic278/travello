@@ -1,9 +1,6 @@
 import { useState, useCallback, useEffect } from 'react';
 import SpeechRecognition, { useSpeechRecognition } from 'react-speech-recognition';
-import OpenAI from 'openai';
 import { useToast } from '@/hooks/use-toast';
-
-// Remove direct OpenAI usage from client
 
 export interface FormFields {
   // Pre-travel form fields
@@ -48,15 +45,6 @@ export function useVoiceInput() {
       toast({
         title: "Error",
         description: "Your browser doesn't support speech recognition.",
-        variant: "destructive"
-      });
-      return;
-    }
-
-    if (!import.meta.env.VITE_OPENAI_API_KEY) {
-      toast({
-        title: "Error",
-        description: "OpenAI API key is not configured. Please check your environment settings.",
         variant: "destructive"
       });
       return;
